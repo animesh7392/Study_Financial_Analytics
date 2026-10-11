@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 48: Excel Workshop — Interest Rate Sensitivity & ALM Models</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          Z: ['\\mathbb{Z}'],
+          Q: ['\\mathbb{Q}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <style>
+    .learning-objectives, .prerequisites, .example, .warning, .industry, .definition, .theorem {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .box-title {
+      font-weight: bold;
+      padding: 10px;
+      color: white;
+    }
+    .box-content {
+      padding: 15px;
+      background-color: #f9f9f9;
+    }
+    .learning-objectives .box-title { background-color: #005f73; }
+    .prerequisites .box-title { background-color: #0a9396; }
+    .example .box-title { background-color: #2a9d8f; }
+    .warning .box-title { background-color: #e9c46a; color: black; }
+    .industry .box-title { background-color: #9b5de5; }
+    .definition .box-title { background-color: #0077b6; }
+    .theorem .box-title { background-color: #d62828; }
+  </style>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  <h1>Chapter 48: Excel Workshop — Interest Rate Sensitivity & ALM Models</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">1. Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Build hands-on Excel models for bond pricing, duration, and convexity from scratch.</li>
+        <li>Construct a yield curve builder and perform spot/forward rate bootstrapping.</li>
+        <li>Develop comprehensive Asset Liability Management (ALM) dashboards with cash flow matching and duration gap analyses.</li>
+        <li>Implement a simplified Insurance Balance Sheet Simulator evaluating Solvency II metrics under interest rate shocks.</li>
+        <li>Design a Dividend Capacity Calculator assessing max distributable amounts based on SCR and liquidity constraints.</li>
+        <li>Translate Excel logic into Python for automated quantitative analysis.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">2. Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>Before beginning this workshop, you should be comfortable with:</p>
+      <ul>
+        <li><strong>Chapter 12:</strong> Fixed Income Mathematics (Yield to Maturity, Duration, Convexity)</li>
+        <li><strong>Chapter 28:</strong> Solvency II Framework (Own Funds, SCR, Risk Margin)</li>
+        <li><strong>Chapter 47:</strong> Systems Thinking for Dividends (interconnectivity of ALM, capital, and payouts)</li>
+        <li>Intermediate Excel skills (Data Tables, Conditional Formatting, Goal Seek/Solver, Charting).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>3. Intuition & Motivation</h2>
+  <p>Consider a quantitative analyst or actuary at a major UK life insurer like Scottish Widows or Lloyds Banking Group. Theoretical knowledge of interest rate sensitivity is necessary, but the reality of daily operations involves translating these theories into robust, auditable models. Excel remains the lingua franca of finance. Prototyping an ALM mismatch dashboard or a dividend capacity calculator in Excel allows stakeholders (like the Chief Risk Officer or the Board) to instantly interact with the assumptions and visualize the impacts of interest rate shocks.</p>
+  <p>In this workshop, we move from theory to application. By building these models step-by-step, you bridge the gap between abstract mathematical formulas and the concrete cells that drive multi-million pound dividend decisions under PRA scrutiny.</p>
+
+  <h2>4. Formal Theory</h2>
+  <div class="definition">
+    <div class="box-title">Key Fixed Income Definitions</div>
+    <div class="box-content">
+      <p>The price of a bond \( P \) with cash flows \( CF_t \) and yield to maturity \( y \) is given by:</p>
+      \[ P = \sum_{t=1}^{T} \frac{CF_t}{(1+y)^t} \]
+      <p><strong>Macaulay Duration (\( D_{Mac} \)):</strong></p>
+      \[ D_{Mac} = \frac{1}{P} \sum_{t=1}^{T} \frac{t \cdot CF_t}{(1+y)^t} \]
+      <p><strong>Modified Duration (\( D_{Mod} \)):</strong></p>
+      \[ D_{Mod} = \frac{D_{Mac}}{1+y} \]
+      <p><strong>Dollar Value of a Basis Point (DV01):</strong></p>
+      \[ DV01 = P \times D_{Mod} \times 0.0001 \]
+      <p><strong>Taylor Series Expansion for Price Changes:</strong></p>
+      \[ \Delta P \approx -P \cdot D_{Mod} \cdot \Delta y + \frac{1}{2} P \cdot Convexity \cdot (\Delta y)^2 \]
+    </div>
+  </div>
+
+  <h2>5. Worked Examples</h2>
+  <div class="example">
+    <div class="box-title">Example 1: Scottish Widows Annuity Book Sensitivity</div>
+    <div class="box-content">
+      <p>Suppose an annuity liability book has a present value of £10 billion and a Modified Duration of 12. If the yield curve shifts upward by 50 basis points (\( \Delta y = +0.0050 \)):</p>
+      \[ \Delta P \approx - £10,000,000,000 \times 12 \times 0.0050 = -£600,000,000 \]
+      <p>The liability drops by £600 million. If the matching asset portfolio has a duration of 10 and PV of £10.5 billion, the asset value drops by:</p>
+      \[ \Delta Asset \approx - £10,500,000,000 \times 10 \times 0.0050 = -£525,000,000 \]
+      <p>Net impact on Own Funds = \(-525 - (-600) = +£75\) million. Understanding this basic mismatch is critical before recommending dividend payouts.</p>
+    </div>
+  </div>
+
+  <h2>6. Python Code</h2>
+  <p>While we build in Excel, production systems often use Python. Here are equivalent implementations of the core logic using <code>numpy</code> and <code>pandas</code>.</p>
+  <pre><code class="language-python">
+import numpy as np
+import pandas as pd
+import numpy_financial as npf
+
+def bond_pricer(face_value, coupon_rate, yield_to_maturity, maturity):
+    cf = np.full(maturity, face_value * coupon_rate)
+    cf[-1] += face_value
+    times = np.arange(1, maturity + 1)
+    
+    discount_factors = 1 / (1 + yield_to_maturity)**times
+    price = np.sum(cf * discount_factors)
+    
+    mac_dur = np.sum(times * cf * discount_factors) / price
+    mod_dur = mac_dur / (1 + yield_to_maturity)
+    dv01 = price * mod_dur * 0.0001
+    
+    return {'Price': price, 'Mac_Duration': mac_dur, 'Mod_Duration': mod_dur, 'DV01': dv01}
+
+# Example usage matching our Excel Model 1
+result = bond_pricer(100, 0.05, 0.04, 10)
+print(f"Price: {result['Price']:.2f}, Mod Dur: {result['Mod_Duration']:.2f}")
+
+# Model 6: Dividend Capacity Calculator Logic
+def dividend_capacity(own_funds, scr, target_ratio, liquidity, min_liquidity):
+    required_capital = scr * target_ratio
+    capital_buffer = max(0, own_funds - required_capital)
+    liquidity_buffer = max(0, liquidity - min_liquidity)
+    return min(capital_buffer, liquidity_buffer)
+  </code></pre>
+
+  <h2>7. Excel Implementation (Step-by-Step)</h2>
+  <p>Below are detailed instructions for building six fundamental ALM and interest rate models.</p>
+
+  <h3>Model 1: Bond Pricer & Duration Dashboard</h3>
+  <ol>
+    <li>In <strong>A1</strong>, type <code>Bond Pricer</code>. In <strong>B1</strong>, type <code>Inputs</code>.</li>
+    <li>In <strong>A3</strong>: <code>Coupon Rate</code>; <strong>B3</strong>: <code>5%</code></li>
+    <li>In <strong>A4</strong>: <code>Face Value</code>; <strong>B4</strong>: <code>100</code></li>
+    <li>In <strong>A5</strong>: <code>Maturity (years)</code>; <strong>B5</strong>: <code>10</code></li>
+    <li>In <strong>A6</strong>: <code>Yield (YTM)</code>; <strong>B6</strong>: <code>4%</code></li>
+    <li>In <strong>A8</strong>: <code>Results:</code></li>
+    <li>In <strong>A9</strong>: <code>Bond Price</code>; <strong>B9</strong>: <code>=PV(B6, B5, B4*B3, B4) * -1</code> (or manual DCF sum)</li>
+    <li>In <strong>A10</strong>: <code>Macaulay Duration</code>. To calculate this simply without a cash flow schedule, use: <code>=((1+B6)/B6) - ( (1+B6) + B5*(B3-B6) ) / ( B3*((1+B6)^B5 - 1) + B6 )</code> in <strong>B10</strong>.</li>
+    <li>In <strong>A11</strong>: <code>Modified Duration</code>; <strong>B11</strong>: <code>=B10/(1+B6)</code></li>
+    <li>In <strong>A12</strong>: <code>DV01</code>; <strong>B12</strong>: <code>=B9*B11*0.0001</code></li>
+    <li><strong>Sensitivity Table:</strong> In <strong>D2:K2</strong>, enter yields: <code>1%, 2%, 3%, 4%, 5%, 6%, 7%, 8%</code>. In <strong>C3</strong>, enter <code>=B9</code>. Highlight <strong>C2:K3</strong>, go to Data -> What-If Analysis -> Data Table. Leave Row input cell blank, set <em>Row input cell</em> to <strong>$B$6</strong>. The table will populate with prices.</li>
+    <li><strong>Chart:</strong> Highlight the yields (D2:K2) and the resulting prices (D3:K3). Insert a Scatter with Smooth Lines chart to visualize the convex Price-Yield curve.</li>
+  </ol>
+
+  <h3>Model 2: Yield Curve Builder</h3>
+  <ol>
+    <li><strong>Inputs:</strong> In <strong>A3:B8</strong>, enter benchmark gilt yields (e.g., 2Y=3.5%, 5Y=3.7%, 10Y=4.0%, 20Y=4.2%, 30Y=4.1%, 50Y=3.9%).</li>
+    <li><strong>Interpolation:</strong> Set up a continuous column of years (1 to 50) in <strong>D3:D52</strong>. Use <code>=FORECAST.LINEAR</code> or a custom linear interpolation formula in E3:E52 to fill in par yields for missing years based on A3:B8.</li>
+    <li><strong>Bootstrapping Spot Rates:</strong> In <strong>F3</strong> (Year 1), spot = par yield = E3. In <strong>F4</strong> (Year 2), the formula to extract the spot rate \(S_2\) from the 2-yr par bond trading at par (100) is <code>=((1+E4)/(1-E4/(1+F$3)))^(1/2)-1</code> (simplified for annual coupons). Drag this down to build the spot curve.</li>
+    <li><strong>Forward Rates:</strong> In <strong>G4</strong> (1Y1Y Forward), use <code>=((1+F4)^D4 / (1+F3)^D3) - 1</code>.</li>
+    <li><strong>Charting:</strong> Select Columns D (Years), E (Par), F (Spot), and G (Forward). Insert a Line Chart to show par vs spot vs forward curves.</li>
+  </ol>
+
+  <h3>Model 3: Portfolio Duration & Convexity</h3>
+  <ol>
+    <li>Create a table of 10 bonds (Columns A: Bond ID, B: Market Value, C: Mod Duration, D: Convexity).</li>
+    <li>At the bottom (Row 15), sum the Market Value: <code>=SUM(B2:B11)</code>.</li>
+    <li>In Column E (Weight), calculate <code>=B2/$B$15</code>.</li>
+    <li>In Cell <strong>B16</strong> (Portfolio Duration): <code>=SUMPRODUCT(E2:E11, C2:C11)</code>.</li>
+    <li>In Cell <strong>B17</strong> (Portfolio Convexity): <code>=SUMPRODUCT(E2:E11, D2:D11)</code>.</li>
+    <li><strong>Data Table (ΔPortfolio Value):</strong> Set up shifts (+/- 25, 50, 100 bps) in Row 20. In Cell A21, link the Taylor expansion formula referencing portfolio PV, Dur, Conv, and the shift. Highlight and create a Data Table.</li>
+  </ol>
+
+  <h3>Model 4: ALM Mismatch Dashboard</h3>
+  <ol>
+    <li>Column A: <strong>Year</strong> (1 to 30)</li>
+    <li>Column B: <strong>Asset CFs</strong> (e.g., coupon and principal payments)</li>
+    <li>Column C: <strong>Liability CFs</strong> (e.g., projected annuity payments)</li>
+    <li>Column D: <strong>Mismatch</strong> <code>=B2-C2</code></li>
+    <li><strong>PV Calculation:</strong> In Cell F1, set a flat discount rate (e.g., 4%). Create columns for PV of Assets and PV of Liabs using <code>=B2/(1+$F$1)^A2</code>.</li>
+    <li><strong>Duration Gap:</strong> Calculate MAC Duration for Assets and Liabilities using the time-weighted PV formulas. Duration Gap = Asset Duration - Liability Duration.</li>
+    <li><strong>Waterfall Chart:</strong> Select the Mismatch column (D). Insert a Waterfall Chart. This visually demonstrates the timing risk: e.g., excess cash in years 1-10, shortfall in years 11-20.</li>
+  </ol>
+
+  <h3>Model 5: Simplified Insurance Balance Sheet Simulator</h3>
+  <ol>
+    <li><strong>Assets:</strong> Base PV in B3. Mod Duration in B4. Convexity in B5.</li>
+    <li><strong>Liabilities:</strong> Base PV in B8. Mod Duration in B9. Convexity in B10.</li>
+    <li><strong>Capital (Own Funds):</strong> In B12: <code>=B3-B8</code>.</li>
+    <li><strong>SCR:</strong> In B13 (hardcode for simplicity, e.g., 500).</li>
+    <li><strong>Solvency Ratio:</strong> In B14: <code>=B12/B13</code>.</li>
+    <li><strong>Shock Selector:</strong> In E2, create a Data Validation dropdown with values: <code>-2%, -1%, -0.5%, 0%, 0.5%, 1%, 2%</code>.</li>
+    <li><strong>Shocked Values:</strong> In C3 (Shocked Assets), use the Taylor formula: <code>=B3 * (1 - B4*E2 + 0.5*B5*E2^2)</code>. Repeat for Liabilities in C8.</li>
+    <li><strong>Shocked Solvency Ratio:</strong> In C14: <code>=(C3-C8)/B13</code>.</li>
+    <li><strong>Conditional Formatting:</strong> On C14, go to Conditional Formatting -> Highlight Cell Rules. Greater than 1.5 -> Green. Between 1.3 and 1.5 -> Amber. Less than 1.3 -> Red.</li>
+  </ol>
+
+  <h3>Model 6: Dividend Capacity Calculator</h3>
+  <ol>
+    <li><strong>Inputs:</strong> Own Funds (B2 = Model 5 C12), SCR (B3), Target Solvency Ratio (B4 = 140%), Available Liquidity (B5), Minimum Liquidity Constraint (B6).</li>
+    <li><strong>Required Capital:</strong> In B8: <code>=B3 * B4</code>.</li>
+    <li><strong>Capital Buffer:</strong> In B9: <code>=MAX(0, B2 - B8)</code>.</li>
+    <li><strong>Liquidity Buffer:</strong> In B10: <code>=MAX(0, B5 - B6)</code>.</li>
+    <li><strong>Max Distributable Amount:</strong> In B12: <code>=MIN(B9, B10)</code>.</li>
+    <li><strong>Analysis:</strong> Link B12 to a Data Table where the column input is the interest rate shock from Model 5. This shows how dividend capacity dynamically shrinks if rates fall and liabilities expand faster than assets!</li>
+  </ol>
+
+  <div class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Macaulay and Modified Duration:</strong> Macaulay is measured in years (time center of mass); Modified is a price sensitivity measure (percentage change). You must divide Mac by (1+y) to get Mod.</li>
+        <li><strong>Ignoring Convexity for Large Shocks:</strong> For a 5bp move, Duration is sufficient. For a 200bp shock (common in PRA stress tests), ignoring the <code>0.5 * Convexity * (dy)^2</code> term leads to massive errors in Solvency II capital estimation.</li>
+        <li><strong>Sign Errors in Taylor Expansion:</strong> Remember that Price moves inversely to Yields. The term is <code>- Duration * dy</code>.</li>
+        <li><strong>Data Table Calculation Options:</strong> Excel defaults to "Automatic except for Data Tables" on large models to save compute time. If your table shows all the same numbers, press F9 or change calculation options!</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">9. Industry Application: Scottish Widows ALM & Dividends</div>
+    <div class="box-content">
+      <p>At Lloyds Banking Group, managing the Scottish Widows annuity book requires precise matching. If the duration gap (Model 4) wanders too far, capital requirements (SCR) spike due to interest rate risk. The Dividend Optimizer project directly relies on Models 5 and 6. By forecasting the balance sheet under 10,000 stochastic economic scenarios (scaling up the logic from Model 5), quantitative analysts can define an optimal dividend strategy that satisfies the PRA's Solvency II requirements while maximizing upstream cash flow to the parent bank.</p>
+    </div>
+  </div>
+
+  <h2>10. Summary & Formula Cheat-Sheet</h2>
+  <ul>
+    <li><strong>Macaulay Duration:</strong> <code>MACD(CF, y) = sum(t*CF_t / (1+y)^t) / Price</code></li>
+    <li><strong>Modified Duration:</strong> <code>MODD = MACD / (1+y)</code></li>
+    <li><strong>DV01:</strong> <code>Price * MODD * 0.0001</code></li>
+    <li><strong>Solvency Ratio:</strong> <code>Own Funds / SCR</code></li>
+    <li><strong>Max Dividend:</strong> <code>MIN(Own Funds - (SCR * Target%), Liquidity - Min_Liquidity)</code></li>
+  </ul>
+
+  <h2>11. Exercises</h2>
+  <ol>
+    <li><strong>Basic:</strong> Build Model 1 and calculate the price and Mod Duration of a 15-year bond with a 6% coupon and 3% yield.</li>
+    <li><strong>Basic:</strong> Recreate Model 3. If bond A has duration 5 (wt 60%) and bond B has duration 15 (wt 40%), what is the portfolio duration?</li>
+    <li><strong>Intermediate:</strong> In Model 4, change the liability cash flows so they are back-heavy (e.g., rising by 3% per year). Observe the impact on the duration gap.</li>
+    <li><strong>Intermediate:</strong> Extend Model 5 to include an Equity shock (-20%) occurring simultaneously with the interest rate shock.</li>
+    <li><strong>Advanced:</strong> Use Excel's <code>Solver</code> on Model 4 to find the exact allocation of a 5-year and 20-year bond that sets the Duration Gap exactly to zero.</li>
+    <li><strong>Advanced:</strong> Implement Model 2 bootstrapping fully, correcting for semi-annual UK Gilts instead of annual.</li>
+    <li><strong>Advanced:</strong> In Model 6, build a two-way data table showing Max Dividend across different rate shocks (rows) AND different target solvency ratios (columns).</li>
+    <li><strong>Python:</strong> Translate Model 4 (ALM Mismatch) entirely into a Python script using pandas DataFrames.</li>
+  </ol>
+
+  <div class="further-reading">
+    <div class="box-title">12. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Tuckman, B., & Serrat, A. (2011). <em>Fixed Income Securities: Tools for Today's Markets</em>. Wiley.</li>
+        <li>Wüthrich, M. V., & Merz, M. (2013). <em>Financial Modeling, Actuarial Valuation and Solvency in Insurance</em>. Springer.</li>
+        <li>Prudential Regulation Authority (PRA). (2023). <em>Supervisory Statement SS4/18: Financial management and planning by insurers</em>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch47_systems_thinking.html">← Previous Chapter</a> |
+    <a href="ch49_excel_gp_workshop.html">Next Chapter →</a>
+  </nav>
+</body>
+</html>

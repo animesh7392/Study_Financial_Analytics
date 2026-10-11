@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 7: Stochastic Processes</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 7: Stochastic Processes</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the fundamental classifications of stochastic processes based on state space and time domain.</li>
+        <li>Analyze discrete and continuous-time Markov chains, including state classification, transition matrices, and stationary distributions.</li>
+        <li>Model event arrivals using Poisson processes and aggregate risks using compound Poisson processes.</li>
+        <li>Identify martingales and apply optional stopping theorems to pricing and fair game paradigms.</li>
+        <li>Describe the foundational properties of Brownian motion and its role as the building block of modern financial modeling.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds directly on the foundational probability theory from Chapter 4, the random variables and distributions from Chapter 5, and the statistical inference techniques covered in Chapter 6. Moving from static, single-period random variables to dynamic, multi-period systems requires a firm grasp of conditional probability, expectation, and moment generating functions. In the roadmap of this text, this chapter bridges classical probability with the continuous-time stochastic calculus introduced in Chapter 8.</p>
+    </div>
+  </div>
+
+  <h2>7.1 Intuition & Motivation</h2>
+  <p>Consider an actuary pricing an auto insurance policy or a quant modeling a corporate bond portfolio. A static probability distribution tells us the likelihood of a claim today or the chance of default within exactly one year. However, reality unfolds dynamically over time. The actuary observes a random sequence of claims arriving at random times. The quant observes a corporation's credit rating migrating from 'AAA' to 'AA', down to 'BBB', and perhaps eventually to 'Default' over several years. </p>
+  <p>A <strong>stochastic process</strong> is the mathematical machinery for modeling randomness that evolves over time. Whether tracking the trajectory of a stock price, the aggregate accumulation of insurance claims, or the fluctuation of interest rates, stochastic processes allow us to quantify path-dependent risks, compute ruin probabilities, and fairly value financial derivatives based on expected future trajectories.</p>
+
+  <h2>7.2 Introduction to Stochastic Processes</h2>
+
+  <div class="definition">
+    <div class="box-title">Stochastic Process</div>
+    <div class="box-content">
+      A stochastic process is a collection of random variables \( X = \{X_t : t \in T\} \) defined on a common probability space \( (\Omega, \mathcal{F}, \P) \), where \( T \) is an index set (usually representing time) and each \( X_t \) takes values in a measurable space \( (S, \Sigma) \) called the state space.
+    </div>
+  </div>
+
+  <p>We classify processes based on the nature of \( T \) and \( S \):</p>
+  <ul>
+    <li><strong>Discrete Time:</strong> \( T = \{0, 1, 2, \dots\} \). Examples: daily closing prices, annual credit ratings.</li>
+    <li><strong>Continuous Time:</strong> \( T = [0, \infty) \). Examples: tick-by-tick stock prices, continuous interest rate paths.</li>
+    <li><strong>Discrete State:</strong> \( S \) is finite or countably infinite (e.g., \( S = \{1, 2, 3\} \) or \( S = \mathbb{Z} \)).</li>
+    <li><strong>Continuous State:</strong> \( S \) is uncountably infinite, typically \( \R \) or \( \R^d \).</li>
+  </ul>
+
+  <div class="definition">
+    <div class="box-title">Filtration and Adapted Processes</div>
+    <div class="box-content">
+      A <strong>filtration</strong> \( \mathbb{F} = \{\mathcal{F}_t\}_{t \in T} \) is an increasing family of sub-\( \sigma \)-algebras of \( \mathcal{F} \), i.e., \( \mathcal{F}_s \subseteq \mathcal{F}_t \) for \( s \le t \). It represents the "information available up to time \( t \)".<br><br>
+      A stochastic process \( X \) is <strong>adapted</strong> to \( \mathbb{F} \) if for every \( t \in T \), the random variable \( X_t \) is \( \mathcal{F}_t \)-measurable (i.e., its value is completely known given the information at time \( t \)).
+    </div>
+  </div>
+
+  <h2>7.3 Markov Chains (Discrete Time)</h2>
+
+  <p>The Markov property formalizes the notion of a "memoryless" system: the future depends on the past only through the present state.</p>
+
+  <div class="definition">
+    <div class="box-title">Discrete-Time Markov Chain (DTMC)</div>
+    <div class="box-content">
+      A discrete-time stochastic process \( \{X_n\}_{n \ge 0} \) on a countable state space \( S \) is a Markov chain if it satisfies the Markov property:
+      \[ \P(X_{n+1} = j \mid X_0 = i_0, X_1 = i_1, \dots, X_n = i) = \P(X_{n+1} = j \mid X_n = i) \]
+      for all \( n \ge 0 \) and all states \( i_0, \dots, i, j \in S \).
+    </div>
+  </div>
+
+  <p>If the transition probabilities do not depend on \( n \), the chain is <strong>time-homogeneous</strong>, characterized by a transition matrix \( P \) where \( P_{ij} = \P(X_{n+1} = j \mid X_n = i) \). By definition, \( P_{ij} \ge 0 \) and \( \sum_{j \in S} P_{ij} = 1 \) for all \( i \). The \( n \)-step transition probabilities \( P_{ij}^{(n)} = \P(X_n = j \mid X_0 = i) \) are given by the entries of the matrix \( P^n \), a consequence of the <strong>Chapman-Kolmogorov equations</strong>.</p>
+
+  <h3>Classification of States</h3>
+  <ul>
+    <li><strong>Accessible & Communicating:</strong> State \( j \) is accessible from \( i \) (\( i \to j \)) if \( P_{ij}^{(n)} > 0 \) for some \( n \ge 0 \). If \( i \to j \) and \( j \to i \), they communicate (\( i \leftrightarrow j \)).</li>
+    <li><strong>Recurrent vs. Transient:</strong> A state \( i \) is recurrent if, starting from \( i \), the chain will return to \( i \) with probability 1. It is transient if this probability is strictly less than 1.</li>
+    <li><strong>Absorbing:</strong> State \( i \) is absorbing if \( P_{ii} = 1 \).</li>
+    <li><strong>Periodic:</strong> The period of state \( i \) is \( d = \gcd\{n \ge 1 : P_{ii}^{(n)} > 0\} \). If \( d=1 \), the state is aperiodic.</li>
+  </ul>
+
+  <div class="theorem">
+    <div class="box-title">Ergodic Theorem for Markov Chains</div>
+    <div class="box-content">
+      For an irreducible (all states communicate), aperiodic, and positive recurrent (expected return time is finite) Markov chain, there exists a unique <strong>stationary distribution</strong> \( \pi \) (a row vector) satisfying:
+      \[ \pi P = \pi \quad \text{and} \quad \sum_{i} \pi_i = 1. \]
+      Furthermore, \( \lim_{n \to \infty} P_{ij}^{(n)} = \pi_j \) regardless of the initial state \( i \).
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 7.1: Credit Rating Transition Matrix</div>
+    <div class="box-content">
+      Consider a simplified corporate bond rating model with three states: 1 = Investment Grade (IG), 2 = Speculative Grade (SG), 3 = Default (D). The annual transition matrix is:
+      \[
+      P = \begin{pmatrix}
+      0.90 & 0.08 & 0.02 \\
+      0.05 & 0.85 & 0.10 \\
+      0 & 0 & 1
+      \end{pmatrix}
+      \]
+      Notice that state 3 (Default) is an absorbing state. <br><br>
+      <strong>Question:</strong> What is the probability that an IG bond defaults within 2 years?<br><br>
+      <strong>Solution:</strong> We need the entry \( (P^2)_{13} \).
+      \[
+      P^2 = \begin{pmatrix}
+      0.90 & 0.08 & 0.02 \\
+      0.05 & 0.85 & 0.10 \\
+      0 & 0 & 1
+      \end{pmatrix}
+      \begin{pmatrix}
+      0.90 & 0.08 & 0.02 \\
+      0.05 & 0.85 & 0.10 \\
+      0 & 0 & 1
+      \end{pmatrix}
+      = \begin{pmatrix}
+      0.814 & 0.140 & 0.046 \\
+      0.0875 & 0.7265 & 0.186 \\
+      0 & 0 & 1
+      \end{pmatrix}
+      \]
+      Thus, the probability of defaulting within 2 years starting from IG is exactly \( P^{(2)}_{13} = 0.046 \), or 4.6%.
+    </div>
+  </div>
+
+  <h2>7.4 Markov Chains (Continuous Time)</h2>
+  <p>A continuous-time Markov chain (CTMC) \( \{X_t\}_{t \ge 0} \) evolves in continuous time but jumps between discrete states. It is characterized by its <strong>generator matrix</strong> (or Q-matrix), \( Q \).</p>
+
+  <div class="definition">
+    <div class="box-title">Generator Matrix (Q-Matrix)</div>
+    <div class="box-content">
+      The matrix \( Q = [q_{ij}] \) has elements:
+      \[ q_{ij} = \lim_{h \downarrow 0} \frac{P_{ij}(h) - I_{ij}}{h} \]
+      where \( I \) is the identity matrix. Properties of \( Q \):
+      1. \( q_{ij} \ge 0 \) for \( i \neq j \).
+      2. \( \sum_{j} q_{ij} = 0 \), meaning \( q_{ii} = - \sum_{j \neq i} q_{ij} = -q_i \).
+    </div>
+  </div>
+
+  <p>The time spent in state \( i \) before jumping is exponentially distributed with rate \( q_i \). When a jump occurs, it goes to state \( j \neq i \) with probability \( p_{ij} = q_{ij} / q_i \). The sequence of visited states forms a discrete-time <strong>embedded Markov chain</strong>.</p>
+  <p>The transition matrices \( P(t) = [P_{ij}(t)] \) solve the <strong>Kolmogorov Backward and Forward equations</strong>:
+  \[ P'(t) = Q P(t) \quad (\text{Backward}) \]
+  \[ P'(t) = P(t) Q \quad (\text{Forward}) \]
+  which have the matrix exponential solution \( P(t) = e^{Qt} \).</p>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Multi-State Models in Life Insurance</div>
+    <div class="box-content">
+      Actuaries use CTMCs to price health and long-term care insurance. A typical model has states: 1 = Active (Healthy), 2 = Disabled (Sick), 3 = Dead. The transition intensities (rates) \( q_{12}(t), q_{21}(t), q_{13}(t), q_{23}(t) \) represent morbidity, recovery, and mortality forces. Present values of annuity payouts (while in state 2) or death benefits (on transition to 3) are computed using Thiele's differential equations, which are derived directly from the Kolmogorov forward equations.
+    </div>
+  </div>
+
+  <h2>7.5 Poisson Processes</h2>
+  <p>The Poisson process is the premier model for counting random events (e.g., insurance claims, trades, defaults) occurring continuously in time.</p>
+
+  <div class="definition">
+    <div class="box-title">Homogeneous Poisson Process</div>
+    <div class="box-content">
+      A counting process \( \{N_t\}_{t \ge 0} \) is a Poisson process with rate \( \lambda > 0 \) if:
+      1. \( N_0 = 0 \).
+      2. It has independent increments (counts in disjoint intervals are independent).
+      3. For \( 0 \le s < t \), the increment \( N_t - N_s \sim \text{Poisson}(\lambda(t - s)) \).
+    </div>
+  </div>
+  <p>A crucial property is that the inter-arrival times (time between consecutive events) are independent and exponentially distributed with mean \( 1/\lambda \).</p>
+  <p><strong>Non-Homogeneous:</strong> If the rate varies over time, \( \lambda(t) \), the increment \( N_t - N_s \) has a Poisson distribution with mean \( \int_s^t \lambda(u) \dd u \).</p>
+
+  <h3>Compound Poisson Process</h3>
+  <p>In insurance, not only is the arrival of claims random, but the size of each claim is also random.</p>
+  <div class="definition">
+    <div class="box-title">Compound Poisson Process</div>
+    <div class="box-content">
+      Let \( N_t \) be a Poisson process with rate \( \lambda \), and let \( Y_1, Y_2, \dots \) be independent and identically distributed (i.i.d.) random variables, independent of \( N_t \). The aggregate process:
+      \[ S_t = \sum_{i=1}^{N_t} Y_i \]
+      is a Compound Poisson Process. (If \( N_t = 0 \), \( S_t = 0 \)).
+    </div>
+  </div>
+
+  <p>Using the law of total expectation and total variance (Wald's equations, see section 7.8), we find:
+  \[ \E[S_t] = \E[N_t]\E[Y_1] = \lambda t \E[Y_1] \]
+  \[ \Var(S_t) = \E[N_t]\Var(Y_1) + \Var(N_t)(\E[Y_1])^2 = \lambda t (\Var(Y_1) + \E[Y_1]^2) = \lambda t \E[Y_1^2] \]
+  </p>
+
+  <div class="example">
+    <div class="box-title">Example 7.2: Aggregate Insurance Claims</div>
+    <div class="box-content">
+      An insurance portfolio experiences claims according to a Poisson process with rate \( \lambda = 10 \) per day. Claim sizes are exponentially distributed with a mean of $5,000.<br><br>
+      <strong>Question:</strong> Calculate the mean and standard deviation of the total claims over a 30-day month.<br><br>
+      <strong>Solution:</strong><br>
+      Let \( t = 30 \) days. The expected number of claims is \( \lambda t = 300 \).<br>
+      For the exponential claim severity \( Y \), \( \E[Y] = 5,000 \) and \( \Var(Y) = 5,000^2 = 25,000,000 \). The second moment is \( \E[Y^2] = \Var(Y) + \E[Y]^2 = 50,000,000 \).<br>
+      - Expected aggregate claims: \( \E[S_{30}] = 300 \times 5,000 = \$1,500,000 \).<br>
+      - Variance: \( \Var(S_{30}) = \lambda t \E[Y^2] = 300 \times 50,000,000 = 15,000,000,000 \).<br>
+      - Standard deviation: \( \sqrt{15,000,000,000} \approx \$122,474.49 \).
+    </div>
+  </div>
+
+  <h2>7.6 Renewal Processes</h2>
+  <p>If we relax the Poisson assumption that inter-arrival times are exponential, and allow them to follow any arbitrary distribution \( F \), we obtain a <strong>Renewal Process</strong>. This is heavily used in industrial reliability and equipment replacement models.</p>
+  <p>Let \( T_1, T_2, \dots \) be i.i.d. non-negative random variables (inter-arrival times). The time of the \( n \)-th event is \( W_n = \sum_{i=1}^n T_i \). The renewal counting process is \( N_t = \sup\{n : W_n \le t\} \). Let \( \mu = \E[T_i] \).</p>
+  <div class="theorem">
+    <div class="box-title">Elementary Renewal Theorem</div>
+    <div class="box-content">
+      Let \( m(t) = \E[N_t] \) be the renewal function. As \( t \to \infty \):
+      \[ \frac{m(t)}{t} \to \frac{1}{\mu} \]
+      meaning the long-run average rate of renewals is exactly the reciprocal of the mean inter-arrival time.
+    </div>
+  </div>
+
+  <h2>7.7 Random Walks</h2>
+  <p>A simple random walk is the discrete analog of Brownian motion. Let \( Z_1, Z_2, \dots \) be i.i.d. random variables where \( \P(Z_i = 1) = p \) and \( \P(Z_i = -1) = q = 1 - p \). The simple random walk is \( S_n = \sum_{i=1}^n Z_i \) with \( S_0 = 0 \).</p>
+
+  <div class="example">
+    <div class="box-title">Example 7.3: Gambler's Ruin</div>
+    <div class="box-content">
+      A gambler starts with £\( k \) and at each step wins £1 with probability \( p \) or loses £1 with probability \( q \). The gambler stops when reaching a target £\( N \) or going broke (£0). <br><br>
+      Let \( P_k \) be the probability of reaching \( N \) before 0, starting from \( k \). Using first-step analysis (a manifestation of the Markov property):
+      \[ P_k = p P_{k+1} + q P_{k-1} \]
+      with boundary conditions \( P_0 = 0 \) and \( P_N = 1 \).<br><br>
+      <strong>Solution:</strong> Since \( p + q = 1 \), we can rewrite this as \( P_{k+1} - P_k = \frac{q}{p} (P_k - P_{k-1}) \). Summing the geometric series yields:
+      \[ P_k = \begin{cases}
+      \frac{1 - (q/p)^k}{1 - (q/p)^N} & \text{if } p \neq q \\
+      \frac{k}{N} & \text{if } p = q = 1/2
+      \end{cases} \]
+      If \( N \to \infty \) (playing indefinitely), ruin is certain (\( P_k \to 0 \)) if \( p \le 1/2 \). If \( p > 1/2 \), there is a positive probability \( 1 - (q/p)^k \) of never going broke.
+    </div>
+  </div>
+
+  <h2>7.8 Martingales and Stopping Times</h2>
+  <p>Martingales are central to modern financial mathematics, representing the mathematical definition of a "fair game."</p>
+
+  <div class="definition">
+    <div class="box-title">Martingale</div>
+    <div class="box-content">
+      A discrete-time stochastic process \( \{X_n\}_{n \ge 0} \) adapted to a filtration \( \{\mathcal{F}_n\} \) is a martingale if:
+      1. \( \E[|X_n|] < \infty \) for all \( n \).
+      2. \( \E[X_{n+1} \mid \mathcal{F}_n] = X_n \) for all \( n \ge 0 \).<br><br>
+      If \( \E[X_{n+1} \mid \mathcal{F}_n] \ge X_n \), it is a <strong>submartingale</strong> (favorable game).<br>
+      If \( \E[X_{n+1} \mid \mathcal{F}_n] \le X_n \), it is a <strong>supermartingale</strong> (unfavorable game).
+    </div>
+  </div>
+
+  <div class="definition">
+    <div class="box-title">Stopping Time</div>
+    <div class="box-content">
+      A random variable \( \tau \) taking values in \( \{0, 1, 2, \dots\} \cup \{\infty\} \) is a stopping time with respect to \( \{\mathcal{F}_n\} \) if the event \( \{\tau = n\} \in \mathcal{F}_n \) for all \( n \). (You know you have stopped based only on current and past information, without looking into the future).
+    </div>
+  </div>
+
+  <div class="theorem">
+    <div class="box-title">Doob's Optional Stopping Theorem</div>
+    <div class="box-content">
+      If \( X_n \) is a martingale and \( \tau \) is a stopping time, then under certain regularity conditions (e.g., \( \tau \) is bounded, or \( X_{n \wedge \tau} \) is bounded), we have:
+      \[ \E[X_\tau] = \E[X_0] \]
+      This implies you cannot construct a systematic trading strategy (using a stopping rule) to beat a fair game.
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 7.5: Discounted Stock Price as a Martingale</div>
+    <div class="box-content">
+      Under the risk-neutral measure \( \mathbb{Q} \), a stock price \( S_t \) discounted by the risk-free rate \( r \) must be a martingale. Consider a 1-period binomial model where \( S_0 = 100 \), \( r = 5\% \). Next year, the stock can go up to \( 120 \) or down to \( 90 \).<br><br>
+      <strong>Question:</strong> Find the risk-neutral probabilities \( p, q \) such that the discounted price is a martingale.<br><br>
+      <strong>Solution:</strong> We require \( \E^\mathbb{Q}\left[\frac{S_1}{1+r} \mid \mathcal{F}_0\right] = S_0 \).
+      \[ \frac{p(120) + (1-p)(90)}{1.05} = 100 \]
+      \[ 120p + 90 - 90p = 105 \implies 30p = 15 \implies p = 0.5 \]
+      So the risk-neutral probability is \( 0.5 \). Note this depends only on the payoffs and risk-free rate, not the true physical probability of the stock going up.
+    </div>
+  </div>
+
+  <h2>7.9 Brownian Motion</h2>
+  <p>As we transition from discrete to continuous time and space, the random walk converges to Brownian motion, the bedrock of the Black-Scholes-Merton model and continuous-time finance.</p>
+
+  <div class="definition">
+    <div class="box-title">Standard Brownian Motion (Wiener Process)</div>
+    <div class="box-content">
+      A continuous-time stochastic process \( \{W_t\}_{t \ge 0} \) is a standard Brownian motion if:
+      1. \( W_0 = 0 \).
+      2. It has independent increments: for \( 0 \le t_1 < t_2 < \dots < t_k \), \( W_{t_{i}} - W_{t_{i-1}} \) are independent.
+      3. It has stationary, normally distributed increments: \( W_t - W_s \sim \mathcal{N}(0, t-s) \) for \( t > s \).
+      4. Almost all sample paths are continuous functions of \( t \).
+    </div>
+  </div>
+
+  <p><strong>Path Properties of Brownian Motion:</strong></p>
+  <ul>
+    <li><strong>Nowhere Differentiable:</strong> The paths are extremely jagged. You cannot take a traditional derivative with respect to time.</li>
+    <li><strong>Infinite Variation:</strong> The total length of the path in any interval is infinite.</li>
+    <li><strong>Quadratic Variation:</strong> The sum of squared increments over an interval \( [0, t] \) converges exactly to \( t \). Formally, \( \langle W \rangle_t = t \). This leads to the fundamental rule of stochastic calculus: \( (\dd W_t)^2 = \dd t \).</li>
+  </ul>
+  <p>Stock prices cannot be modeled directly by standard Brownian motion because prices must be positive. Instead, we use <strong>Geometric Brownian Motion (GBM)</strong>: \( S_t = S_0 \exp\left((\mu - \frac{\sigma^2}{2})t + \sigma W_t\right) \), which we will formally define via stochastic differential equations in Chapter 8.</p>
+
+  <h2>7.10 Python Code: Simulating a Compound Poisson Process</h2>
+  <p>The following Python snippet simulates and plots sample paths of a Compound Poisson Process, illustrating the concept of aggregate insurance claims over time.</p>
+
+<pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+def simulate_compound_poisson(lam, mean_severity, T, num_paths=3):
+    """
+    Simulates a Compound Poisson Process.
+    lam: Arrival rate of claims
+    mean_severity: Mean of exponential claim sizes
+    T: Time horizon
+    """
+    plt.figure(figsize=(10, 6))
+    
+    for i in range(num_paths):
+        # 1. Simulate the total number of events up to time T
+        # (Though we can simulate inter-arrival times, drawing total N first is efficient)
+        N = np.random.poisson(lam * T)
+        
+        if N == 0:
+            plt.plot([0, T], [0, 0], drawstyle='steps-post', label=f'Path {i+1}')
+            continue
+            
+        # 2. Simulate arrival times uniformly in [0, T] and sort them
+        arrival_times = np.sort(np.random.uniform(0, T, N))
+        
+        # 3. Simulate claim severities (Exponential distribution)
+        severities = np.random.exponential(scale=mean_severity, size=N)
+        
+        # 4. Calculate aggregate claims over time
+        aggregate_claims = np.cumsum(severities)
+        
+        # Prepend 0 for the start time
+        t_steps = np.concatenate(([0], arrival_times, [T]))
+        y_steps = np.concatenate(([0], aggregate_claims, [aggregate_claims[-1]]))
+        
+        plt.plot(t_steps, y_steps, drawstyle='steps-post', linewidth=1.5, label=f'Path {i+1}')
+        
+    plt.title('Compound Poisson Process Sample Paths (Aggregate Claims)')
+    plt.xlabel('Time (t)')
+    plt.ylabel('Aggregate Claims (S_t)')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.show()
+
+# Set seed for reproducibility and run simulation
+np.random.seed(42)
+simulate_compound_poisson(lam=5, mean_severity=1000, T=10, num_paths=5)
+</code></pre>
+
+  <p><strong>Diagram Description:</strong> Running this code produces a chart with 5 step-function trajectories starting at the origin. Each trajectory remains flat (horizontal) for random, exponentially distributed inter-arrival periods, then jumps vertically by a random, exponentially distributed amount (the claim severity). The overall trend of the paths slopes upward at an expected rate of \( \lambda \times \E[Y] \).</p>
+
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing states and paths:</strong> In a Markov Chain, the "state" is a value in \( S \), while a "sample path" is the entire sequence of states over time.</li>
+        <li><strong>Misapplying the Ergodic Theorem:</strong> A stationary distribution \( \pi \) only exists and is unique if the chain is irreducible and positive recurrent. Absorbing chains (like the credit rating example) do NOT have a unique stationary distribution that all states converge to.</li>
+        <li><strong>Assuming Brownian Motion paths are smooth:</strong> Because increments are Normally distributed (a familiar, smooth bell curve), students often picture smooth paths. In reality, Brownian paths are nowhere differentiable; if you zoom in infinitely, they remain infinitely jagged.</li>
+        <li><strong>Martingales imply constant values:</strong> A martingale \( X_t \) does not mean \( X_t = X_0 \) always. It means the <em>expectation</em> of future values equals the present value. The process itself is highly volatile.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <div class="box-title">Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Chapman-Kolmogorov (Discrete):</strong> \( P^{(n+m)} = P^{(n)} P^{(m)} \)</li>
+        <li><strong>Stationary Distribution:</strong> \( \pi P = \pi, \sum \pi_i = 1 \)</li>
+        <li><strong>CTMC Generator Matrix:</strong> \( q_{ii} = - \sum_{j \neq i} q_{ij} \)</li>
+        <li><strong>Kolmogorov Backward Eq:</strong> \( P'(t) = Q P(t) \implies P(t) = e^{Qt} \)</li>
+        <li><strong>Poisson Increments:</strong> \( N_t - N_s \sim \text{Poisson}(\lambda(t-s)) \)</li>
+        <li><strong>Compound Poisson Moments:</strong> \( \E[S_t] = \lambda t \E[Y] \), \( \Var(S_t) = \lambda t \E[Y^2] \)</li>
+        <li><strong>Martingale Condition:</strong> \( \E[X_{n+1} \mid \mathcal{F}_n] = X_n \)</li>
+        <li><strong>Brownian Motion Increments:</strong> \( W_t - W_s \sim \mathcal{N}(0, t-s) \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>7.11 Exercises</h2>
+  <div class="exercises">
+    
+    <h3>Basic</h3>
+    <div class="exercise-item">
+      <strong>7.1</strong> Consider a two-state Markov chain (States 1 and 2) with transition matrix \( P = \begin{pmatrix} 0.7 & 0.3 \\ 0.4 & 0.6 \end{pmatrix} \). Find the stationary distribution \( \pi = (\pi_1, \pi_2) \).
+    </div>
+    <div class="exercise-item">
+      <strong>7.2</strong> A Poisson process has a rate of \( \lambda = 3 \) events per hour. What is the probability of exactly 5 events occurring in a 2-hour interval?
+    </div>
+    <div class="exercise-item">
+      <strong>7.3</strong> Let \( W_t \) be standard Brownian motion. Calculate \( \P(W_2 < 0.5) \).
+    </div>
+    <div class="exercise-item">
+      <strong>7.4</strong> Define a filtration. Why is it a necessary concept when formalizing martingales?
+    </div>
+
+    <h3>Intermediate</h3>
+    <div class="exercise-item">
+      <strong>7.5</strong> Consider a compound Poisson process where claim frequencies follow a Poisson process with \( \lambda = 100 \) per year, and claim severities are Pareto distributed with mean $20,000 and variance $800,000,000. Calculate the expected value and standard deviation of total annual claims.
+    </div>
+    <div class="exercise-item">
+      <strong>7.6</strong> Prove that a standard Brownian motion \( W_t \) is a martingale with respect to its natural filtration.
+    </div>
+    <div class="exercise-item">
+      <strong>7.7</strong> <em>No-Claims Discount.</em> A car insurance policy has 3 levels: 0% discount, 20% discount, 40% discount. A policyholder moves up one discount level (if not at max) for a claim-free year, and drops to 0% if they make 1 or more claims. The probability of making at least one claim in a year is 0.1. Model this as a Markov Chain, find the transition matrix, and calculate the stationary distribution.
+    </div>
+    <div class="exercise-item">
+      <strong>7.8</strong> Prove that \( X_t = W_t^2 - t \) is a martingale.
+    </div>
+
+    <h3>Advanced</h3>
+    <div class="exercise-item">
+      <strong>7.9</strong> Let \( S_n \) be a simple symmetric random walk (\( p=1/2 \)). Using the optional stopping theorem, find the expected time \( \E[\tau] \) to reach either state \( N \) or state \( -N \), where \( \tau = \min\{n : |S_n| = N\} \). <em>Hint: Use the martingale \( S_n^2 - n \).</em>
+    </div>
+    <div class="exercise-item">
+      <strong>7.10</strong> Let \( W_t \) be a Brownian motion. Find the distribution of the first hitting time \( \tau_a = \inf\{t > 0 : W_t = a\} \) for \( a > 0 \). (State the density, known as the Levy distribution).
+    </div>
+    <div class="exercise-item">
+      <strong>7.11</strong> Derive the Kolmogorov Forward Equations for a continuous-time Markov Chain from first principles using the definition of the Q-matrix.
+    </div>
+    <div class="exercise-item">
+      <strong>7.12</strong> In the ruin problem of Example 7.3, assume \( p = 0.45, q = 0.55 \). A trader starts with £10. What is the probability they reach £20 before going bankrupt?
+    </div>
+
+    <h3>Solutions to Selected Exercises</h3>
+    <div class="solution-item">
+      <strong>Solution to 7.1:</strong> We solve \( \pi P = \pi \) and \( \pi_1 + \pi_2 = 1 \).<br>
+      \( 0.7 \pi_1 + 0.4 \pi_2 = \pi_1 \implies 0.4 \pi_2 = 0.3 \pi_1 \implies \pi_1 = \frac{4}{3} \pi_2 \).<br>
+      Since \( \pi_1 + \pi_2 = 1 \), \( \frac{4}{3}\pi_2 + \pi_2 = 1 \implies \frac{7}{3}\pi_2 = 1 \implies \pi_2 = 3/7 \), so \( \pi_1 = 4/7 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7.2:</strong> For a 2-hour interval, the number of events \( N \sim \text{Poisson}(3 \times 2 = 6) \).<br>
+      \( \P(N = 5) = \frac{e^{-6} 6^5}{5!} \approx 0.1606 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7.5:</strong> <br>
+      \( \E[S] = \lambda \E[Y] = 100 \times 20,000 = \$2,000,000 \).<br>
+      \( \E[Y^2] = \Var(Y) + \E[Y]^2 = 800,000,000 + 20,000^2 = 800,000,000 + 400,000,000 = 1,200,000,000 \).<br>
+      \( \Var(S) = \lambda \E[Y^2] = 100 \times 1,200,000,000 = 1.2 \times 10^{11} \).<br>
+      Standard deviation \( = \sqrt{1.2 \times 10^{11}} \approx \$346,410.16 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7.6:</strong> We need to show \( \E[W_t \mid \mathcal{F}_s] = W_s \) for \( t > s \).<br>
+      \( \E[W_t \mid \mathcal{F}_s] = \E[(W_t - W_s) + W_s \mid \mathcal{F}_s] \).<br>
+      Since \( W_s \) is \( \mathcal{F}_s \)-measurable, \( \E[W_s \mid \mathcal{F}_s] = W_s \).<br>
+      Since increments are independent of the past, \( \E[W_t - W_s \mid \mathcal{F}_s] = \E[W_t - W_s] = 0 \).<br>
+      Therefore, the sum is \( 0 + W_s = W_s \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7.7:</strong> States: 1 (0%), 2 (20%), 3 (40%). Prob of claim = 0.1 (drop to state 1), prob of no claim = 0.9 (move up or stay at max).<br>
+      Transition Matrix \( P \):
+      \[ P = \begin{pmatrix} 0.1 & 0.9 & 0 \\ 0.1 & 0 & 0.9 \\ 0.1 & 0 & 0.9 \end{pmatrix} \]
+      Solving \( \pi P = \pi \):<br>
+      \( \pi_1 = 0.1\pi_1 + 0.1\pi_2 + 0.1\pi_3 \implies \pi_1 = 0.1(\pi_1+\pi_2+\pi_3) = 0.1(1) = 0.1 \).<br>
+      \( \pi_2 = 0.9\pi_1 = 0.9(0.1) = 0.09 \).<br>
+      \( \pi_3 = 1 - 0.1 - 0.09 = 0.81 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7.9:</strong> \( \tau \) is a bounded stopping time. By Optional Stopping Theorem on martingale \( M_n = S_n^2 - n \):<br>
+      \( \E[M_\tau] = \E[M_0] = 0 \implies \E[S_\tau^2 - \tau] = 0 \implies \E[\tau] = \E[S_\tau^2] \).<br>
+      Since at stopping time \( \tau \), the walk is at either \( N \) or \( -N \), \( S_\tau^2 = N^2 \) exactly.<br>
+      Thus \( \E[\tau] = N^2 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7.12:</strong> Using the ruin probability formula from Example 7.3: \( p=0.45, q=0.55 \). Start \( k=10 \), Target \( N=20 \).<br>
+      \( P_{10} = \frac{1 - (0.55/0.45)^{10}}{1 - (0.55/0.45)^{20}} \).<br>
+      Let \( r = 55/45 = 1.2222 \).<br>
+      \( P_{10} = \frac{1 - 1.2222^{10}}{1 - 1.2222^{20}} \approx \frac{1 - 7.43}{1 - 55.2} = \frac{-6.43}{-54.2} \approx 0.1186 \) or 11.86%.
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Ross, S. M. (2014). <em>Introduction to Probability Models</em> (11th ed.). Academic Press. (Standard textbook for discrete/continuous Markov chains and Poisson processes).</li>
+        <li>Grimmett, G., & Stirzaker, D. (2020). <em>Probability and Random Processes</em> (4th ed.). Oxford University Press. (Excellent rigorous treatment of martingales and random walks).</li>
+        <li>Shreve, S. E. (2004). <em>Stochastic Calculus for Finance II: Continuous-Time Models</em>. Springer. (The definitive guide to Brownian motion in financial contexts).</li>
+        <li>Bowers, N. L. et al. (1997). <em>Actuarial Mathematics</em> (2nd ed.). Society of Actuaries. (For traditional multi-state models in life insurance).</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch06_statistics.html">← Previous Chapter (Statistics)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch08_stochastic_calculus.html">Next Chapter (Stochastic Calculus) →</a>
+  </nav>
+
+</body>
+</html>

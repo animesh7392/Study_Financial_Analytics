@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 12: Term Structure and Interest-Rate Models</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 12: Term Structure and Interest-Rate Models</h1>
+
+  <section id="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <div class="learning-objectives">
+      <div class="box-title">Learning Objectives</div>
+      <div class="box-content">
+        <ul>
+          <li>Understand the shapes and traditional theories explaining the term structure of interest rates.</li>
+          <li>Calibrate and interpret parametric yield curve models, specifically Nelson-Siegel and Nelson-Siegel-Svensson.</li>
+          <li>Analyze short-rate models using stochastic calculus (Vasicek, CIR, Ho-Lee, Hull-White), including bond pricing PDEs and solutions.</li>
+          <li>Construct and calibrate short-rate binomial trees (e.g., Ho-Lee).</li>
+          <li>Formulate the Heath-Jarrow-Morton (HJM) framework and derive its no-arbitrage drift condition.</li>
+          <li>Examine the transition from LIBOR to Risk-Free Rates (SOFR/MIBOR) and the necessity of OIS discounting in a multi-curve framework.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <div class="prerequisites">
+      <div class="box-title">Prerequisites & Roadmap</div>
+      <div class="box-content">
+        <p>This chapter bridges the deterministic bond mathematics from <strong>Chapter 10 (Time Value of Money)</strong> and <strong>Chapter 11 (Fixed Income Securities)</strong> with the stochastic modeling tools introduced in <strong>Chapter 8 (Stochastic Calculus & SDEs)</strong>. Mastery of Itô's Lemma, standard Brownian motion, and risk-neutral pricing is assumed.</p>
+        <p>In subsequent chapters, specifically <strong>Chapter 13 (Portfolio Theory)</strong> and <strong>Chapter 14 (Interest Rate Derivatives)</strong>, the yield curve models developed here will serve as the foundational inputs for asset allocation and the pricing of swaptions, caps, and floors.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="intuition">
+    <h2>3. Intuition & Motivation</h2>
+    <p>Imagine you are the Chief Investment Officer (CIO) at a large Indian life insurance company managing INR 5 Trillion in assets. Your liabilities (payouts for life insurance policies) stretch out 30 to 40 years into the future. However, liquid Indian Government Bonds (G-Secs) only trade actively up to 10 or 15 years, with sparse liquidity at the 30-year and 40-year tenors.</p>
+    <p>How do you value your 40-year liabilities if you cannot observe a reliable 40-year interest rate in the market? Furthermore, if you are trading interest rate options to hedge against rates dropping too low (which would make it impossible to meet your guaranteed payouts), assuming that interest rates are constant—a staple assumption in basic bond math—will lead to disastrous mispricing.</p>
+    <p>We need mathematical models that can do two things: first, smoothly interpolate and extrapolate the yield curve (parametric models like Nelson-Siegel), and second, capture the random, dynamic evolution of interest rates over time (stochastic short-rate models like Vasicek and CIR). Finally, the 2008 financial crisis broke the old assumption that borrowing at LIBOR was essentially "risk-free", leading to the complex, modern multi-curve and OIS discounting paradigm we operate in today.</p>
+  </section>
+
+  <section id="formal-theory">
+    <h2>4. Formal Theory</h2>
+    
+    <h3>4.1 Term Structure of Interest Rates</h3>
+    <p>The <em>term structure of interest rates</em>, or the yield curve, describes the relationship between the yield to maturity (or spot rate) and the time to maturity of debt for a given borrower (typically a sovereign government). We denote the spot rate for maturity \(\tau\) at time \(t\) as \(y(t, t+\tau)\).</p>
+    <p>Yield curves can take several shapes:</p>
+    <ul>
+      <li><strong>Normal (Upward Sloping)</strong>: Longer-term rates are higher than shorter-term rates.</li>
+      <li><strong>Inverted (Downward Sloping)</strong>: Shorter-term rates are higher than longer-term rates. Often precedes recessions.</li>
+      <li><strong>Flat</strong>: Rates are relatively constant across maturities.</li>
+      <li><strong>Humped</strong>: Rates rise for intermediate maturities and then fall for long maturities.</li>
+    </ul>
+
+    <p>Traditional economic theories explaining these shapes include:</p>
+    <ol>
+      <li><strong>Expectations Hypothesis</strong>: Long-term spot rates are purely a function of current and expected future short-term rates. If investors expect rates to rise, the curve slopes upward.</li>
+      <li><strong>Liquidity Preference Theory</strong>: Investors prefer short-term liquidity and must be compensated with a <em>liquidity premium</em> to lock up their money for longer periods, resulting in a naturally upward-sloping curve.</li>
+      <li><strong>Market Segmentation Theory</strong>: Markets for different maturities are completely separate. Yields are determined by supply and demand within each specific maturity bucket (e.g., life insurers buying 30-year bonds, banks buying 2-year notes).</li>
+      <li><strong>Preferred Habitat Theory</strong>: A relaxed version of segmentation. Investors have preferred maturity buckets but will shift to other maturities if compensated with a sufficient yield premium.</li>
+    </ol>
+
+    <h3>4.2 Parametric Yield Curve Models: Nelson-Siegel</h3>
+    <div class="definition">
+      <div class="box-title">Definition: Nelson-Siegel Model</div>
+      <div class="box-content">
+        <p>The Nelson-Siegel (1987) model parametrizes the instantaneous forward rate \(f(\tau)\) and the spot yield curve \(y(\tau)\) as a function of time to maturity \(\tau\). The yield curve is given by:</p>
+        \[ y(\tau) = \beta_0 + \beta_1 \left( \frac{1 - e^{-\tau/\lambda}}{\tau/\lambda} \right) + \beta_2 \left( \frac{1 - e^{-\tau/\lambda}}{\tau/\lambda} - e^{-\tau/\lambda} \right) \]
+      </div>
+    </div>
+    
+    <p>The parameters have distinct economic interpretations:</p>
+    <ul>
+      <li>\(\beta_0\): <strong>Level (Long-term rate)</strong>. As \(\tau \to \infty\), \(y(\tau) \to \beta_0\).</li>
+      <li>\(\beta_1\): <strong>Slope (Short-term component)</strong>. As \(\tau \to 0\), \(y(\tau) \to \beta_0 + \beta_1\). If \(\beta_1 < 0\), the curve is upward sloping.</li>
+      <li>\(\beta_2\): <strong>Curvature (Medium-term component)</strong>. The term multiplying \(\beta_2\) starts at 0, reaches a maximum, and decays to 0. It controls the humped shape.</li>
+      <li>\(\lambda\): <strong>Decay factor</strong>. Determines the maturity at which the curvature loading reaches its maximum.</li>
+    </ul>
+
+    <h3>4.3 Nelson-Siegel-Svensson (NSS)</h3>
+    <p>To provide flexibility for yield curves with two humps (e.g., severe market stress where central bank intervention affects specific mid-curve segments), Svensson (1994) added a fourth term.</p>
+    \[ y(\tau) = \beta_0 + \beta_1 \left( \frac{1 - e^{-\tau/\lambda_1}}{\tau/\lambda_1} \right) + \beta_2 \left( \frac{1 - e^{-\tau/\lambda_1}}{\tau/\lambda_1} - e^{-\tau/\lambda_1} \right) + \beta_3 \left( \frac{1 - e^{-\tau/\lambda_2}}{\tau/\lambda_2} - e^{-\tau/\lambda_2} \right) \]
+    <p>Here, \(\beta_3\) controls a second curvature term, peaking at a maturity determined by \(\lambda_2\).</p>
+
+    <h3>4.4 Short-Rate Models</h3>
+    <p>Instead of statically fitting the curve, dynamic models describe the evolution of the instantaneous short rate \(r(t)\). Under the risk-neutral measure \(\mathbb{Q}\), the general dynamics are given by an Itô process:</p>
+    \[ dr(t) = \mu(r(t), t)dt + \sigma(r(t), t)dW^{\mathbb{Q}}(t) \]
+    
+    <p>The price at time \(t\) of a zero-coupon bond maturing at \(T\) with payoff 1 is given by the risk-neutral expectation:</p>
+    \[ P(t,T) = \mathbb{E}^{\mathbb{Q}}_t \left[ \exp \left( - \int_t^T r(s) ds \right) \right] \]
+    
+    <div class="theorem">
+      <div class="box-title">Theorem: The Fundamental Bond Pricing PDE</div>
+      <div class="box-content">
+        <p>By applying Itô's Lemma to \(P(t,T) = P(t, r)\) and enforcing the condition that under the risk-neutral measure all asset prices discounted at the short rate are martingales, \(P(t,r)\) must satisfy:</p>
+        \[ \frac{\partial P}{\partial t} + \mu(r,t) \frac{\partial P}{\partial r} + \frac{1}{2} \sigma^2(r,t) \frac{\partial^2 P}{\partial r^2} - rP = 0 \]
+        <p>with boundary condition \(P(T, T) = 1\).</p>
+      </div>
+    </div>
+
+    <h4>Vasicek Model</h4>
+    <p>Vasicek (1977) assumes the short rate follows an Ornstein-Uhlenbeck process with constant volatility:</p>
+    \[ dr = a(b-r)dt + \sigma dW \]
+    <ul>
+      <li>\(a\): Speed of mean reversion</li>
+      <li>\(b\): Long-term mean level</li>
+      <li>\(\sigma\): Volatility</li>
+    </ul>
+    <p>Because it is a Gaussian model, rates can become negative. The bond price has an affine form \(P(t,T) = e^{A(t,T) - B(t,T)r(t)}\). Plugging this into the PDE yields ODEs for A and B, which solve to:</p>
+    \[ B(t,T) = \frac{1 - e^{-a(T-t)}}{a} \]
+    \[ A(t,T) = \left( b - \frac{\sigma^2}{2a^2} \right) [B(t,T) - (T-t)] - \frac{\sigma^2}{4a} B(t,T)^2 \]
+
+    <h4>Cox-Ingersoll-Ross (CIR) Model</h4>
+    <p>CIR (1985) introduces a square-root volatility term to prevent negative rates:</p>
+    \[ dr = \kappa(\theta - r)dt + \sigma \sqrt{r} dW \]
+    <p><strong>Feller Condition:</strong> If \(2\kappa\theta \geq \sigma^2\), the rate \(r(t)\) is strictly positive and can never reach zero. The transition density of the CIR model is a non-central chi-squared distribution.</p>
+
+    <h4>Hull-White (Extended Vasicek) Model</h4>
+    <p>The Vasicek model cannot perfectly fit the initial observed yield curve because its parameters are constant. Hull and White (1990) introduced a time-dependent mean reversion level \(\theta(t)\):</p>
+    \[ dr = [\theta(t) - ar]dt + \sigma dW \]
+    <p>By calibrating \(\theta(t)\), the model perfectly replicates any initial yield curve.</p>
+
+    <h4>Ho-Lee Model</h4>
+    <p>The simplest arbitrage-free model, assuming no mean reversion (\(a=0\)):</p>
+    \[ dr = \theta(t)dt + \sigma dW \]
+
+    <h3>4.5 Short-Rate Trees</h3>
+    <p>For complex derivatives (like Bermudan swaptions), we often build discrete-time recombining binomial trees of the short rate. In a Ho-Lee tree, from a node with rate \(r\), the rate moves up to \(r + \theta_n + \sigma\sqrt{\Delta t}\) or down to \(r + \theta_n - \sigma\sqrt{\Delta t}\). The drift parameters \(\theta_n\) are chosen step-by-step so that the tree exactly prices the observed zero-coupon bonds in the market.</p>
+    
+    <h3>4.6 Heath-Jarrow-Morton (HJM) Framework</h3>
+    <p>Instead of modeling the short rate, HJM models the entire forward rate curve directly:</p>
+    \[ df(t,T) = \alpha(t,T)dt + \sigma(t,T)dW(t) \]
+    <div class="theorem">
+      <div class="box-title">Theorem: HJM Drift Condition</div>
+      <div class="box-content">
+        <p>To avoid arbitrage under the risk-neutral measure, the drift \(\alpha(t,T)\) is uniquely determined by the volatility \(\sigma(t,T)\):</p>
+        \[ \alpha(t,T) = \sigma(t,T) \int_t^T \sigma(t,u) du \]
+        <p>This implies that once the volatility structure is specified, the dynamics of the forward curve are completely determined.</p>
+      </div>
+    </div>
+
+    <h3>4.7 LIBOR to SOFR/MIBOR Transition</h3>
+    <p>The London Interbank Offered Rate (LIBOR) was long used as a proxy for the risk-free rate. Following the 2012 rigging scandal and declining interbank lending liquidity, regulators mandated a shift to transaction-based Risk-Free Rates (RFRs). 
+    In the US, this is the Secured Overnight Financing Rate (SOFR). In India, it is the FBIL Overnight MIBOR (Mumbai Interbank Forward Offer Rate). Unlike LIBOR, which contained bank credit risk premiums, SOFR is based on repo transactions backed by Treasuries.</p>
+
+    <h3>4.8 OIS Discounting and Multi-Curve Framework</h3>
+    <p>Pre-2008, derivatives cash flows were forecasted using a single LIBOR forward curve and discounted using the same curve. During the crisis, the spread between 3-month LIBOR and the Overnight Indexed Swap (OIS) rate exploded due to counterparty credit risk.</p>
+    <p>Today, a <strong>multi-curve framework</strong> is standard:</p>
+    <ul>
+      <li><strong>Discount Curve:</strong> Cash flows are discounted using the OIS curve, which best reflects the overnight risk-free rate of a collateralized portfolio.</li>
+      <li><strong>Forward Curves:</strong> Cash flows indexed to specific tenors (e.g., 3-month SOFR, 6-month EURIBOR) are projected using distinct forward curves constructed specifically for those tenors.</li>
+    </ul>
+
+  </section>
+
+  <section id="worked-examples">
+    <h2>5. Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 12.1: Nelson-Siegel Calibration</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Given a decay parameter \(\lambda = 2.0\), you are fitting a Nelson-Siegel curve. For a maturity of \(\tau = 5\) years, the observed spot rate is \(y(5) = 6.00\%\). The calibrated parameters are \(\beta_0 = 8.00\%\) and \(\beta_1 = -4.00\%\). Find the required curvature parameter \(\beta_2\).</p>
+        <p><strong>Solution:</strong></p>
+        <p>The term \(\tau/\lambda = 5/2 = 2.5\).</p>
+        <p>Let the slope loading be \(L_1(\tau) = \frac{1 - e^{-\tau/\lambda}}{\tau/\lambda}\).</p>
+        <p>Let the curvature loading be \(L_2(\tau) = \frac{1 - e^{-\tau/\lambda}}{\tau/\lambda} - e^{-\tau/\lambda}\).</p>
+        <p>Calculate \(L_1(5)\):</p>
+        \[ L_1(5) = \frac{1 - e^{-2.5}}{2.5} = \frac{1 - 0.08208}{2.5} = 0.36717 \]
+        <p>Calculate \(L_2(5)\):</p>
+        \[ L_2(5) = 0.36717 - 0.08208 = 0.28509 \]
+        <p>The Nelson-Siegel equation is \(y(5) = \beta_0 + \beta_1 L_1(5) + \beta_2 L_2(5)\).</p>
+        <p>Substitute known values:</p>
+        \[ 0.06 = 0.08 + (-0.04 \times 0.36717) + \beta_2(0.28509) \]
+        \[ 0.06 = 0.08 - 0.01469 + 0.28509\beta_2 \]
+        \[ 0.06 = 0.06531 + 0.28509\beta_2 \]
+        \[ -0.00531 = 0.28509\beta_2 \implies \beta_2 = -0.01863 \text{ or } -1.863\% \]
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 12.2: Vasicek Bond Price</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Using the Vasicek model, compute the price of a 5-year zero-coupon bond with face value INR 100. Current short rate \(r_0 = 4.0\%\), mean reversion \(a = 0.5\), long-term mean \(b = 5.0\%\), volatility \(\sigma = 1.0\%\).</p>
+        <p><strong>Solution:</strong></p>
+        <p>Here \(t=0, T=5, \tau = 5\).</p>
+        <p>Step 1: Calculate \(B(0,5)\).</p>
+        \[ B(0,5) = \frac{1 - e^{-0.5 \times 5}}{0.5} = 2 \times (1 - e^{-2.5}) = 2(1 - 0.08208) = 1.83584 \]
+        <p>Step 2: Calculate \(A(0,5)\).</p>
+        \[ b - \frac{\sigma^2}{2a^2} = 0.05 - \frac{0.0001}{2(0.25)} = 0.05 - \frac{0.0001}{0.5} = 0.05 - 0.0002 = 0.0498 \]
+        \[ \frac{\sigma^2}{4a} = \frac{0.0001}{4(0.5)} = \frac{0.0001}{2} = 0.00005 \]
+        \[ A(0,5) = 0.0498 \times [1.83584 - 5] - 0.00005 \times (1.83584)^2 \]
+        \[ A(0,5) = 0.0498 \times (-3.16416) - 0.00005 \times 3.3703 \]
+        \[ A(0,5) = -0.15758 - 0.00017 = -0.15775 \]
+        <p>Step 3: Calculate bond price per unit of face value.</p>
+        \[ P(0,5) = \exp(A - B \times r_0) = \exp(-0.15775 - 1.83584 \times 0.04) \]
+        \[ P(0,5) = \exp(-0.15775 - 0.07343) = \exp(-0.23118) = 0.7936 \]
+        <p>Price for INR 100 face value is <strong>INR 79.36</strong>.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 12.3: Ho-Lee Binomial Tree Calibration</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Construct a 2-step Ho-Lee tree with \(\Delta t = 1\) year, \(\sigma = 0.015\). Market prices for zero-coupon bonds are \(P_1 = 0.9512\) and \(P_2 = 0.8958\). Find initial rate \(r_0\) and drift \(\theta_0\).</p>
+        <p><strong>Solution:</strong></p>
+        <p>Step 1: The price of a 1-year bond is \(P_1 = e^{-r_0 \Delta t}\).</p>
+        \[ 0.9512 = e^{-r_0(1)} \implies r_0 = -\ln(0.9512) = 0.0500 \text{ (5.00\%)} \]
+        <p>Step 2: At node 1 (time 1), the rate moves up to \(r_u = r_0 + \theta_0 + \sigma\) or down to \(r_d = r_0 + \theta_0 - \sigma\). Risk-neutral probabilities are \(p = 0.5\).</p>
+        <p>The price of the 2-year bond today is the expected discounted value of 1 received at time 2.</p>
+        \[ P_2 = P_1 \times \left( 0.5 e^{-r_u} + 0.5 e^{-r_d} \right) \]
+        \[ 0.8958 = 0.9512 \times 0.5 \left( e^{-(0.05 + \theta_0 + 0.015)} + e^{-(0.05 + \theta_0 - 0.015)} \right) \]
+        \[ 0.94176 = 0.5 \times e^{-0.05} e^{-\theta_0} \left( e^{-0.015} + e^{0.015} \right) \]
+        \[ 0.94176 = 0.5 \times 0.9512 \times e^{-\theta_0} \times (0.98511 + 1.01511) \]
+        \[ 0.94176 = 0.4756 \times e^{-\theta_0} \times 2.00022 \]
+        \[ 0.94176 = 0.9513 \times e^{-\theta_0} \implies e^{-\theta_0} = 0.98997 \]
+        \[ \theta_0 = -\ln(0.98997) \approx 0.01007 \]
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 12.4: CIR Feller Condition and Steady State</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A CIR model has dynamics \(dr = 0.3(0.06 - r)dt + 0.15\sqrt{r}dW\). Does it satisfy the Feller condition? What is the long-term expected rate and its unconditional variance?</p>
+        <p><strong>Solution:</strong></p>
+        <p>Here \(\kappa = 0.3, \theta = 0.06, \sigma = 0.15\).</p>
+        <p>1. <strong>Feller Condition:</strong> We require \(2\kappa\theta \geq \sigma^2\).</p>
+        \[ 2(0.3)(0.06) = 0.036 \]
+        \[ \sigma^2 = 0.15^2 = 0.0225 \]
+        <p>Since \(0.036 > 0.0225\), the Feller condition is strictly satisfied. Rates will never reach zero.</p>
+        <p>2. <strong>Long-term Expected Rate:</strong> As \(t \to \infty\), \(\mathbb{E}[r(t)] \to \theta = 0.06 = 6.0\%\).</p>
+        <p>3. <strong>Unconditional Variance:</strong> For the CIR model, \(\text{Var}[r(\infty)] = \frac{\theta \sigma^2}{2\kappa}\).</p>
+        \[ \text{Var}[r(\infty)] = \frac{0.06 \times 0.0225}{2 \times 0.3} = \frac{0.00135}{0.6} = 0.00225 \]
+        <p>The standard deviation is \(\sqrt{0.00225} = 0.0474\) or 4.74%.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 12.5: Multi-Curve Forward Rate</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> We are pricing a 6-month USD swap starting 1 year from today (period \(T_1 = 1\) to \(T_2 = 1.5\)). The OIS discount factors are \(DF_{OIS}(1) = 0.98\) and \(DF_{OIS}(1.5) = 0.965\). The 6-month SOFR forward curve yields discount factors \(DF_{SOFR}(1) = 0.975\) and \(DF_{SOFR}(1.5) = 0.95\). Calculate the forward rate using the multi-curve framework.</p>
+        <p><strong>Solution:</strong></p>
+        <p>In a multi-curve framework, forward rates are calculated exclusively from the specific forward index curve (SOFR here), not the discount curve.</p>
+        \[ F_{SOFR}(T_1, T_2) = \frac{1}{T_2 - T_1} \left( \frac{DF_{SOFR}(T_1)}{DF_{SOFR}(T_2)} - 1 \right) \]
+        \[ \Delta = 1.5 - 1 = 0.5 \text{ years} \]
+        \[ F_{SOFR}(1, 1.5) = \frac{1}{0.5} \left( \frac{0.975}{0.95} - 1 \right) \]
+        \[ F_{SOFR}(1, 1.5) = 2 \times (1.0263 - 1) = 2 \times 0.0263 = 0.0526 \text{ or } 5.26\% \]
+        <p><em>Note: The OIS factors (0.98 and 0.965) will be used later solely to discount the cash flow arising from this rate back to present value.</em></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="python-code">
+    <h2>6. Python Code: Vasicek Bond Pricer</h2>
+    <p>The following snippet simulates the Vasicek short rate using the Euler-Maruyama method and calculates the analytical bond prices over time.</p>
+    <pre><code class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+def vasicek_bond_price(r0, a, b, sigma, t, T):
+    """Calculates Vasicek zero coupon bond price analytically."""
+    tau = T - t
+    B = (1 - np.exp(-a * tau)) / a
+    A = (b - (sigma**2) / (2 * a**2)) * (B - tau) - (sigma**2) / (4 * a) * (B**2)
+    return np.exp(A - B * r0)
+
+# Parameters
+r0, a, b, sigma = 0.04, 0.5, 0.05, 0.01
+T, dt = 5.0, 1/252
+n_steps = int(T / dt)
+
+# Simulation (Euler-Maruyama)
+np.random.seed(42)
+dW = np.random.normal(0, np.sqrt(dt), n_steps)
+r_sim = np.zeros(n_steps)
+r_sim[0] = r0
+
+for i in range(1, n_steps):
+    r_sim[i] = r_sim[i-1] + a*(b - r_sim[i-1])*dt + sigma*dW[i]
+
+# Compute bond prices for the simulated rate
+times = np.linspace(0, T, n_steps)
+bond_prices = [vasicek_bond_price(r_sim[i], a, b, sigma, times[i], T) for i in range(n_steps)]
+
+print(f"Initial Bond Price P(0,5): {bond_prices[0]:.4f}")
+print(f"Final Bond Price P(5,5): {bond_prices[-1]:.4f}")
+    </code></pre>
+  </section>
+
+  <section id="diagrams">
+    <h2>7. Diagrams Description</h2>
+    <p>When modeling the Nelson-Siegel components, plotting the factor loadings over maturity is highly instructive:</p>
+    <ul>
+      <li><strong>Level (\(\beta_0\)):</strong> A horizontal flat line at 1.0 across all maturities. It affects all tenors equally.</li>
+      <li><strong>Slope (\(\beta_1\)):</strong> A curve starting at 1.0 at maturity 0, rapidly decaying asymptotically to 0. It predominantly moves the short end of the yield curve.</li>
+      <li><strong>Curvature (\(\beta_2\)):</strong> A humped curve starting at 0, rising to a peak (determined by \(\lambda\)), and then slowly decaying to 0. It alters the "belly" (medium term) of the curve.</li>
+    </ul>
+    <p>Simulating the Vasicek and CIR models yields a random walk that oscillates around the mean reversion level \(b\) or \(\theta\). Unlike a standard Brownian motion which diverges indefinitely, the mean reversion acts as a "rubber band" pulling rates back to equilibrium.</p>
+  </section>
+
+  <section id="mistakes">
+    <h2>8. Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Common Mistakes</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Confusing Real and Risk-Neutral Worlds:</strong> The parameters calibrated to bond prices (like \(\theta\) in CIR) are under the risk-neutral measure \(\mathbb{Q}\). You cannot use historical rate time series to perfectly estimate these parameters, because historical data is in the physical measure \(\mathbb{P}\) and contains the market price of risk.</li>
+          <li><strong>Misinterpreting Nelson-Siegel \(\beta_1\):</strong> Because \(\beta_1\) affects the short end, if you want an upward-sloping curve (short rates lower than long rates), \(\beta_1\) must be <strong>negative</strong>.</li>
+          <li><strong>Applying Single-Curve Logic Post-2008:</strong> Discounting cash flows with a LIBOR/SOFR forward curve is a critical error today. Forward rates generate cash flows; OIS rates discount them.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="industry-application">
+    <h2>9. Industry Application</h2>
+    <div class="industry">
+      <div class="box-title">Industry Application: ALM in Life Insurance</div>
+      <div class="box-content">
+        <p>Asset-Liability Management (ALM) teams at life insurers (e.g., LIC in India, Prudential in the US) use the Hull-White 1-Factor model extensively. They construct liabilities extending out to 50 years. Because government bonds rarely exceed 30-year maturities, they use the Smith-Wilson or Nelson-Siegel-Svensson models to extrapolate the curve smoothly to an Ultimate Forward Rate (UFR) mandated by regulators (e.g., Solvency II).</p>
+        <p>Once the curve is fixed, they simulate thousands of Monte Carlo interest rate paths using Hull-White to calculate the Economic Capital required to survive a 1-in-200-year stress event (a 99.5% Value-at-Risk metric). Hull-White is preferred because it guarantees exact repricing of the initial yield curve, avoiding Day 1 mark-to-market arbitrage losses in the simulation engine.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="summary-formulas">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <div class="box-title">Formula Cheat-Sheet</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Nelson-Siegel:</strong> \( y(\tau) = \beta_0 + \beta_1 \left( \frac{1 - e^{-\tau/\lambda}}{\tau/\lambda} \right) + \beta_2 \left( \frac{1 - e^{-\tau/\lambda}}{\tau/\lambda} - e^{-\tau/\lambda} \right) \)</li>
+          <li><strong>Bond Pricing PDE:</strong> \( \frac{\partial P}{\partial t} + \mu \frac{\partial P}{\partial r} + \frac{1}{2} \sigma^2 \frac{\partial^2 P}{\partial r^2} - rP = 0 \)</li>
+          <li><strong>Vasicek Dynamics:</strong> \( dr = a(b-r)dt + \sigma dW \)</li>
+          <li><strong>CIR Dynamics:</strong> \( dr = \kappa(\theta-r)dt + \sigma \sqrt{r} dW \)</li>
+          <li><strong>Feller Condition (CIR):</strong> \( 2\kappa\theta \geq \sigma^2 \)</li>
+          <li><strong>HJM No-Arbitrage Drift:</strong> \( \alpha(t,T) = \sigma(t,T) \int_t^T \sigma(t,u) du \)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercises">
+      
+      <div class="exercise-group">
+        <h3>Basic</h3>
+        <div class="exercise-item">
+          <strong>Exercise 12.1:</strong> In a Nelson-Siegel model, given \(\beta_0 = 5\%\), \(\beta_1 = -2\%\), what is the instantaneous short rate \(y(0)\) and the ultimate long rate \(y(\infty)\)?
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.2:</strong> An analyst suggests a CIR model with \(\kappa = 0.5\), \(\theta = 0.04\), \(\sigma = 0.25\). Will this model guarantee strictly positive interest rates?
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.3:</strong> State the primary difference between the Vasicek model and the Hull-White model.
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.4:</strong> Why was OIS discounting adopted for collateralized derivatives instead of LIBOR discounting?
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Intermediate</h3>
+        <div class="exercise-item">
+          <strong>Exercise 12.5:</strong> Derive the expression for \(B(t,T)\) in the Vasicek model by substituting \(P = e^{A-Br}\) into the fundamental PDE and solving the resulting ODE for B.
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.6:</strong> Calculate the Vasicek bond price \(P(0,2)\) given \(r_0=0.03\), \(a=0.2\), \(b=0.04\), \(\sigma=0.015\).
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.7:</strong> In an HJM framework, the forward rate volatility is constant: \(\sigma(t,T) = \sigma\). Derive the forward rate drift \(\alpha(t,T)\).
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.8:</strong> Using Nelson-Siegel, compute the spot yield for maturity \(\tau=3\) if \(\beta_0=0.06\), \(\beta_1=-0.03\), \(\beta_2=0.02\), \(\lambda=1.5\).
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Advanced</h3>
+        <div class="exercise-item">
+          <strong>Exercise 12.9:</strong> Prove that in a Ho-Lee model, the price of a zero-coupon bond is normally distributed.
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.10:</strong> Construct a 2-step Ho-Lee tree to price a 2-year European call option on a 1-year bond.
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.11:</strong> Under the CIR model, what happens to the steady-state variance of the short rate as the speed of mean reversion \(\kappa\) approaches zero? Discuss the economic implications.
+        </div>
+        <div class="exercise-item">
+          <strong>Exercise 12.12:</strong> Explain the multi-curve framework basis spread. If the 3M SOFR curve implies a 6M forward rate of 4.50% and the 6M SOFR curve implies a forward rate of 4.60% for the exact same period, what drives this basis?
+        </div>
+      </div>
+
+      <hr>
+      <h3>Selected Solutions</h3>
+      <div class="solution-item">
+        <p><strong>Solution to 12.1:</strong> As \(\tau \to 0\), the term multiplying \(\beta_1\) converges to 1 via L'Hôpital's rule, and the term for \(\beta_2\) goes to 0. So \(y(0) = \beta_0 + \beta_1 = 5\% - 2\% = 3\%\). As \(\tau \to \infty\), all exponential terms decay to 0, leaving \(y(\infty) = \beta_0 = 5\%\).</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 12.2:</strong> Check the Feller condition: \(2\kappa\theta = 2(0.5)(0.04) = 0.04\). However, \(\sigma^2 = (0.25)^2 = 0.0625\). Since \(0.04 < 0.0625\), the Feller condition is <strong>not</strong> met. The rate can hit zero.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 12.6:</strong> \(t=0, T=2, \tau=2\).<br>
+        \(B(0,2) = \frac{1 - e^{-0.4}}{0.2} = \frac{0.3297}{0.2} = 1.6484\).<br>
+        \(b - \sigma^2/(2a^2) = 0.04 - 0.000225/0.08 = 0.03718\).<br>
+        \(\sigma^2/(4a) = 0.000225/0.8 = 0.000281\).<br>
+        \(A = 0.03718(1.6484 - 2) - 0.000281(1.6484)^2 = -0.01307 - 0.00076 = -0.01383\).<br>
+        \(P(0,2) = \exp(-0.01383 - 1.6484(0.03)) = \exp(-0.06328) = 0.9387\).</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 12.7:</strong> HJM Drift condition: \(\alpha(t,T) = \sigma(t,T) \int_t^T \sigma(t,u) du = \sigma \int_t^T \sigma du = \sigma^2 (T-t)\). The drift of forward rates increases linearly with maturity.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 12.8:</strong> \(\tau/\lambda = 3/1.5 = 2.0\).<br>
+        \(L_1 = (1 - e^{-2})/2 = 0.4323\).<br>
+        \(L_2 = L_1 - e^{-2} = 0.4323 - 0.1353 = 0.2970\).<br>
+        \(y(3) = 0.06 - 0.03(0.4323) + 0.02(0.2970) = 0.06 - 0.01297 + 0.00594 = 0.05297\) or 5.297%.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 12.11:</strong> The variance is \(\frac{\theta \sigma^2}{2\kappa}\). As \(\kappa \to 0\), the variance goes to infinity. Economically, without mean reversion pulling rates back, the short rate behaves like an unconstrained random walk, leading to infinite uncertainty about its long-term level.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="further-reading">
+    <h2>12. Further Reading</h2>
+    <div class="further-reading">
+      <div class="box-title">Further Reading</div>
+      <div class="box-content">
+        <ul>
+          <li>Hull, J. C. (2018). <em>Options, Futures, and Other Derivatives</em> (10th ed.). Pearson. (Chapters 31-33 cover interest rate models in depth).</li>
+          <li>Brigo, D., & Mercurio, F. (2006). <em>Interest Rate Models - Theory and Practice: With Smile, Inflation and Credit</em>. Springer. (The definitive technical text on multi-curve, Vasicek, CIR, and HJM).</li>
+          <li>Nelson, C. R., & Siegel, A. F. (1987). Parsimonious Modeling of Yield Curves. <em>Journal of Business</em>, 60(4), 473-489.</li>
+          <li>Svensson, L. E. (1994). Estimating and Interpreting Forward Interest Rates: Sweden 1992-1994. <em>NBER Working Paper No. 4871</em>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch11_fixed_income.html">← Previous Chapter (11)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch13_portfolio_theory.html">Next Chapter (13) →</a>
+  </nav>
+
+</body>
+</html>

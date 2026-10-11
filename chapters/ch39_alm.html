@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 39: Asset-Liability Management (ALM) and ERM</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 39: Asset-Liability Management (ALM) and Enterprise Risk Management (ERM)</h1>
+
+  <div class="learning-objectives">
+    <h2>Learning Objectives</h2>
+    <ul>
+      <li>Understand the core principles of Asset-Liability Management (ALM) and how to manage the surplus position of a financial institution.</li>
+      <li>Apply classical duration, convexity matching (Redington immunization), and cash flow matching to immunize liabilities against interest rate risk.</li>
+      <li>Analyze non-parallel yield curve shifts using Key Rate Durations and construct key-rate neutral portfolios.</li>
+      <li>Develop stochastic ALM models utilizing Economic Scenario Generators (ESGs) for long-term capital projections.</li>
+      <li>Understand the frameworks of Enterprise Risk Management (ERM) and Own Risk and Solvency Assessment (ORSA), with a focus on Indian regulatory requirements.</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h2>Prerequisites & Roadmap</h2>
+    <p>This chapter builds heavily on <strong>Chapter 11: Bond Mathematics and Yield Curves</strong> (where duration and convexity were introduced), <strong>Chapter 25: Monte Carlo Methods</strong>, and <strong>Chapter 38: Catastrophe Modelling</strong>. Moving forward, the capital metrics and stochastic models developed here will be crucial inputs for <strong>Chapter 40: Capital Management and Solvency</strong>.</p>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>Imagine a life insurance company that sells a block of single-premium annuity contracts. It collects ₹1,000 crores today and promises to pay out steady streams of cash to retirees for the next 30 years. If the insurer takes that ₹1,000 crores and invests it in short-term 1-year Treasury bills (yielding 6% today), what happens next year if interest rates plummet to 3%? The insurer will reinvest the maturing bills at 3%, but its obligations to the retirees remain fixed. The yield on assets will no longer support the cost of the liabilities, and the insurer will face insolvency.</p>
+  
+  <p>Conversely, if a bank accepts 1-year deposits (liabilities) and uses them to issue 30-year fixed-rate mortgages (assets), it faces a catastrophic risk if interest rates rise. It will have to pay higher and higher interest rates to retain deposits, while the income from the mortgages is locked in at a low fixed rate. This classic "borrow short, lend long" maturity mismatch led to the Savings and Loan crisis in the US and the collapse of Silicon Valley Bank.</p>
+
+  <p>Asset-Liability Management (ALM) is the discipline of managing financial risks that arise due to mismatches between the assets and liabilities of an institution. It is not just about maximizing asset returns, but doing so <em>relative</em> to the liability profile. In a modern context, ALM sits within the broader framework of Enterprise Risk Management (ERM), which looks at all risks (market, credit, operational, strategic, etc.) in a unified, holistic manner.</p>
+
+  <h2>2. ALM Fundamentals</h2>
+  <p>The foundation of ALM is the balance sheet. For a financial institution, Economic Value is determined by the market-consistent value of its Assets (\(A\)) and Liabilities (\(L\)). The difference is the Surplus (\(S\)), also known as Economic Capital or Net Asset Value.</p>
+  
+  <div class="definition">
+    <div class="box-title">Economic Surplus</div>
+    <div class="box-content">
+      <p>The economic surplus \( S(t) \) at time \( t \) is defined as the difference between the market value of assets and the market-consistent present value of liabilities:</p>
+      \[ S(t) = A(t) - L(t) \]
+      <p>The goal of surplus management (or Liability-Driven Investment, LDI) is to ensure \( S(t) > 0 \) under various economic conditions and to minimize the volatility of the surplus return.</p>
+    </div>
+  </div>
+
+  <p>When interest rates change, both \(A\) and \(L\) change. If interest rates rise by \(\Delta y\), the change in surplus is roughly:</p>
+  \[ \Delta S \approx \Delta A - \Delta L \]
+  \[ \Delta S \approx \left( -A \cdot D_A \cdot \Delta y \right) - \left( -L \cdot D_L \cdot \Delta y \right) \]
+  \[ \Delta S \approx \left( L \cdot D_L - A \cdot D_A \right) \Delta y \]
+  <p>Where \(D_A\) and \(D_L\) are the modified durations of assets and liabilities respectively. To immunize the surplus against small changes in interest rates (\(\Delta S \approx 0\)), we need \( A \cdot D_A = L \cdot D_L \). This leads us directly to the theory of immunization.</p>
+
+  <h2>3. Duration and Convexity Matching (Redington Immunization)</h2>
+  
+  <p>Classical immunization, formulated by F.M. Redington in 1952, provides the conditions under which a surplus is protected against small parallel shifts in a flat yield curve.</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 39.1: Redington Immunization Conditions</div>
+    <div class="box-content">
+      <p>To immunize a portfolio against small, parallel shifts in the yield curve, the following three conditions must hold:</p>
+      <ol>
+        <li><strong>Present Value Match:</strong> The present value of assets equals the present value of liabilities: \( V_A = V_L \)</li>
+        <li><strong>Duration Match (First-order derivative):</strong> The modified (or Macaulay) duration of assets equals that of liabilities: \( D_A = D_L \)</li>
+        <li><strong>Convexity Condition (Second-order derivative):</strong> The convexity of assets must be strictly greater than the convexity of liabilities: \( C_A > C_L \)</li>
+      </ol>
+      <p>Under these conditions, any small shift \(\Delta y\) (positive or negative) will result in \( \Delta V_A > \Delta V_L \), meaning the surplus will increase (or at worst remain zero).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 39.1: Immunize a 10-year liability using 5-year and 15-year bonds</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> An insurer has a single liability outflow of ₹10,000,000 due in 10 years. The current flat yield curve is at 5% (annual compounding). The insurer wishes to invest in two zero-coupon bonds maturing in 5 years (Asset 1) and 15 years (Asset 2) to perfectly immunize this liability based on Redington's conditions. Calculate the required investment in each bond and verify the convexity condition.</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p><strong>Step 1: Calculate the PV and duration of the liability.</strong></p>
+      <p>\( V_L = \frac{10,000,000}{(1.05)^{10}} = 6,139,132.54 \)</p>
+      <p>Since it's a single cash flow at year 10, the Macaulay Duration \(D_L = 10\) years.</p>
+      
+      <p><strong>Step 2: Set up equations for Asset PV and Duration.</strong></p>
+      <p>Let \( W_1 \) and \( W_2 \) be the weights (proportions of total asset PV) invested in the 5-year and 15-year zero-coupon bonds. We require:</p>
+      <p>\( W_1 + W_2 = 1 \) (Condition 1: PV Match)</p>
+      <p>\( W_1(5) + W_2(15) = 10 \) (Condition 2: Duration Match)</p>
+      
+      <p>Solving this system:</p>
+      <p>\( W_1(5) + (1 - W_1)(15) = 10 \)</p>
+      <p>\( 5W_1 + 15 - 15W_1 = 10 \implies 10W_1 = 5 \implies W_1 = 0.5 \)</p>
+      <p>So, \( W_1 = 0.5 \) and \( W_2 = 0.5 \).</p>
+      
+      <p>The required investment amounts are:</p>
+      <p>\( PV_{A1} = 0.5 \times 6,139,132.54 = \text{₹}3,069,566.27 \)</p>
+      <p>\( PV_{A2} = 0.5 \times 6,139,132.54 = \text{₹}3,069,566.27 \)</p>
+      
+      <p><strong>Step 3: Verify the Convexity Condition.</strong></p>
+      <p>For a single cash flow at time \(T\), the Macaulay Convexity is \( T^2 \). (Alternatively, Modified Convexity is \( \frac{T(T+1)}{(1+y)^2} \); we'll use Macaulay dispersion for simplicity here, as \( D_A = D_L \) implies MacConvexity is a sufficient metric).</p>
+      <p>Liability Convexity \( C_L = 10^2 = 100 \)</p>
+      <p>Asset Convexity \( C_A = W_1(5^2) + W_2(15^2) = 0.5(25) + 0.5(225) = 12.5 + 112.5 = 125 \)</p>
+      <p>Since \( C_A (125) > C_L (100) \), the convexity condition is satisfied. The portfolio is immunized.</p>
+    </div>
+  </div>
+
+  <h2>4. Cash Flow Matching (Dedication)</h2>
+  
+  <p>While duration matching works well for small, parallel shifts, it fails if the yield curve shifts in non-parallel ways (e.g., steepening or flattening). The most robust, though expensive, way to eliminate interest rate risk entirely is <strong>Cash Flow Matching</strong> or <strong>Dedication</strong>.</p>
+  
+  <p>In cash flow matching, the asset manager purchases a portfolio of bonds such that the cash inflows from the bonds (coupons and principal repayments) exactly match the liability cash outflows in every period. Because the cash flows are perfectly synchronized, changes in interest rates have absolutely no effect on the ability to pay the liabilities—reinvestment risk and price risk are entirely eliminated.</p>
+
+  <div class="example">
+    <div class="box-title">Example 39.2: Cash flow matching for a stream of pension liabilities</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A pension fund has liabilities of ₹10M in year 1, ₹15M in year 2, and ₹20M in year 3. The following annual-coupon bonds are available at par (yield = coupon):</p>
+      <ul>
+        <li>Bond A: 1-year, 4% coupon</li>
+        <li>Bond B: 2-year, 5% coupon</li>
+        <li>Bond C: 3-year, 6% coupon</li>
+      </ul>
+      <p>Find the face value of each bond required to exactly match the cash flows.</p>
+      
+      <p><strong>Solution:</strong> We work backwards from the longest liability.</p>
+      <p><strong>Year 3 Liability = ₹20M.</strong> Only Bond C pays in Year 3. A unit of Bond C pays 106% of face value at maturity.</p>
+      <p>\( 1.06 \times F_C = 20M \implies F_C = \frac{20}{1.06} = \text{₹}18.8679M \)</p>
+      <p>Bond C will pay coupons in Years 1 and 2: \( 0.06 \times 18.8679M = \text{₹}1.1321M \)</p>
+      
+      <p><strong>Year 2 Liability = ₹15M.</strong> Bond C provides ₹1.1321M. Shortfall = \( 15 - 1.1321 = 13.8679M \).</p>
+      <p>We use Bond B to cover this. A unit of Bond B pays 105% of face value.</p>
+      <p>\( 1.05 \times F_B = 13.8679M \implies F_B = \frac{13.8679}{1.05} = \text{₹}13.2075M \)</p>
+      <p>Bond B will pay a coupon in Year 1: \( 0.05 \times 13.2075M = \text{₹}0.6604M \)</p>
+      
+      <p><strong>Year 1 Liability = ₹10M.</strong> Bond C provides ₹1.1321M. Bond B provides ₹0.6604M. Total covered = ₹1.7925M.</p>
+      <p>Shortfall = \( 10 - 1.7925 = 8.2075M \).</p>
+      <p>We use Bond A to cover this. A unit of Bond A pays 104% of face value.</p>
+      <p>\( 1.04 \times F_A = 8.2075M \implies F_A = \frac{8.2075}{1.04} = \text{₹}7.8918M \)</p>
+      
+      <p><strong>Final Portfolio (Face Values):</strong> Bond A = ₹7.8918M, Bond B = ₹13.2075M, Bond C = ₹18.8679M.</p>
+    </div>
+  </div>
+
+  <h2>5. Key Rate Duration</h2>
+  
+  <p>To address non-parallel shifts without the massive liquidity requirements of full cash-flow matching, practitioners use <strong>Key Rate Durations (KRD)</strong>. A key rate duration measures the sensitivity of a portfolio to a 1 basis point change at a specific maturity point on the yield curve, assuming surrounding points linearly interpolate to the key rate and distant points remain unchanged.</p>
+
+  <p>If we define key tenors (e.g., 1Y, 3Y, 5Y, 10Y, 30Y), a portfolio is fully immunized against all curve shape changes (steepening, flattening, humps) if the KRD of the assets equals the KRD of the liabilities at <em>every</em> key tenor.</p>
+  
+  \[ D_{eff} \approx \sum_{i=1}^n KRD_i \]
+  
+  <div class="example">
+    <div class="box-title">Example 39.3: Key rate duration analysis for a bond portfolio</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A liability portfolio has the following KRD profile: 5Y KRD = 3.2, 10Y KRD = 4.5. Effective Duration = 7.7. </p>
+      <p>An asset manager holds a barbell portfolio matching the effective duration of 7.7, composed of cash and a 30-year bond. Its KRD profile is: 5Y KRD = 0.0, 10Y KRD = 0.0, 30Y KRD = 7.7. </p>
+      <p>What happens if the yield curve steepens such that the 5Y yield rises by 10 bps, the 10Y yield rises by 20 bps, and the 30Y yield falls by 15 bps?</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p><strong>Change in Liability Value:</strong></p>
+      <p>\( \frac{\Delta V_L}{V_L} \approx - (KRD_{5Y} \times \Delta y_{5Y} + KRD_{10Y} \times \Delta y_{10Y}) \)</p>
+      <p>\( \frac{\Delta V_L}{V_L} \approx - (3.2 \times 0.0010 + 4.5 \times 0.0020) = -(0.0032 + 0.0090) = -0.0122 \) or -1.22%</p>
+      
+      <p><strong>Change in Asset Value:</strong></p>
+      <p>\( \frac{\Delta V_A}{V_A} \approx - (KRD_{30Y} \times \Delta y_{30Y}) \)</p>
+      <p>\( \frac{\Delta V_A}{V_A} \approx - (7.7 \times -0.0015) = +0.01155 \) or +1.155%</p>
+      
+      <p><strong>Result:</strong> Despite having perfectly matched Effective Durations (7.7), the curve steepening caused the liabilities to decrease by 1.22% while assets increased by 1.15%. In this specific scenario, the surplus improved massively! However, if the curve flattened (short rates up, long rates up), the portfolio would suffer severe surplus destruction. This highlights the risk of relying on effective duration alone when KRD profiles are mismatched.</p>
+    </div>
+  </div>
+
+  <h2>6. Strategic Asset Allocation and Surplus Optimization</h2>
+  
+  <p>In practice, institutions don't just hold bonds. They want higher returns to reduce required capital contributions or offer competitive product pricing. Thus, they hold equities, real estate, and alternatives. This moves ALM into the realm of <strong>Strategic Asset Allocation (SAA)</strong>.</p>
+  
+  <p>Traditional Markowitz Mean-Variance Optimization focuses on the absolute return and variance of the asset portfolio. In an ALM context, we must use <strong>Surplus Optimization</strong> (or Liability-Relative Optimization). The objective function becomes:</p>
+  
+  \[ \max_{w} \left( \E[R_S] - \frac{\lambda}{2} \Var(R_S) \right) \]
+  
+  <p>Where \( R_S \) is the return on surplus, driven by the difference between asset returns and liability returns. The variance of surplus return depends heavily on the covariance between assets and liabilities:</p>
+  
+  \[ \Var(R_S) \approx \Var(R_A) + \Var(R_L) - 2\Cov(R_A, R_L) \]
+  
+  <p>To minimize risk, we want assets that are highly correlated with liabilities. Since liabilities behave like short bond positions (falling in value when rates rise), the risk-minimizing asset portfolio is a bond portfolio that mimics the liability characteristics.</p>
+
+  <h2>7. Stochastic ALM and Economic Scenario Generators</h2>
+  
+  <p>While deterministic ALM (like duration matching) is useful for day-to-day management, long-term products with embedded options and guarantees (like guaranteed annuity options, or with-profits policies) require <strong>Stochastic ALM</strong>. This involves projecting the balance sheet forward over many years under thousands of different economic paths.</p>
+
+  <p>These paths are generated using an <strong>Economic Scenario Generator (ESG)</strong>. An ESG is a complex stochastic model that simulates future states of the economy, outputting yield curves, equity indices, inflation rates, and exchange rates, all preserving historical or implied correlations.</p>
+
+  <div class="definition">
+    <div class="box-title">Real-World vs. Risk-Neutral Scenarios</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Real-World (P-measure) Scenarios:</strong> Used for capital setting, ALM projections, and risk management. These scenarios embed real-world risk premia (e.g., equities earn more than bonds on average). They are calibrated to historical data and expert judgment.</li>
+        <li><strong>Risk-Neutral (Q-measure) Scenarios:</strong> Used solely for the market-consistent valuation of liabilities and derivatives. Under these scenarios, all assets are assumed to earn the risk-free rate on average. They are calibrated to current market option prices.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 39.4: Construct a simple ESG with correlated equity and interest rate scenarios</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Construct a simple 1-step real-world ESG for a 1-year projection. The short rate \(r\) follows a Vasicek model: \( \Delta r = a(b - r)\Delta t + \sigma_r Z_1 \). The equity index \(S\) follows Geometric Brownian Motion: \( \frac{\Delta S}{S} = \mu \Delta t + \sigma_S Z_2 \). The shocks \(Z_1\) and \(Z_2\) have correlation \(\rho\).</p>
+      
+      <p><strong>Parameters:</strong> \(r_0 = 4\%\), \(a = 0.2\), \(b = 5\%\), \(\sigma_r = 1\%\). \(S_0 = 100\), \(\mu = 8\%\), \(\sigma_S = 15\%\). \(\rho = -0.3\) (when rates go up, equities tend to drop). Simulate one path for \(\Delta t = 1\) year.</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p>First, generate two independent standard normal variables, say \( X_1 = 0.5 \) and \( X_2 = -1.2 \).</p>
+      <p>Correlate them using Cholesky decomposition:</p>
+      <p>\( Z_1 = X_1 = 0.5 \)</p>
+      <p>\( Z_2 = \rho X_1 + \sqrt{1 - \rho^2} X_2 = -0.3(0.5) + \sqrt{1 - (-0.3)^2}(-1.2) \)</p>
+      <p>\( Z_2 = -0.15 + \sqrt{0.91}(-1.2) = -0.15 + 0.9539(-1.2) = -0.15 - 1.1447 = -1.2947 \)</p>
+      
+      <p>Now project the variables:</p>
+      <p>Interest rate: \( \Delta r = 0.2(0.05 - 0.04)(1) + 0.01(0.5) = 0.002 + 0.005 = 0.007 \). New rate \( r_1 = 4\% + 0.7\% = 4.7\% \).</p>
+      <p>Equity (using exact GBM solution): \( S_1 = S_0 \exp\left( (\mu - 0.5\sigma_S^2)\Delta t + \sigma_S Z_2 \right) \)</p>
+      <p>\( S_1 = 100 \exp\left( (0.08 - 0.5(0.15)^2)(1) + 0.15(-1.2947) \right) \)</p>
+      <p>\( S_1 = 100 \exp\left( 0.08 - 0.01125 - 0.1942 \right) = 100 \exp(-0.12545) = 100 \times 0.8821 = 88.21 \)</p>
+      <p>In this scenario, rates rose to 4.7% and the equity market crashed by about 12%.</p>
+    </div>
+  </div>
+
+  <h2>8. Enterprise Risk Management (ERM) Frameworks</h2>
+  
+  <p>ALM focuses primarily on financial risks. <strong>Enterprise Risk Management (ERM)</strong> expands this view to encompass <em>every</em> risk the organization faces, ensuring they are managed in a coordinated way to achieve strategic objectives.</p>
+
+  <p>Major ERM frameworks include <strong>COSO ERM (2017)</strong> and <strong>ISO 31000</strong>. A standard ERM framework consists of several components:</p>
+  <ul>
+    <li><strong>Risk Governance & Culture:</strong> The tone at the top. Board oversight, executive responsibility, and the embedding of risk awareness throughout the firm.</li>
+    <li><strong>Risk Appetite & Tolerance:</strong> 
+      <ul>
+        <li><em>Risk Appetite:</em> The broad amount and type of risk an organization is willing to accept in pursuit of value (e.g., "We will maintain a AA credit rating").</li>
+        <li><em>Risk Tolerance:</em> Specific, measurable limits tied to the appetite (e.g., "The 1-in-200 year Value-at-Risk must not exceed 20% of economic capital").</li>
+      </ul>
+    </li>
+    <li><strong>Risk Taxonomy & Register:</strong> A categorized list of all potential risks (Market, Credit, Liquidity, Operational, Strategic, Insurance/Underwriting). A Risk Register tracks specific identified risks, their likelihood, impact, and mitigation plans.</li>
+  </ul>
+
+  <h2>9. Own Risk and Solvency Assessment (ORSA)</h2>
+  
+  <p>The ORSA is a critical regulatory requirement under modern solvency regimes (like Solvency II in Europe, and increasingly globally). It is an internal, forward-looking assessment of an insurer's risk profile and the capital needed to support it over the business planning horizon (typically 3-5 years).</p>
+
+  <p>The ORSA requires the insurer to look beyond the standard regulatory capital formula and assess its <em>own</em> specific risks. It heavily utilizes stress testing and scenario analysis. For example, an ORSA report might analyze the impact of a combined scenario: a 40% equity market crash, a 200 bps drop in interest rates, and a severe mortality pandemic, projecting the balance sheet forward for 5 years to ensure the company would not breach regulatory minimums.</p>
+
+  <div class="warning">
+    <div class="box-title">Common Mistake: Treating ORSA as a Compliance Exercise</div>
+    <div class="box-content">
+      <p>Many institutions initially view ORSA as just another regulatory report. In true ERM, the ORSA process should be deeply embedded in strategic decision-making. If management does not use the ORSA results to make decisions about pricing, asset allocation, or capital distribution, the ERM framework is fundamentally broken.</p>
+    </div>
+  </div>
+
+  <h2>10. The Indian Context: IRDAI Regulations</h2>
+
+  <div class="industry">
+    <div class="box-title">Indian Insurance Context: ALM and ERM</div>
+    <div class="box-content">
+      <p>In India, the Insurance Regulatory and Development Authority of India (IRDAI) imposes strict regulations that heavily influence ALM and ERM practices:</p>
+      <ul>
+        <li><strong>Investment Regulations (Pattern of Investments):</strong> Unlike regimes that rely purely on capital charges, IRDAI mandates a strict pattern of investments. Life insurers must hold at least 50% of their funds in Government Securities (G-Secs) and State Government bonds, and at least 15% in Infrastructure/Housing. This constrains the SAA optimization space but ensures high credit quality.</li>
+        <li><strong>ALM Reporting (Form H):</strong> Insurers must periodically submit Form H, which details the ALM position by mapping asset and liability cash flows into maturity buckets to identify liquidity and interest rate mismatch gaps.</li>
+        <li><strong>Corporate Governance and ERM:</strong> IRDAI requires insurers to establish a Board-level Risk Management Committee (RMC) and appoint a Chief Risk Officer (CRO). While a full stochastic ORSA is evolving, IRDAI requires insurers to perform comprehensive stress testing on standard prescribed scenarios.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>11. Python Code: Duration Matching Optimizer</h2>
+  
+  <p>This script demonstrates how to find the optimal weights of available bonds to match the duration of a liability, using scipy.optimize.</p>
+
+  <pre><code class="language-python">
+import numpy as np
+from scipy.optimize import minimize
+
+# Define liability properties
+liability_pv = 1000000  # 1 million
+liability_duration = 8.5
+
+# Define available assets: [PV per unit, Duration]
+# E.g., Bond 1 has PV 100, Duration 3. Bond 2 has PV 100, duration 12.
+assets = np.array([
+    [100, 3.0],   # Short bond
+    [100, 12.0],  # Long bond
+    [100, 7.0]    # Medium bond
+])
+
+num_assets = len(assets)
+
+# Objective: We want to match PV and Duration exactly, but maybe minimize cost 
+# (though here PV is fixed, so we just find a feasible solution).
+# Let's minimize the squared error of Duration mismatch + PV mismatch.
+# Let x be the number of units of each asset.
+
+def objective(x):
+    # We want to minimize the variance of the weights (diversification)
+    return np.sum(x**2)
+
+def constraint_pv(x):
+    # Sum of asset PVs must equal liability PV
+    portfolio_pv = np.sum(x * assets[:, 0])
+    return portfolio_pv - liability_pv
+
+def constraint_duration(x):
+    # Dollar duration of assets = Dollar duration of liability
+    # Dollar duration = PV * Duration
+    asset_dollar_duration = np.sum(x * assets[:, 0] * assets[:, 1])
+    liability_dollar_duration = liability_pv * liability_duration
+    return asset_dollar_duration - liability_dollar_duration
+
+# Bounds: cannot hold negative units (no shorting)
+bounds = [(0, None) for _ in range(num_assets)]
+
+# Constraints dictionary
+cons = [
+    {'type': 'eq', 'fun': constraint_pv},
+    {'type': 'eq', 'fun': constraint_duration}
+]
+
+# Initial guess: equal weights
+x0 = np.array([liability_pv / (num_assets * 100)] * num_assets)
+
+# Run optimization
+result = minimize(objective, x0, bounds=bounds, constraints=cons)
+
+if result.success:
+    x_opt = result.x
+    port_pv = np.sum(x_opt * assets[:, 0])
+    port_dur = np.sum(x_opt * assets[:, 0] * assets[:, 1]) / port_pv
+    
+    print(f"Optimal Units: {x_opt.round(2)}")
+    print(f"Portfolio PV: {port_pv:,.2f}")
+    print(f"Portfolio Duration: {port_dur:.2f}")
+else:
+    print("Optimization failed.")
+  </code></pre>
+
+  <h2>12. Diagrams Description</h2>
+  <p>If we could plot the results of an ALM study, key diagrams would include:</p>
+  <ul>
+    <li><strong>Surplus Efficient Frontier:</strong> A scatter plot curve showing different strategic asset allocations. The X-axis is the standard deviation of surplus return (Risk), and the Y-axis is the expected surplus return (Reward). The "Liability Benchmark" sits at the origin (zero surplus risk).</li>
+    <li><strong>Cash Flow Funnel Chart (Form H format):</strong> A bar chart showing liability cash outflows (negative bars, pointing down) and asset cash inflows (positive bars, pointing up) grouped by time buckets (0-1Y, 1-3Y, 3-5Y, etc.). The net gap in each bucket highlights rollover/reinvestment risks.</li>
+    <li><strong>Stochastic Surplus Distribution (Fan Chart):</strong> A line chart projecting the median surplus over 20 years, surrounded by shaded percentile bands (e.g., 5th to 95th percentiles) derived from 10,000 ESG scenarios, demonstrating the range of possible future financial states.</li>
+  </ul>
+
+  <div class="formula-sheet">
+    <h2>13. Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>Economic Surplus:</strong> \( S(t) = A(t) - L(t) \)</li>
+      <li><strong>Surplus Sensitivity:</strong> \( \Delta S \approx (L \cdot D_L - A \cdot D_A) \Delta y \)</li>
+      <li><strong>Redington Immunization:</strong> 
+        1. \( V_A = V_L \) <br>
+        2. \( D_A = D_L \) <br>
+        3. \( C_A > C_L \)
+      </li>
+      <li><strong>Key Rate Duration Approximation:</strong> \( \Delta V \approx -V \sum_{i} (KRD_i \times \Delta y_i) \)</li>
+      <li><strong>Surplus Variance:</strong> \( \Var(R_S) = \Var(R_A) + \Var(R_L) - 2\Cov(R_A, R_L) \)</li>
+    </ul>
+  </div>
+
+  <h2>14. Exercises</h2>
+  <div class="exercises">
+    
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      
+      <div class="exercise-item">
+        <strong>1.</strong> Define the three conditions for Redington immunization. Why is the convexity condition strictly a "greater than" condition rather than an equality?
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> The three conditions are: PV of assets = PV of liabilities; Duration of assets = Duration of liabilities; Convexity of assets > Convexity of liabilities. The convexity condition is "greater than" because if \(C_A > C_L\), then the asset value will fall less than the liability value when rates rise, and will rise more than the liability value when rates fall. This ensures the surplus strictly increases (or stays zero) for any small parallel shift.
+      </div>
+      
+      <div class="exercise-item">
+        <strong>2.</strong> An institution has liabilities with a present value of ₹500 crores and a modified duration of 8 years. It holds assets worth ₹550 crores with a modified duration of 6 years. Calculate the approximate change in surplus if interest rates rise by 50 basis points.
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> 
+        \( \Delta A \approx -A \cdot D_A \cdot \Delta y = -550 \times 6 \times 0.0050 = -16.5 \) crores.
+        \( \Delta L \approx -L \cdot D_L \cdot \Delta y = -500 \times 8 \times 0.0050 = -20.0 \) crores.
+        \( \Delta S = \Delta A - \Delta L = -16.5 - (-20.0) = +3.5 \) crores.
+      </div>
+
+      <div class="exercise-item">
+        <strong>3.</strong> What is the main disadvantage of full cash-flow matching compared to duration matching?
+      </div>
+
+      <div class="exercise-item">
+        <strong>4.</strong> Differentiate between Risk Appetite and Risk Tolerance in an ERM framework.
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> Risk appetite is the broad qualitative statement of the amount of risk the board is willing to take (e.g., "We seek low volatility in earnings"). Risk tolerance translates this into specific, measurable limits (e.g., "Earnings should not drop by more than 10% in a 1-in-100 year event").
+      </div>
+
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+
+      <div class="exercise-item">
+        <strong>5.</strong> A bank has a 5-year bullet liability of $10 million. The current yield is 4%. It wishes to immunize using a 2-year zero-coupon bond and a 10-year zero-coupon bond. Find the required investment in each bond.
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> 
+        \( V_L = 10 / (1.04)^5 = 8.2193 \) million.
+        Let \( W_1 \) be weight in 2-year, \( W_2 \) be weight in 10-year.
+        \( W_1 + W_2 = 1 \)
+        \( 2W_1 + 10W_2 = 5 \)
+        Substituting \( W_1 = 1 - W_2 \): \( 2(1 - W_2) + 10W_2 = 5 \implies 2 + 8W_2 = 5 \implies 8W_2 = 3 \implies W_2 = 0.375 \)
+        So \( W_1 = 0.625 \).
+        Investment in 2-year = \( 0.625 \times 8.2193 = \$5.137 \) million.
+        Investment in 10-year = \( 0.375 \times 8.2193 = \$3.082 \) million.
+      </div>
+
+      <div class="exercise-item">
+        <strong>6.</strong> Show mathematically why a portfolio containing only cash (0 duration) and a 30-year bond will have higher convexity than a 15-year bullet bond, assuming both have an effective duration of 15 years.
+      </div>
+
+      <div class="exercise-item">
+        <strong>7.</strong> A portfolio has the following Key Rate Durations: 2Y=1.5, 5Y=3.0, 10Y=2.5. The yield curve changes as follows: 2Y yields drop by 10 bps, 5Y yields rise by 5 bps, 10Y yields rise by 20 bps. What is the approximate percentage change in the portfolio value?
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong>
+        \( \frac{\Delta V}{V} \approx -(1.5 \times -0.0010 + 3.0 \times 0.0005 + 2.5 \times 0.0020) \)
+        \( \frac{\Delta V}{V} \approx -(-0.0015 + 0.0015 + 0.0050) = -0.0050 = -0.5\% \)
+      </div>
+
+      <div class="exercise-item">
+        <strong>8.</strong> What is the purpose of an ORSA? Outline the typical time horizon used.
+      </div>
+
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+
+      <div class="exercise-item">
+        <strong>9.</strong> Prove that if an asset portfolio is constructed by cash-flow matching a liability portfolio exactly, the Redington immunization conditions are automatically satisfied.
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> If cash flows match exactly at every time \(t\), then \( CF_{A,t} = CF_{L,t} \) for all \(t\). 
+        1. \( V_A = \sum CF_{A,t} v^t = \sum CF_{L,t} v^t = V_L \). PV is matched.
+        2. \( D_A = \frac{\sum t \cdot CF_{A,t} v^t}{V_A} = \frac{\sum t \cdot CF_{L,t} v^t}{V_L} = D_L \). Duration is matched.
+        3. Since cash flows are identical, Convexity of assets exactly equals convexity of liabilities (\(C_A = C_L\)). Wait, this means Redington's 3rd condition (\(C_A > C_L\)) is technically NOT strictly satisfied; it's an equality. However, because the cash flows match exactly, the portfolio is immunized against ALL shifts (parallel or non-parallel) globally, not just small parallel shifts locally. Cash flow matching is a stronger form of immunization where surplus variance is exactly zero.
+      </div>
+
+      <div class="exercise-item">
+        <strong>10.</strong> An insurer wants to implement stochastic ALM. Explain the conceptual difference between using Risk-Neutral scenarios and Real-World scenarios in the ESG. When should each be used?
+      </div>
+
+      <div class="exercise-item">
+        <strong>11.</strong> Under Indian IRDAI regulations, how does the mandated investment pattern impact the ability of a life insurer to perform unconstrained strategic asset allocation?
+      </div>
+
+      <div class="exercise-item">
+        <strong>12.</strong> Design a conceptual stress testing scenario for an ORSA of a life insurer that combines a macroeconomic shock with an insurance specific shock, detailing the interactions between the variables.
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> Example Scenario: "Pandemic-Induced Stagflation."
+        Macro shock: Inflation spikes to 10%, causing the central bank to hike interest rates by 300 bps (Yield curve shifts up, causing massive MTM losses on the heavy bond portfolio). Equity markets crash 35% due to economic slowdown.
+        Insurance shock: A novel virus causes a 20% spike in mortality claims over 2 years.
+        Interactions: The high mortality requires sudden liquidity to pay claims. However, the bond portfolio has lost value due to the rate hikes, forcing the insurer to sell bonds at a loss to generate cash. The equity crash wipes out surplus capital. This compound event tests liquidity risk, market risk, and insurance risk simultaneously.
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="further-reading">
+    <h2>15. Further Reading</h2>
+    <ul>
+      <li>Babbel, D. F., & Fabozzi, F. J. (1999). <em>Investment Management for Insurers</em>. Frank J. Fabozzi Associates.</li>
+      <li>Redington, F. M. (1952). "Review of the Principles of Life-Office Valuations". <em>Journal of the Institute of Actuaries</em>.</li>
+      <li>Crouhy, M., Galai, D., & Mark, R. (2014). <em>The Essentials of Risk Management</em>. McGraw-Hill.</li>
+      <li>IRDAI (2020). "Guidelines on Enterprise Risk Management for Insurers".</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch38_cat_modelling.html">← Previous Chapter (Catastrophe Modelling)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch40_capital_solvency.html">Next Chapter (Capital Management and Solvency) →</a>
+  </nav>
+
+</body>
+</html>

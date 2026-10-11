@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 16: Advanced Derivative Pricing</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  <h1>Chapter 16: Advanced Derivative Pricing</h1>
+
+  <section id="learning-objectives" class="learning-objectives">
+    <div class="box-title">1. Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand and implement Monte Carlo simulation for derivative pricing, including variance reduction techniques.</li>
+        <li>Apply Finite-Difference (PDE) methods (Explicit, Implicit, and Crank-Nicolson) for solving the Black-Scholes PDE.</li>
+        <li>Price American options using the Longstaff-Schwartz algorithm (LSM) and free-boundary PDE formulations.</li>
+        <li>Analyze and price exotic options such as Barriers, Asians, Lookbacks, Digitals, and Basket options.</li>
+        <li>Extend the constant volatility framework to Local Volatility (Dupire), Stochastic Volatility (Heston, SABR), and Jump-Diffusion models (Merton).</li>
+        <li>Understand variance swaps, VIX construction, and techniques for robust model calibration.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="prerequisites" class="prerequisites">
+    <div class="box-title">2. Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds directly on the foundational concepts introduced in earlier chapters. Specifically:</p>
+      <ul>
+        <li><strong>Chapter 8 (Stochastic Calculus):</strong> Ito's Lemma, Geometric Brownian Motion, and risk-neutral measures.</li>
+        <li><strong>Chapter 9 (Numerical Methods):</strong> Basic root-finding, optimization, and matrix algebra.</li>
+        <li><strong>Chapter 15 (Options):</strong> Black-Scholes-Merton framework, vanilla options, and the Greeks.</li>
+      </ul>
+      <p>We now move beyond vanilla European options under constant volatility. This chapter will introduce advanced numerical methods (Monte Carlo and PDEs) necessary when analytical solutions are unavailable (e.g., American and path-dependent exotics), and advanced models (Local Vol, Heston, Jumps) necessary to capture the volatility smile.</p>
+    </div>
+  </section>
+
+  <section id="intuition">
+    <h2>3. Intuition & Motivation</h2>
+    <p>Imagine you are a structurer at a global investment bank. A corporate client in India wants to hedge their currency risk (USD/INR) but finds traditional vanilla options too expensive. They ask you for a tailored product that only provides protection if the exchange rate breaches a specific level (a barrier option), or perhaps based on the average exchange rate over the next year (an Asian option). The Black-Scholes formula, beautiful as it is, cannot price these directly.</p>
+    <p>Furthermore, the Black-Scholes model assumes volatility is constant over time and across strikes. A quick look at the market reveals the "volatility smile": out-of-the-money puts often trade at significantly higher implied volatilities than at-the-money options. To accurately price and hedge complex derivatives, we must model this market reality using Local Volatility, Stochastic Volatility, or Jump models. Advanced derivative pricing is the art and science of relaxing standard assumptions to accurately reflect market dynamics and handle complex, path-dependent payoffs.</p>
+  </section>
+
+  <section id="formal-theory">
+    <h2>4. Formal Theory</h2>
+
+    <h3>4.1 Monte Carlo Pricing</h3>
+    <div class="definition">
+      <div class="box-title">Definition 16.1: Risk-Neutral Monte Carlo Pricing</div>
+      <div class="box-content">
+        <p>Under the risk-neutral measure \(\mathbb{Q}\), the price of any derivative with payoff \(h(S_T)\) at maturity \(T\) is:</p>
+        \[ V_0 = e^{-rT} \E^{\mathbb{Q}}[ h(S_T) ] \]
+        <p>The Monte Carlo estimator approximates this expectation by averaging over \(N\) simulated paths: \(\hat{V}_0 = e^{-rT} \frac{1}{N}\sum_{i=1}^{N} h(S_T^{(i)})\), with standard error \(\text{SE} = \hat{\sigma}_{\text{payoff}} / \sqrt{N}\).</p>
+      </div>
+    </div>
+
+    <div class="theorem">
+      <div class="box-title">Theorem 16.1: Dupire's Local Volatility Formula</div>
+      <div class="box-content">
+        <p>Given a smooth surface of European call prices \(C(K,T)\) as a function of strike \(K\) and maturity \(T\), the unique local volatility function that is consistent with all these prices satisfies:</p>
+        \[ \sigma_{\text{loc}}^2(K,T) = \frac{2\left[\frac{\partial C}{\partial T} + (r-q)K\frac{\partial C}{\partial K} + qC\right]}{K^2 \frac{\partial^2 C}{\partial K^2}} \]
+        <p><em>Reference:</em> Dupire, B. (1994). "Pricing with a Smile." <em>Risk</em>, 7(1), 18–20.</p>
+      </div>
+    </div>
+
+    <p>For a stock following Geometric Brownian Motion (GBM):</p>
+    \[ dS_t = (r - q) S_t dt + \sigma S_t dW_t \]
+    <p>By simulating paths of \(S_t\), calculating the payoff for each path, and taking the average, we obtain the MC estimate. The exact solution for GBM over a time step \(\Delta t\) is:</p>
+    \[ S_{t+\Delta t} = S_t \exp\left( (r - q - \frac{1}{2}\sigma^2)\Delta t + \sigma \sqrt{\Delta t} Z \right) \]
+    <p>where \(Z \sim \mathcal{N}(0,1)\).</p>
+    <p><strong>Variance Reduction:</strong> MC convergence is slow (\(O(1/\sqrt{N})\)). We use variance reduction to speed it up:
+    <br>1. <em>Antithetic Variates:</em> For every random draw \(Z\), we also use \(-Z\). This induces negative correlation, reducing the variance of the average.
+    <br>2. <em>Control Variates:</em> We use a similar option with a known analytical price (e.g., Black-Scholes European call) to correct the simulated price of the complex option.</p>
+
+    <h3>4.2 Finite-Difference PDE Methods</h3>
+    <p>The Black-Scholes PDE is a parabolic partial differential equation:</p>
+    \[ \pdv{V}{t} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + (r-q)S\pdv{V}{S} - rV = 0 \]
+    <p>We discretize the time to maturity \(T\) into steps of \(\Delta t\) and the asset price \(S\) into a grid with spacing \(\Delta S\). Let \(V_{i,j}\) be the option price at time \(j\Delta t\) and asset price \(i\Delta S\).</p>
+    <ul>
+      <li><strong>Explicit Method:</strong> Replaces derivatives with forward differences in time and central differences in space. It is easy to implement but only conditionally stable (requires \(\Delta t \le (\Delta S)^2 / (2\sigma^2 S^2)\)).</li>
+      <li><strong>Implicit Method:</strong> Uses backward differences in time. Unconditionally stable. Requires solving a tridiagonal system of linear equations at each time step.</li>
+      <li><strong>Crank-Nicolson:</strong> The average of the Explicit and Implicit schemes. It is unconditionally stable and achieves second-order accuracy in both time and space.</li>
+    </ul>
+
+    <h3>4.3 American Options</h3>
+    <p>American options can be exercised at any time before expiration. This introduces a "free boundary" problem in PDE formulations, where at each node we take \(\max(\text{Continuation Value}, \text{Exercise Value})\).</p>
+    <p>In Monte Carlo, we use the <strong>Longstaff-Schwartz Method (LSM)</strong>. The core idea is to estimate the continuation value (the expected payoff of keeping the option alive) by regressing the discounted future realized payoffs against basis functions (like polynomials) of the current asset price. If the immediate exercise value is greater than the estimated continuation value, the path is marked for early exercise.</p>
+
+    <h3>4.4 Exotic Options</h3>
+    <ul>
+      <li><strong>Barrier Options:</strong> Path-dependent options that activate (knock-in) or terminate (knock-out) if the underlying breaches a barrier \(H\). Pricing relies on the reflection principle of Brownian motion for continuous monitoring, yielding closed-form formulas for standard barriers.</li>
+      <li><strong>Asian Options:</strong> Payoff depends on the average price over a period. Geometric averages have a closed-form solution (as the product of lognormals is lognormal), but arithmetic averages require numerical integration or Monte Carlo, often using the geometric Asian as a control variate.</li>
+      <li><strong>Lookback Options:</strong> Payoff depends on the maximum or minimum price reached during the life of the option. Highly sensitive to volatility.</li>
+      <li><strong>Digital/Binary Options:</strong> Pay a fixed amount if the asset is above (or below) the strike. The Cash-or-Nothing call price is simply \(e^{-rT} N(d_2)\), reflecting the risk-neutral probability of finishing in the money.</li>
+    </ul>
+
+    <h3>4.5 Local Volatility (Dupire)</h3>
+    <p>To match the market implied volatility surface exactly, Bruno Dupire showed that there exists a unique state-dependent volatility function \(\sigma(K, T)\) given by the Dupire Equation:</p>
+    \[ \sigma_{loc}^2(K,T) = \frac{2\left(\pdv{C}{T} + (r-q)K\pdv{C}{K} + qC\right)}{K^2 \frac{\partial^2 C}{\partial K^2}} \]
+    <p>where \(C(K,T)\) is the market price of European calls.</p>
+
+    <h3>4.6 Stochastic Volatility & Jumps</h3>
+    <p><strong>Heston Model:</strong> Assumes volatility itself follows a mean-reverting stochastic process:</p>
+    \[ dS_t = \mu S_t dt + \sqrt{v_t} S_t dW_{1,t} \]
+    \[ dv_t = \kappa(\theta - v_t)dt + \xi \sqrt{v_t} dW_{2,t} \]
+    <p>where \(dW_1\) and \(dW_2\) have correlation \(\rho\). Pricing is done via Fourier inversion of the characteristic function.</p>
+    <p><strong>Merton Jump-Diffusion:</strong> Asset prices occasionally experience discontinuous jumps. The path is a combination of standard GBM and a Poisson jump process. The price of a European option is an infinite sum of Black-Scholes prices with modified parameters.</p>
+
+    <h3>4.7 Variance Swaps & Model Calibration</h3>
+    <p>A variance swap pays the difference between realized variance and a fixed variance strike \(K_{var}\). Strikingly, it can be perfectly replicated using a static portfolio of out-of-the-money options (a "log contract"), which is the theoretical foundation for the VIX index.</p>
+    <p>Model calibration involves finding parameters (e.g., Heston's \(\kappa, \theta, \rho, \xi, v_0\)) that minimize the difference between model prices and market prices. Typically, practitioners minimize the sum of squared errors (SSE) of implied volatilities, often weighted by Vega so that more sensitive options have a higher impact on the fit.</p>
+  </section>
+
+  <section id="worked-examples">
+    <h2>5. Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 16.1: Monte Carlo pricing with Antithetic and Control Variates</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Price a European Call with \(S_0=100\), \(K=100\), \(r=0.05\), \(\sigma=0.2\), \(T=1.0\). We use a 1-step MC with 1 pair of antithetic standard normal draws \(Z_1 = 1.5, Z_2 = -1.5\). (Assume zero dividend \(q=0\)). Then apply a control variate.</p>
+        <p><strong>Solution:</strong></p>
+        <p><em>Step 1: Antithetic Variates</em></p>
+        <p>Terminal prices:</p>
+        \[ S_T(Z) = S_0 \exp((r - 0.5\sigma^2)T + \sigma \sqrt{T} Z) \]
+        \[ S_T(1.5) = 100 \exp(0.03 + 0.2 \times 1.5) = 100 \exp(0.33) \approx 139.097 \]
+        \[ S_T(-1.5) = 100 \exp(0.03 - 0.3) = 100 \exp(-0.27) \approx 76.338 \]
+        <p>Payoffs:</p>
+        \[ C(1.5) = \max(139.097 - 100, 0) = 39.097 \]
+        \[ C(-1.5) = \max(76.338 - 100, 0) = 0 \]
+        <p>Average Payoff = \( (39.097 + 0)/2 = 19.5485 \).</p>
+        <p>Discounted Price (MC Estimate) = \( 19.5485 \times e^{-0.05} \approx 18.59 \).</p>
+
+        <p><em>Step 2: Control Variates</em></p>
+        <p>Suppose our actual BS Call Price is \( C_{BS} = 10.45 \). If we simulated the same call and got \( C_{sim} = 18.59 \), and we are pricing an Asian Call that simulated to \( A_{sim} = 12.00 \). The control variate estimate for the Asian call is:</p>
+        \[ A_{adj} = A_{sim} - c(C_{sim} - C_{BS}) = 12.00 - 1.0(18.59 - 10.45) = 3.86 \]
+        <p>(Assuming \(c \approx 1\), covariance is high between Asian and European).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 16.2: Down-and-Out Barrier Call</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Price a Down-and-Out Call (DOC). \(S_0=100\), \(K=100\), Barrier \(H=90\), \(r=0.05\), \(q=0\), \(\sigma=0.2\), \(T=1.0\).</p>
+        <p><strong>Solution:</strong></p>
+        <p>The standard formula for a DOC (when \(H \le K\)) using the reflection principle is:</p>
+        \[ C_{DOC} = C_{BS}(S_0) - \left(\frac{H}{S_0}\right)^{2\lambda} C_{BS}\left(\frac{H^2}{S_0}\right) \]
+        <p>where \(\lambda = \frac{r-q+\sigma^2/2}{\sigma^2} = \frac{0.05 + 0.02}{0.04} = 1.75\).</p>
+        <p>\(C_{BS}(S_0=100) = 10.45\).</p>
+        <p>\(H^2/S_0 = 8100/100 = 81\). We calculate \(C_{BS}\) for an asset price of 81 with strike 100.</p>
+        <p>\(d_1 = \frac{\ln(81/100) + (0.05+0.02) \times 1}{0.2 \times 1} = \frac{-0.2107 + 0.07}{0.2} = -0.7036\).</p>
+        <p>\(d_2 = -0.7036 - 0.2 = -0.9036\).</p>
+        <p>\(N(d_1) = 0.2408\), \(N(d_2) = 0.1831\).</p>
+        <p>\(C_{BS}(81) = 81(0.2408) - 100 e^{-0.05}(0.1831) = 19.50 - 17.41 = 2.09\).</p>
+        <p>Price of DOC = \( 10.45 - (0.9)^{3.5} \times 2.09 = 10.45 - 0.692 \times 2.09 = 10.45 - 1.44 = 9.01 \).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 16.3: Longstaff-Schwartz Algorithm (LSM)</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Value an American Put on a non-dividend paying stock. Strike \(K=1.1\), \(r=0.06\). \(\Delta t = 1\), \(T=3\). Simulated paths:</p>
+        <ul>
+          <li>Path 1: S(1)=1.08, S(2)=1.07, S(3)=1.05 (In Money at T=3, Payoff=0.05)</li>
+          <li>Path 2: S(1)=1.15, S(2)=1.12, S(3)=1.18 (Out of Money)</li>
+          <li>Path 3: S(1)=1.02, S(2)=1.04, S(3)=1.09 (In Money at T=3, Payoff=0.01)</li>
+        </ul>
+        <p><strong>Solution:</strong> We work backwards from \(t=2\).</p>
+        <p>At \(t=2\), ITM paths are Path 1 (S=1.07) and Path 3 (S=1.04).</p>
+        <p>Exercise values: Path 1 = 1.1 - 1.07 = 0.03. Path 3 = 1.1 - 1.04 = 0.06.</p>
+        <p>Discounted future payoffs from \(t=3\): Path 1 = \(0.05 \times e^{-0.06} = 0.047\). Path 3 = \(0.01 \times e^{-0.06} = 0.0094\).</p>
+        <p>Regress discounted future payoffs \(Y\) on \(S\) and \(S^2\). (Since we only have 2 points, it's a perfect fit, but in practice, you use least squares on many paths).</p>
+        <p>Let's say the regression gives Continuation Value (CV) for Path 1 = 0.04, and Path 3 = 0.02.</p>
+        <p>For Path 1: Exercise (0.03) < CV (0.04). Do not exercise.</p>
+        <p>For Path 3: Exercise (0.06) > CV (0.02). Exercise! The payoff is now 0.06 at \(t=2\), overriding the \(t=3\) payoff.</p>
+        <p>Repeat for \(t=1\). The final value is the average of discounted cash flows along the optimal exercise boundary.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 16.4: Heston Model Implied Volatility</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Given a Heston model output where a European Call with \(K=90\) is priced at \(\$14.00\) and \(K=110\) is priced at \(\$2.50\). \(S=100, T=1, r=0\). What does this imply about the smile?</p>
+        <p><strong>Solution:</strong> By solving the standard Black-Scholes formula for \(\sigma\) using a root-finding method (like Newton-Raphson), we find the implied volatilities.</p>
+        <p>For \(K=90, C=14.00 \implies\) Invert BS formula \(\implies \sigma_{imp} \approx 25.5\%\).</p>
+        <p>For \(K=110, C=2.50 \implies\) Invert BS formula \(\implies \sigma_{imp} \approx 18.2\%\).</p>
+        <p>The higher implied volatility for the downside strike (\(K=90\)) compared to the upside strike (\(K=110\)) indicates a negative skew. In the Heston model, this is generated by setting the correlation parameter \(\rho < 0\).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 16.5: Geometric Asian Option</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Price a continuously monitored geometric Asian call. \(S_0=100, K=100, r=0.05, q=0, \sigma=0.3, T=1.0\).</p>
+        <p><strong>Solution:</strong> The geometric average of lognormal random variables is lognormal. We adjust the volatility and dividend yield.</p>
+        <p>Adjusted volatility: \(\sigma_A = \sigma / \sqrt{3} = 0.3 / \sqrt{3} = 0.1732\).</p>
+        <p>Adjusted dividend yield: \(q_A = \frac{1}{2}\left(r + q + \frac{\sigma^2}{6}\right) = \frac{1}{2}(0.05 + 0 + 0.015) = 0.0325\).</p>
+        <p>We use the standard BS formula with \(S_0=100, K=100, r=0.05, q=0.0325, \sigma=0.1732, T=1\).</p>
+        <p>\(d_1 = \frac{\ln(1) + (0.05 - 0.0325 + 0.1732^2/2)}{0.1732} = \frac{0.0175 + 0.015}{0.1732} = 0.1876\).</p>
+        <p>\(d_2 = 0.1876 - 0.1732 = 0.0144\).</p>
+        <p>\(N(d_1) = 0.5744, N(d_2) = 0.5057\).</p>
+        <p>\(C = 100 e^{-0.0325}(0.5744) - 100 e^{-0.05}(0.5057) = 55.60 - 48.10 = 7.50\).</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="python-code">
+    <h2>6. Python Code</h2>
+    <p>Below is an implementation of the Longstaff-Schwartz Algorithm to price an American Put Option using Monte Carlo simulation.</p>
+<pre><code class="language-python">
+import numpy as np
+
+def lsm_american_put(S0, K, T, r, sigma, N_sims, N_steps):
+    """
+    Price an American Put option using the Longstaff-Schwartz method.
+    """
+    np.random.seed(42)
+    dt = T / N_steps
+    discount = np.exp(-r * dt)
+    
+    # 1. Simulate paths (GBM)
+    S = np.zeros((N_steps + 1, N_sims))
+    S[0] = S0
+    for t in range(1, N_steps + 1):
+        Z = np.random.standard_normal(N_sims)
+        S[t] = S[t-1] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
+        
+    # 2. Initialization at maturity
+    payoffs = np.maximum(K - S[-1], 0)
+    
+    # 3. Backward Induction
+    for t in range(N_steps - 1, 0, -1):
+        itm = S[t] < K # Only regress In-The-Money paths
+        if np.sum(itm) > 0:
+            X = S[t][itm]
+            Y = payoffs[itm] * discount
+            
+            # Regress Y on X and X^2 (basis functions)
+            poly = np.polyfit(X, Y, 2)
+            continuation_value = np.polyval(poly, X)
+            
+            exercise_value = K - X
+            
+            # Determine early exercise
+            exercise_now = exercise_value > continuation_value
+            
+            # Update payoffs
+            payoffs[itm] = np.where(exercise_now, exercise_value, Y)
+            payoffs[~itm] = payoffs[~itm] * discount
+            
+    # Discount back to T=0
+    price = np.mean(payoffs * discount)
+    return price
+
+# Example execution
+S0, K, T, r, sigma = 100.0, 100.0, 1.0, 0.05, 0.20
+eur_put = 5.57 # From Black-Scholes formula
+am_put = lsm_american_put(S0, K, T, r, sigma, 50000, 50)
+print(f"European Put Price (BS): ${eur_put:.2f}")
+print(f"American Put Price (LSM): ${am_put:.2f}")
+print(f"Early Exercise Premium: ${am_put - eur_put:.2f}")
+</code></pre>
+  </section>
+
+  <section id="diagrams">
+    <h2>7. Diagrams Description</h2>
+    <p>To fully grasp these models, visualizing the data is key:</p>
+    <ul>
+      <li><strong>Figure 16.1: Volatility Surface.</strong> A 3D plot showing implied volatility on the z-axis against strike (x-axis) and time to maturity (y-axis). It exhibits the classic 'skew' (lower strikes have higher vol) and term structure.</li>
+      <li><strong>Figure 16.2: Monte Carlo Convergence.</strong> A line chart showing the simulated MC price converging to the theoretical price as the number of simulations \(N\) increases. The \(\pm 2\) standard error bands narrow significantly as \(N\) reaches 100,000.</li>
+      <li><strong>Figure 16.3: Finite Difference Grid.</strong> A grid diagram showing the \(S\) vs \(t\) nodes. Arrows depict the explicit method stencil (one node at time \(t\) depends on three nodes at \(t+\Delta t\)).</li>
+      <li><strong>Figure 16.4: Early Exercise Boundary.</strong> A plot of Asset Price vs Time. A curved line separates the "Exercise Region" from the "Continuation Region". For an American put, you exercise if the price falls below this boundary.</li>
+    </ul>
+  </section>
+
+  <section id="common-mistakes" class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Simulating Physical instead of Risk-Neutral paths:</strong> Using the real-world drift \(\mu\) instead of the risk-free rate \(r-q\) in Monte Carlo simulations is a fatal error. Derivative pricing requires the risk-neutral measure \(\mathbb{Q}\).</li>
+        <li><strong>Overfitting in Calibration:</strong> Calibrating a highly parameterized model (like a jump-diffusion model with local volatility) perfectly to today's prices might lead to unstable hedging ratios tomorrow. Parsimony is often better.</li>
+        <li><strong>Implicit assumption of continuous monitoring in barriers:</strong> Standard formulas assume continuous barrier monitoring. In reality, contracts specify discrete monitoring (e.g., daily close). This requires a shift in the barrier level (Broadie-Glasserman-Kou correction).</li>
+        <li><strong>Misapplying Control Variates:</strong> Choosing a control variate that is weakly correlated with the target derivative increases variance rather than reducing it. Always verify the correlation.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="industry-application" class="industry">
+    <div class="box-title">9. Industry Application Box: Hedging Exotics</div>
+    <div class="box-content">
+      <p>At a large derivatives desk, an exotic options trader sells a massive size of Down-and-In Puts to a hedge fund. How is this risk managed?</p>
+      <p>Using the Black-Scholes model directly is dangerous. If the trader merely hedges the Delta, they face "barrier risk". As the asset price approaches the barrier, the Gamma (rate of change of Delta) explodes. The trader would be forced to sell massive amounts of stock exactly when liquidity is likely poor.</p>
+      <p>To mitigate this, quantitative researchers build Local Volatility and Stochastic Volatility models to capture the joint probability of large downward moves and volatility spikes. Furthermore, they use <em>static replication</em>—trading a portfolio of standard European vanilla puts at different strikes—to mimic the barrier payoff, minimizing the need for continuous, unstable dynamic hedging at the barrier.</p>
+    </div>
+  </section>
+
+  <section id="summary" class="formula-sheet">
+    <div class="box-title">10. Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <p><strong>Monte Carlo Path:</strong> \( S_{t+\Delta t} = S_t e^{(r - q - \sigma^2/2)\Delta t + \sigma \sqrt{\Delta t} Z} \)</p>
+      <p><strong>Explicit PDE Stability:</strong> \(\Delta t \le \frac{(\Delta x)^2}{2\sigma^2}\)</p>
+      <p><strong>Dupire Local Vol:</strong> \( \sigma_{loc}^2(K,T) = \frac{2(\pdv{C}{T} + (r-q)K\pdv{C}{K} + qC)}{K^2 \frac{\partial^2 C}{\partial K^2}} \)</p>
+      <p><strong>Heston Variance Process:</strong> \( dv_t = \kappa(\theta - v_t)dt + \xi \sqrt{v_t} dW_{2,t} \)</p>
+      <p><strong>Merton Jump-Diffusion Price:</strong> \( C_{Merton} = \sum_{n=0}^{\infty} \frac{e^{-\lambda' T} (\lambda' T)^n}{n!} C_{BS}(S_0, K, T, r_n, \sigma_n) \)</p>
+      <p>where \(r_n = r - \lambda k + \frac{n \ln(1+k)}{T}\) and \(\sigma_n^2 = \sigma^2 + \frac{n \delta^2}{T}\).</p>
+    </div>
+  </section>
+
+  <section id="exercises" class="exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">1. Define the difference between the explicit and implicit finite-difference methods in terms of stability.</div>
+      <div class="exercise-item">2. Explain why the Longstaff-Schwartz method only performs regression on in-the-money paths.</div>
+      <div class="exercise-item">3. Write down the Black-Scholes PDE and identify the terms representing Delta, Gamma, and Theta.</div>
+      <div class="exercise-item">4. What is the fundamental difference between Local Volatility and Stochastic Volatility?</div>
+      <div class="exercise-item">5. Calculate the expected terminal value of a stock starting at 100, \(r=5\%\), \(\sigma=20\%\) under the risk-neutral measure over 1 year.</div>
+    </div>
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">6. Price a Cash-or-Nothing binary put option (pays $1 if \(S_T < K\)) with \(S_0=50\), \(K=48\), \(T=0.5\), \(r=0.03\), \(\sigma=0.3\).</div>
+      <div class="exercise-item">7. Demonstrate mathematically how antithetic variates reduce the variance of a Monte Carlo estimator.</div>
+      <div class="exercise-item">8. Set up the tridiagonal matrix equation for the implicit finite difference method for the Black-Scholes PDE.</div>
+      <div class="exercise-item">9. Discuss the volatility smile generated by the Merton Jump-Diffusion model for short maturities vs long maturities.</div>
+      <div class="exercise-item">10. Calculate the shifted barrier for a discrete down-and-out option monitored daily if the continuous barrier is 90 and \(\sigma=0.25\).</div>
+    </div>
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">11. Derive the Dupire equation from the Fokker-Planck (forward Kolmogorov) equation.</div>
+      <div class="exercise-item">12. Implement a Python script using Crank-Nicolson to price an American Put.</div>
+      <div class="exercise-item">13. Prove that a variance swap can be replicated using a log contract.</div>
+      <div class="exercise-item">14. Formulate the characteristic function for the Heston model.</div>
+      <div class="exercise-item">15. Analyze the impact of correlation (\(\rho\)) in the SABR model on the shape of the implied volatility smile.</div>
+    </div>
+
+    <h3>Solutions (Selected)</h3>
+    <div class="solution-item">
+      <strong>Solution to 2:</strong> In the LSM, regression estimates the continuation value. For out-of-the-money paths, the immediate exercise value is zero. If we included them, we would dilute the regression fit for the paths where the early exercise decision is actually relevant (the in-the-money paths), leading to suboptimal early exercise boundaries.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 5:</strong> Under the risk-neutral measure \(\mathbb{Q}\), the expected terminal value is simply the forward price: \(\E^\mathbb{Q}[S_T] = S_0 e^{rT} = 100 e^{0.05 \times 1} = 105.127\). Notice that volatility \(\sigma\) does not affect the expected value of the asset itself, only the expected value of non-linear payoffs.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 6:</strong> The price of a cash-or-nothing put is \( e^{-rT} N(-d_2) \). <br>
+      \( d_1 = \frac{\ln(50/48) + (0.03 + 0.3^2/2)0.5}{0.3 \sqrt{0.5}} = \frac{0.0408 + 0.0375}{0.2121} = 0.369 \).<br>
+      \( d_2 = 0.369 - 0.2121 = 0.1569 \).<br>
+      \( -d_2 = -0.1569 \). \( N(-0.1569) \approx 0.4376 \).<br>
+      Price = \( e^{-0.03 \times 0.5} \times 0.4376 = 0.985 \times 0.4376 = 0.431 \).
+    </div>
+  </section>
+
+  <section id="further-reading" class="further-reading">
+    <div class="box-title">12. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Glasserman, P. (2003). <em>Monte Carlo Methods in Financial Engineering</em>. Springer. (The definitive guide on MC and variance reduction).</li>
+        <li>Hull, J. C. (2021). <em>Options, Futures, and Other Derivatives</em>. Pearson. (Chapters on Exotic Options and Numerical Procedures).</li>
+        <li>Gatheral, J. (2006). <em>The Volatility Surface: A Practitioner's Guide</em>. Wiley. (Excellent treatment of Local and Stochastic Volatility, and SABR).</li>
+        <li>Longstaff, F. A., & Schwartz, E. S. (2001). "Valuing American Options by Simulation: A Simple Least-Squares Approach." <em>The Review of Financial Studies</em>, 14(1), 113-147.</li>
+        <li>Dupire, B. (1994). "Pricing with a Smile." <em>Risk Magazine</em>, 7(1), 18-20.</li>
+      </ul>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch15_options.html">← Previous Chapter (15. Options)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch17_ir_derivatives.html">Next Chapter (17. Interest Rate Derivatives) →</a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 38: Catastrophe Modelling</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 38: Catastrophe Modelling</h1>
+  
+  <section class="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul>
+      <li>Understand the core four-module architecture of catastrophe (cat) models: Hazard, Exposure, Vulnerability, and Financial.</li>
+      <li>Derive and interpret Loss Exceedance Curves (OEP and AEP) and compute the Average Annual Loss (AAL).</li>
+      <li>Model various perils including earthquakes, cyclones, floods, and understand the impact of climate change on non-stationary hazards.</li>
+      <li>Apply financial structures such as deductibles, limits, and reinsurance to convert gross losses into net financial impacts.</li>
+      <li>Price catastrophic risk transfer instruments like Catastrophe Bonds using expected loss and spread decomposition.</li>
+      <li>Contextualize catastrophe risk within the Indian subcontinent, addressing specific regional perils like monsoonal floods and seismic activity.</li>
+    </ul>
+  </section>
+  
+  <section class="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <p>This chapter builds upon foundational concepts covered earlier in this textbook:</p>
+    <ul>
+      <li><strong>Chapter 5: Probability Distributions</strong> – Extreme value theory and heavy-tailed distributions.</li>
+      <li><strong>Chapter 12: Monte Carlo Simulation</strong> – Generation of stochastic events.</li>
+      <li><strong>Chapter 25: Reinsurance Pricing</strong> – Application of layers, limits, and deductibles.</li>
+      <li><strong>Chapter 37: Health Insurance</strong> – Morbidity and pandemic modelling (which also maps to biological perils).</li>
+    </ul>
+    <p>In the next chapter (Chapter 39: Asset Liability Management), we will look at how sudden massive liquidity drains caused by catastrophes require specific ALM strategies.</p>
+  </section>
+  
+  <section>
+    <h2>3. Intuition & Motivation</h2>
+    <p>Imagine you are the Chief Risk Officer for a major property insurer in Mumbai. Your company covers thousands of residential and commercial properties along the western coast of India. Traditional actuarial pricing relies on the law of large numbers and independent risks. However, if a Category 5 tropical cyclone makes landfall near Mumbai, it damages thousands of properties simultaneously. The risks are highly correlated in space and time.</p>
+    <p>If you rely merely on historical data (e.g., the last 50 years), you might incorrectly estimate the true underlying risk, because extreme events (like a 1-in-250 year cyclone) simply might not have occurred in your brief historical window. To solve this, actuaries, seismologists, and meteorologists developed <strong>Catastrophe Models (Cat Models)</strong>. These models simulate tens of thousands of years of potential weather and geological events to estimate the probabilities of extreme financial losses.</p>
+  </section>
+  
+  <section>
+    <h2>4. Formal Theory</h2>
+    
+    <h3>4.1 Cat Model Architecture</h3>
+    <p>Modern catastrophe modelling relies on a sequential framework comprising four core modules:</p>
+    <div class="definition">
+      <div class="box-title">Definition 38.1: Cat Model Architecture</div>
+      <div class="box-content">
+        <ol>
+          <li><strong>Hazard Module:</strong> Simulates the frequency, severity, and physical characteristics (e.g., wind speed, ground acceleration) of potential catastrophic events over a predefined area.</li>
+          <li><strong>Exposure Module:</strong> Catalogs the geographic location, physical characteristics (construction type, year built), and replacement value of the insured properties.</li>
+          <li><strong>Vulnerability Module:</strong> Translates the physical hazard intensity at a specific location into expected physical damage to a specific exposure, usually expressed as a Mean Damage Ratio (MDR).</li>
+          <li><strong>Financial Module:</strong> Translates physical damage (gross loss) into insured loss by applying policy conditions such as deductibles, limits, and reinsurance treaties.</li>
+        </ol>
+      </div>
+    </div>
+    
+    <h3>4.2 The Hazard Module</h3>
+    <p>The hazard module generates a <em>stochastic event catalog</em> representing thousands of simulated years (e.g., a 10,000-year simulation). Each event \( i \) in the catalog has an associated annual rate of occurrence \( \lambda_i \) (often \( \lambda_i = 1/N \) where \( N \) is the simulation period).</p>
+    <p>For an event \( i \), the hazard module computes the intensity \( I_{i,j} \) at location \( j \). For example, for an earthquake, \( I \) might be Peak Ground Acceleration (PGA); for a hurricane, maximum sustained wind speed.</p>
+    
+    <h3>4.3 Major Perils</h3>
+    <ul>
+      <li><strong>Earthquake:</strong> Modeled using fault models, magnitude-frequency distributions (Gutenberg-Richter law), and ground motion attenuation relationships. Secondary impacts include liquefaction and fire following earthquake.</li>
+      <li><strong>Tropical Cyclone:</strong> Involves track generation, central pressure deficits, and windfield models. Storm surge is a critical secondary peril, highly dependent on coastal bathymetry.</li>
+      <li><strong>Flood:</strong> Includes riverine (fluvial), pluvial (surface water), and coastal flooding. Models require digital elevation models (DEM) and hydrological routing equations.</li>
+      <li><strong>Other Perils:</strong> Wildfire, Tornado/Hail (severe convective storms), and Pandemic (requiring SEIR epidemiological models).</li>
+    </ul>
+    
+    <h3>4.4 Vulnerability Functions</h3>
+    <p>The damage a structure sustains depends on its construction class and the hazard intensity. The Mean Damage Ratio (MDR) is defined as:</p>
+    \[ MDR(I) = \E\left[ \frac{\text{Repair Cost}}{\text{Replacement Value}} \middle| \text{Intensity} = I \right] \]
+    <p>Vulnerability is inherently uncertain. The actual damage ratio \( D \) for a specific intensity follows a probability distribution (e.g., Beta distribution), representing <em>secondary uncertainty</em>.</p>
+    
+    <h3>4.5 Loss Exceedance Curves</h3>
+    <p>The output of a cat model is synthesized into Loss Exceedance curves, mapping loss levels to their probabilities of being exceeded in a given year.</p>
+    <div class="theorem">
+      <div class="box-title">Exceedance Probability</div>
+      <div class="box-content">
+        <p><strong>Occurrence Exceedance Probability (OEP):</strong> The probability that the <em>maximum single event loss</em> in a year exceeds a threshold \( x \).</p>
+        <p><strong>Aggregate Exceedance Probability (AEP):</strong> The probability that the <em>sum of all event losses</em> in a year exceeds a threshold \( x \).</p>
+        <p>The Return Period (RP) \( T \) for an exceedance probability \( P(X > x) = p \) is given by \( T = 1/p \). The loss associated with this return period is the Probable Maximum Loss (PML).</p>
+      </div>
+    </div>
+    
+    <h3>4.6 Average Annual Loss (AAL)</h3>
+    <p>The AAL (or expected loss) is the pure premium required to cover the catastrophic risk, excluding risk margins and expenses. Over a catalog of \( N \) mutually exclusive simulated events, where event \( i \) has frequency \( f_i \) and expected loss \( L_i \):</p>
+    \[ AAL = \sum_{i} f_i L_i = \int_0^\infty P(L > x) \dd x \]
+    <p>The integral of the AEP curve exactly equals the AAL.</p>
+    
+    <h3>4.7 Financial Module</h3>
+    <p>Insurance contracts contain limits \( M \) and deductibles \( d \). The net loss to the insurer for an event with gross loss \( L \) is:</p>
+    \[ L_{net} = \min(\max(L - d, 0), M) \]
+    <p>For a reinsurance layer attaching at \( A \) with limit \( C \), the ceded loss is \( L_{ceded} = \min(\max(L - A, 0), C) \).</p>
+    
+    <h3>4.8 Cat Bond Pricing</h3>
+    <p>A Catastrophe Bond transfers risk to capital markets. Investors receive a spread above risk-free rates. If an event exceeds the attachment point, investors lose principal. The fair spread \( S \) can be approximated by:</p>
+    \[ S \approx \E[L_{prin}] + R \]
+    <p>where \( \E[L_{prin}] \) is the expected principal loss (as a percentage) and \( R \) is the risk premium (which often depends on conditional expected loss and market conditions).</p>
+    
+    <h3>4.9 Climate Change Impact</h3>
+    <p>Climate change invalidates the assumption of <em>stationarity</em> in hazard frequencies. Cat models incorporate Representative Concentration Pathways (RCPs) and Shared Socioeconomic Pathways (SSPs) to adjust baseline event frequencies and intensities, e.g., shifting the distribution of hurricane wind speeds upwards over time.</p>
+    
+    <h3>4.10 The Indian Context</h3>
+    <p>In India, catastrophe modelling addresses specific regional challenges:</p>
+    <ul>
+      <li><strong>Earthquakes:</strong> The Bureau of Indian Standards (BIS) divides India into four seismic zones (II to V), with Zone V (e.g., North-East, parts of Gujarat) having the highest risk.</li>
+      <li><strong>Cyclones:</strong> The Bay of Bengal sees higher cyclogenesis frequency than the Arabian Sea, impacting states like Odisha, Andhra Pradesh, and West Bengal.</li>
+      <li><strong>Floods:</strong> Monsoonal riverine flooding heavily impacts the Ganges and Brahmaputra basins.</li>
+      <li><strong>Crop Insurance:</strong> The Pradhan Mantri Fasal Bima Yojana (PMFBY) relies heavily on meteorological hazard models for agricultural yield protection.</li>
+    </ul>
+  </section>
+  
+  <section>
+    <h2>5. Worked Examples</h2>
+    
+    <div class="example">
+      <div class="box-title">Example 38.1: Constructing an OEP Curve</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An insurer has a simulated 10,000-year catalog. The maximum annual losses for the top 4 worst years are (in USD millions): 500, 350, 200, 150. Calculate the OEP and associated return periods for these losses.</p>
+        <p><strong>Solution:</strong></p>
+        <p>Since the catalog represents 10,000 years, each year's maximum loss represents an empirical percentile.</p>
+        <ul>
+          <li>Loss > 500: Occurs 0 times in 10,000 years. Exceedance Probability = 1/10,000 = 0.01%. RP = 10,000 years.</li>
+          <li>Loss ≥ 350: Occurs 1 time (the 500 loss year doesn't count if 500 is max, wait, the max losses ARE 500, 350, 200, 150). If these are sorted descending:
+            <ul>
+              <li>Rank 1: 500. Exceeded 0 times, equaled/exceeded 1 time. EP = 1/10,000 = 0.01%. RP = 10,000 yrs.</li>
+              <li>Rank 2: 350. Equaled/exceeded 2 times. EP = 2/10,000 = 0.02%. RP = 5,000 yrs.</li>
+              <li>Rank 3: 200. Equaled/exceeded 3 times. EP = 3/10,000 = 0.03%. RP = 3,333 yrs.</li>
+              <li>Rank 4: 150. Equaled/exceeded 4 times. EP = 4/10,000 = 0.04%. RP = 2,500 yrs.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="example">
+      <div class="box-title">Example 38.2: Computing AAL from an Event Loss Table (ELT)</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An Event Loss Table for a portfolio in Mumbai has the following 3 events. Calculate the AAL.</p>
+        <table border="1" cellpadding="5">
+          <tr><th>Event ID</th><th>Annual Rate (\( f_i \))</th><th>Expected Loss (\( L_i \), INR Cr)</th></tr>
+          <tr><td>E1 (Cyclone)</td><td>0.02 (1 in 50 yr)</td><td>500</td></tr>
+          <tr><td>E2 (Flood)</td><td>0.10 (1 in 10 yr)</td><td>100</td></tr>
+          <tr><td>E3 (Earthquake)</td><td>0.005 (1 in 200 yr)</td><td>2,000</td></tr>
+        </table>
+        <p><strong>Solution:</strong></p>
+        <p>\( AAL = \sum (f_i \times L_i) \)</p>
+        <p>\( AAL_{E1} = 0.02 \times 500 = 10 \) INR Cr</p>
+        <p>\( AAL_{E2} = 0.10 \times 100 = 10 \) INR Cr</p>
+        <p>\( AAL_{E3} = 0.005 \times 2000 = 10 \) INR Cr</p>
+        <p>Total AAL = 10 + 10 + 10 = <strong>30 INR Cr</strong>.</p>
+      </div>
+    </div>
+    
+    <div class="example">
+      <div class="box-title">Example 38.3: Applying a Reinsurance Layer</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A primary insurer buys a catastrophe excess of loss reinsurance treaty structured as "200 xs 100" (covers 200m losses in excess of a 100m retention). For a simulated event causing a gross loss of USD 250m, calculate the retained loss and ceded loss.</p>
+        <p><strong>Solution:</strong></p>
+        <p>Attachment point \( A = 100 \). Limit \( C = 200 \).</p>
+        <p>Ceded Loss = \( \min(\max(L - A, 0), C) = \min(\max(250 - 100, 0), 200) = \min(150, 200) = 150 \) USD m.</p>
+        <p>Retained Loss = Total Loss - Ceded Loss = \( 250 - 150 = 100 \) USD m.</p>
+      </div>
+    </div>
+    
+    <div class="example">
+      <div class="box-title">Example 38.4: Cat Bond Expected Loss and Spread</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A USD 100m Cat Bond triggers on an industry loss index exceeding USD 50bn. Based on model output, the probability of attachment (trigger) is 1.5% and the expected principal loss (EPL) is 1.2%. If investors require a risk multiple of 3.0, what is the fair spread?</p>
+        <p><strong>Solution:</strong></p>
+        <p>The spread \( S \) must compensate for expected loss plus a risk margin.</p>
+        <p>Risk Premium = Risk Multiple \( \times \) EPL - EPL = (since Multiple is often defined as Spread / EPL, Spread = Multiple * EPL).</p>
+        <p>Assuming Spread \( S = \text{Multiple} \times EPL \)</p>
+        <p>\( S = 3.0 \times 1.2\% = 3.6\% \) (or 360 basis points).</p>
+        <p>Investors will receive Risk-Free Rate + 3.6%.</p>
+      </div>
+    </div>
+    
+    <div class="example">
+      <div class="box-title">Example 38.5: Comparing PMLs</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An insurer examines its OEP curve for earthquake risk in Gujarat. The return period losses are: 100-yr = 500 Cr, 250-yr = 800 Cr, 500-yr = 1,200 Cr. What is the probability of a loss exceeding 800 Cr in a single year? If the insurer has 1,000 Cr in capital, what is the probability of insolvency over a 1-year horizon?</p>
+        <p><strong>Solution:</strong></p>
+        <p>The 800 Cr loss corresponds to the 250-yr return period. Probability = \( 1 / 250 = 0.004 \) or 0.4%.</p>
+        <p>Insolvency occurs if loss exceeds 1,000 Cr. 1,000 Cr lies between the 250-yr and 500-yr PML. Using log-linear interpolation:</p>
+        <p>\( \ln(P) \) for 800 is \( \ln(0.004) = -5.521 \)</p>
+        <p>\( \ln(P) \) for 1200 is \( \ln(0.002) = -6.214 \)</p>
+        <p>Interpolating for 1000: midpoint. Probability roughly corresponds to a ~350-year return period, or ~0.28% chance of insolvency.</p>
+      </div>
+    </div>
+  </section>
+  
+  <section>
+    <h2>6. Python Code</h2>
+    <p>Below is a Python script that generates an OEP and AEP curve from simulated Monte Carlo event losses.</p>
+    <pre><code class="language-python">
+import numpy as np
+import pandas as pd
+
+def generate_exceedance_curves(events, simulated_years):
+    """
+    events: DataFrame with columns ['Year', 'Event_Loss']
+    simulated_years: int, total years in simulation catalog
+    """
+    # 1. AEP (Aggregate Exceedance Probability)
+    # Sum losses per year
+    annual_aggregate = events.groupby('Year')['Event_Loss'].sum().reset_index()
+    
+    # Fill years with 0 loss
+    all_years = pd.DataFrame({'Year': np.arange(1, simulated_years + 1)})
+    annual_aggregate = all_years.merge(annual_aggregate, on='Year', how='left').fillna(0)
+    
+    # Sort descending
+    aep_losses = np.sort(annual_aggregate['Event_Loss'])[::-1]
+    aep_probs = np.arange(1, simulated_years + 1) / simulated_years
+    
+    # 2. OEP (Occurrence Exceedance Probability)
+    # Max loss per year
+    annual_max = events.groupby('Year')['Event_Loss'].max().reset_index()
+    annual_max = all_years.merge(annual_max, on='Year', how='left').fillna(0)
+    
+    oep_losses = np.sort(annual_max['Event_Loss'])[::-1]
+    oep_probs = np.arange(1, simulated_years + 1) / simulated_years
+    
+    return pd.DataFrame({'Probability': aep_probs, 'AEP_Loss': aep_losses, 'OEP_Loss': oep_losses})
+
+# Example Usage:
+np.random.seed(42)
+# Simulate 500 events over 1000 years
+years = np.random.randint(1, 1001, size=500)
+losses = np.random.lognormal(mean=2, sigma=1.5, size=500) * 1e6 # Losses in dollars
+
+df_events = pd.DataFrame({'Year': years, 'Event_Loss': losses})
+curves = generate_exceedance_curves(df_events, simulated_years=1000)
+
+print(curves.head(5)) # Show top 5 years (1-in-1000 to 1-in-200 RP)
+    </code></pre>
+  </section>
+  
+  <section>
+    <h2>7. Diagrams Description</h2>
+    <p><strong>Figure 38.1: The Catastrophe Modelling Framework.</strong> A flow diagram showing data moving from the Hazard module (map showing storm tracks), to the Exposure module (database icon of buildings), into the Vulnerability module (graph mapping wind speed to damage percentage), and finally the Financial module (funnel applying deductibles), outputting Exceedance Probability curves.</p>
+    <p><strong>Figure 38.2: OEP vs AEP Curve.</strong> A line chart with Return Period on the x-axis (log scale, from 1 to 10,000 years) and Loss Amount on the y-axis. Two lines are shown: The AEP curve (higher) and the OEP curve (lower). They converge at the tail (e.g., 10,000 years) because extreme years usually feature only one massive event.</p>
+  </section>
+  
+  <section>
+    <h2>8. Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Watch Out!</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Confusing OEP and AEP:</strong> OEP looks at the worst single event in a year. AEP looks at the sum of all events in a year. Reinsurance treaties that cover "any one event" use OEP; aggregate stop-loss treaties use AEP.</li>
+          <li><strong>Assuming "1-in-100 year event" means it happens exactly every 100 years:</strong> This is a statistical average. A 1-in-100 year event has a 1% chance of occurring <em>every single year</em>. It can happen in consecutive years.</li>
+          <li><strong>Ignoring Secondary Uncertainty:</strong> Treating the Mean Damage Ratio as deterministic ignores the fact that identical buildings experience different damages under identical hazards. This leads to underestimating tail risk.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  
+  <section>
+    <h2>9. Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Cat Models at Global Reinsurers</div>
+      <div class="box-content">
+        <p>Reinsurers like Swiss Re and Munich Re use vendor models (e.g., RMS, AIR Worldwide, CoreLogic) blended with proprietary in-house adjustments. When a syndicate at Lloyd's of London writes a property treaty for an Indian insurer covering cyclone risk, they upload the exposure data (often millions of rows with pincodes, building types) into these platforms.</p>
+        <p>The model outputs the AAL and PML. The underwriter then applies capital allocation frameworks. If the syndicate is heavily concentrated in Mumbai, writing more business there requires a higher marginal capital charge than writing uncorrelated business in Chennai, driving pricing decisions.</p>
+      </div>
+    </div>
+  </section>
+  
+  <section>
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <div class="box-title">Chapter 38 Key Formulas</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Return Period (T):</strong> \( T = \frac{1}{P} \)</li>
+          <li><strong>Mean Damage Ratio (MDR):</strong> \( MDR = \frac{\text{Expected Repair Cost}}{\text{Replacement Value}} \)</li>
+          <li><strong>Average Annual Loss (AAL):</strong> \( AAL = \sum_{i=1}^N f_i L_i \)</li>
+          <li><strong>Net Loss after Deductible (\( d \)) and Limit (\( M \)):</strong> \( L_{net} = \min(\max(L - d, 0), M) \)</li>
+          <li><strong>Cat Bond Spread:</strong> \( S = \text{Multiple} \times \E[L_{prin}] \)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  
+  <section>
+    <h2>11. Exercises</h2>
+    <div class="exercises">
+      <div class="exercise-group">
+        <h3>Basic</h3>
+        <div class="exercise-item">1. Define the four core modules of a catastrophe model.</div>
+        <div class="solution-item"><strong>Solution:</strong> Hazard (generates events and intensity), Exposure (catalogs properties at risk), Vulnerability (translates intensity to damage), Financial (translates damage to insured loss via policy terms).</div>
+        
+        <div class="exercise-item">2. An event has a 0.25% chance of occurring in any given year. What is its Return Period?</div>
+        <div class="solution-item"><strong>Solution:</strong> \( T = 1 / 0.0025 = 400 \) years.</div>
+        
+        <div class="exercise-item">3. Calculate the AAL for a portfolio exposed to exactly one peril with two possible events: Event A (frequency 0.05, loss $10m) and Event B (frequency 0.01, loss $50m).</div>
+        <div class="solution-item"><strong>Solution:</strong> \( AAL = (0.05 \times 10) + (0.01 \times 50) = 0.5 + 0.5 = 1.0 \) million.</div>
+        
+        <div class="exercise-item">4. Distinguish between OEP and AEP. Which one is always greater than or equal to the other?</div>
+      </div>
+      
+      <div class="exercise-group">
+        <h3>Intermediate</h3>
+        <div class="exercise-item">5. An insurer has a 50m limit per event subject to a 10m deductible. Calculate the net loss if the gross loss from a cyclone is 45m.</div>
+        <div class="solution-item"><strong>Solution:</strong> \( L_{net} = \min(\max(45 - 10, 0), 50) = \min(35, 50) = 35 \) million.</div>
+        
+        <div class="exercise-item">6. Given a simulated catalog of 1,000 years, the top 3 annual maximum losses are 120m, 90m, and 80m. What is the 500-year OEP PML?</div>
+        <div class="solution-item"><strong>Solution:</strong> 500-year RP = 0.2% exceedance probability. In 1,000 years, this is the 2nd highest loss. Therefore, 500-yr OEP = 90m.</div>
+        
+        <div class="exercise-item">7. Explain "secondary uncertainty" in vulnerability modeling and how ignoring it affects the tail of the loss distribution.</div>
+        <div class="exercise-item">8. A cat bond has an expected principal loss of 200 bps. The market requires a multiple of 2.5. Calculate the yield if the risk-free rate is 4%.</div>
+        <div class="solution-item"><strong>Solution:</strong> Spread = \( 2.5 \times 200 \) bps = 500 bps (5%). Yield = 4% + 5% = 9%.</div>
+      </div>
+      
+      <div class="exercise-group">
+        <h3>Advanced</h3>
+        <div class="exercise-item">9. A reinsurance layer is structured as 150 xs 100. Over 10,000 simulated years, exactly 4 events pierce the layer, with ground-up losses of 120, 200, 300, and 500. Calculate the Annual Expected Ceded Loss (Ceded AAL) for this layer.</div>
+        <div class="solution-item"><strong>Solution:</strong> 
+          Layer limit = 150, Attachment = 100.
+          Event 1 (120): Ceded = min(120-100, 150) = 20.
+          Event 2 (200): Ceded = min(200-100, 150) = 100.
+          Event 3 (300): Ceded = min(300-100, 150) = 150.
+          Event 4 (500): Ceded = min(500-100, 150) = 150.
+          Total ceded loss = 20 + 100 + 150 + 150 = 420.
+          Annual frequency of each = 1/10000.
+          Ceded AAL = 420 / 10000 = 0.042.
+        </div>
+        <div class="exercise-item">10. Detail the impact of climate change non-stationarity on the AAL of a coastal property portfolio over a 30-year horizon. How should actuaries adapt traditional models?</div>
+        <div class="exercise-item">11. In the Indian context, how do vulnerability models differ for unreinforced masonry (URM) versus reinforced concrete (RC) frames during seismic events?</div>
+        <div class="exercise-item">12. Derive mathematically why the integral of the OEP curve does NOT equal the Average Annual Loss (AAL), but the integral of the AEP curve does.</div>
+      </div>
+    </div>
+  </section>
+  
+  <section class="further-reading">
+    <h2>12. Further Reading</h2>
+    <ul>
+      <li>Grossi, P., & Kunreuther, H. (2005). <em>Catastrophe Modeling: A New Approach to Managing Risk</em>. Springer.</li>
+      <li>Mitchell-Wallace, K., et al. (2017). <em>Natural Catastrophe Risk Management and Modelling: A Practitioner's Guide</em>. Wiley.</li>
+      <li>Bouriaux, S., & Scott, W. L. (2004). "Capital Markets Solutions to Environmental Risks: The Catastrophe Bond." <em>Journal of Risk and Insurance</em>.</li>
+    </ul>
+  </section>
+  
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch37_health_insurance.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch39_alm.html">Next Chapter →</a>
+  </nav>
+  
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 1: Algebra, Functions, Sequences and Series</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          Z: ['\\mathbb{Z}'],
+          Q: ['\\mathbb{Q}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 1: Algebra, Functions, Sequences and Series</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand foundational sets of numbers and algebraic operations underpinning quantitative finance and actuarial science.</li>
+        <li>Master the concepts of functions, operations on functions, and key families (polynomial, exponential, logarithmic).</li>
+        <li>Analyze arithmetic and geometric sequences and series, applying them to compound interest and annuity valuation.</li>
+        <li>Develop intuition and formal understanding of sequences and their limits.</li>
+        <li>Master critical inequalities (AM-GM, Cauchy-Schwarz, Jensen's) and their applications in portfolio theory.</li>
+        <li>Apply the Binomial Theorem to expand polynomial expressions and approximate calculations.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This is the foundational chapter of the textbook. It assumes a firm grasp of standard high-school mathematics, basic arithmetic operations, and elementary algebra. Mastery of this chapter is critical for Chapter 2 (Calculus) and Chapter 3 (Probability).</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>In quantitative finance and actuarial science, precision in modeling is everything. Before calculating the expected shortfall of a complex derivative portfolio, one must comfortably manipulate the underlying algebraic equations. Imagine you are a quantitative analyst tasked with modeling the future value of a continuous stream of cash flows. The tools you use—exponential functions, limits of geometric series, and logarithmic scaling—are not just abstract mathematical concepts; they are the gears of financial machinery.</p>
+  <p>For instance, why is the expected logarithmic return of a stock lower than its expected simple return? The answer lies in <em>Jensen's Inequality</em>, a purely algebraic and analytic property of convex functions, which governs the core of asset pricing. This chapter builds these concepts from the ground up, ensuring a mathematically rigorous yet deeply practical foundation.</p>
+
+  <h2>2. Sets and Number Systems</h2>
+  
+  <div class="definition">
+    <div class="box-title">Definition 1.1: Standard Number Sets</div>
+    <div class="box-content">
+      <p>We define the following standard sets of numbers:</p>
+      <ul>
+        <li><strong>Natural Numbers (\(\N\)):</strong> \(\{1, 2, 3, \dots\}\)</li>
+        <li><strong>Integers (\(\Z\)):</strong> \(\{\dots, -2, -1, 0, 1, 2, \dots\}\)</li>
+        <li><strong>Rational Numbers (\(\Q\)):</strong> Numbers that can be expressed as \(\frac{p}{q}\), where \(p, q \in \Z\) and \(q \neq 0\).</li>
+        <li><strong>Real Numbers (\(\R\)):</strong> The set of all rational and irrational numbers, representing all points on the continuous number line.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>Intervals in \(\R\) are fundamental to defining domains. A closed interval includes its endpoints, denoted \([a, b] = \{x \in \R \mid a \le x \le b\}\). An open interval excludes endpoints, \((a, b) = \{x \in \R \mid a < x < b\}\).</p>
+
+  <h2>3. Algebra Fundamentals</h2>
+  <p>Algebra provides the rules for manipulating abstract quantities. Here, we review essential laws and techniques.</p>
+
+  <h3>3.1 Laws of Exponents</h3>
+  <p>For any \(a, b \in \R\) (with \(a, b > 0\)) and \(x, y \in \R\):</p>
+  <ul>
+    <li>\(a^x a^y = a^{x+y}\)</li>
+    <li>\(\frac{a^x}{a^y} = a^{x-y}\)</li>
+    <li>\((a^x)^y = a^{xy}\)</li>
+    <li>\((ab)^x = a^x b^x\)</li>
+    <li>\(a^{-x} = \frac{1}{a^x}\)</li>
+    <li>\(a^0 = 1\) (for \(a \neq 0\))</li>
+  </ul>
+
+  <h3>3.2 Completing the Square & Quadratic Formula</h3>
+  <p>A quadratic equation takes the form \(ax^2 + bx + c = 0\). To find its roots, we can complete the square:</p>
+  <p>
+    \[ ax^2 + bx + c = a\left(x^2 + \frac{b}{a}x\right) + c = a\left(x + \frac{b}{2a}\right)^2 + c - \frac{b^2}{4a} \]
+  </p>
+  <p>Setting this to zero yields the celebrated quadratic formula:</p>
+  <p>
+    \[ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} \]
+  </p>
+
+  <h2>4. Functions</h2>
+  
+  <div class="definition">
+    <div class="box-title">Definition 1.2: Function</div>
+    <div class="box-content">
+      <p>A function \(f: A \to B\) is a rule that assigns exactly one element \(y \in B\) (the <em>codomain</em>) to each element \(x \in A\) (the <em>domain</em>). The set of all possible outputs is the <em>range</em>.</p>
+    </div>
+  </div>
+
+  <p><strong>Key Function Families:</strong></p>
+  <ul>
+    <li><strong>Linear:</strong> \(f(x) = mx + c\). Used in simple asset returns.</li>
+    <li><strong>Quadratic:</strong> \(f(x) = ax^2 + bx + c\). Used in mean-variance optimization (variance is quadratic in weights).</li>
+    <li><strong>Rational:</strong> \(f(x) = \frac{P(x)}{Q(x)}\) where \(P, Q\) are polynomials.</li>
+    <li><strong>Absolute Value:</strong> \(f(x) = |x|\). Used in L1 regularization (Lasso regression).</li>
+    <li><strong>Piecewise:</strong> Functions defined by different formulas in different parts of their domains (e.g., payoff of an option).</li>
+  </ul>
+
+  <h2>5. Exponentials and Logarithms</h2>
+  <p>The exponential function \(f(x) = a^x\) (where \(a>0, a \neq 1\)) models constant proportional growth. The most important base in finance and nature is Euler's number, \(e \approx 2.71828\).</p>
+  
+  <div class="definition">
+    <div class="box-title">Definition 1.3: Logarithm</div>
+    <div class="box-content">
+      <p>The logarithm is the inverse of the exponential function. If \(y = a^x\), then \(\log_a(y) = x\). The natural logarithm, denoted \(\ln(x)\), has base \(e\).</p>
+    </div>
+  </div>
+
+  <p><strong>Log Laws:</strong></p>
+  <ul>
+    <li>\(\ln(xy) = \ln(x) + \ln(y)\)</li>
+    <li>\(\ln(x/y) = \ln(x) - \ln(y)\)</li>
+    <li>\(\ln(x^y) = y \ln(x)\)</li>
+    <li>Change of base: \(\log_b(x) = \frac{\ln(x)}{\ln(b)}\)</li>
+  </ul>
+
+  <div class="example">
+    <div class="box-title">Example 1.4: Using logarithms to solve doubling-time problems (Rule of 72)</div>
+    <div class="box-content">
+      <p>Suppose an investment grows at an annual rate of \(r = 8\%\). How long does it take to double the investment under continuous compounding?</p>
+      <p><strong>Solution:</strong></p>
+      <p>The formula for continuous compounding is \(V(t) = V_0 e^{rt}\). We want \(V(t) = 2 V_0\):</p>
+      <p>
+        \[ 2 V_0 = V_0 e^{0.08t} \implies e^{0.08t} = 2 \]
+      </p>
+      <p>Taking the natural logarithm of both sides:</p>
+      <p>
+        \[ 0.08t = \ln(2) \approx 0.693 \]
+        \[ t = \frac{0.693}{0.08} \approx 8.66 \text{ years} \]
+      </p>
+      <p>This is the basis of the "Rule of 72", an approximation stating that doubling time is roughly \(72 / (100r)\).</p>
+    </div>
+  </div>
+
+  <h2>6. Sequences</h2>
+  <p>A sequence is an ordered list of numbers. Formally, it is a function whose domain is \(\N\).</p>
+
+  <h3>6.1 Arithmetic Sequences</h3>
+  <p>A sequence where the difference between consecutive terms is constant, \(d\). The \(n\)-th term is \(a_n = a_1 + (n-1)d\). The sum of the first \(n\) terms is \(S_n = \frac{n}{2}(a_1 + a_n)\).</p>
+
+  <h3>6.2 Geometric Sequences</h3>
+  <p>A sequence where the ratio of consecutive terms is a constant, \(r\). The \(n\)-th term is \(a_n = a_1 r^{n-1}\).</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 1.1: Sum of a Geometric Series</div>
+    <div class="box-content">
+      <p>The sum of the first \(n\) terms of a geometric sequence is:</p>
+      <p>
+        \[ S_n = a_1 \frac{1 - r^n}{1 - r}, \quad r \neq 1 \]
+      </p>
+      <p>If \(|r| < 1\), the infinite geometric series converges to:</p>
+      <p>
+        \[ S_\infty = \frac{a_1}{1 - r} \]
+      </p>
+    </div>
+  </div>
+  
+  <div class="example">
+    <div class="box-title">Example 1.1: Compound interest calculation using geometric sequences (INR)</div>
+    <div class="box-content">
+      <p>You invest INR 10,000 at an annual interest rate of 6%, compounded annually. What is the value after 5 years?</p>
+      <p><strong>Solution:</strong></p>
+      <p>This forms a geometric sequence where \(a_1 = 10000(1.06)\) and \(r = 1.06\). The value at year \(n\) is \(V_n = V_0 r^n\).</p>
+      <p>
+        \[ V_5 = 10000 \times (1.06)^5 = 10000 \times 1.338225 = \text{INR } 13,382.25 \]
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 1.2: Sum of a geometric series applied to annuity valuation (USD)</div>
+    <div class="box-content">
+      <p>An investor receives USD 1,000 at the end of each year for 10 years. If the discount rate is 5%, what is the present value of this annuity?</p>
+      <p><strong>Solution:</strong></p>
+      <p>The present value of the cash flow at year \(k\) is \(1000 \times (1.05)^{-k}\). The total present value (PV) is the sum of a geometric series:</p>
+      <p>
+        \[ PV = \sum_{k=1}^{10} 1000 (1.05)^{-k} \]
+      </p>
+      <p>Here, the first term \(a_1 = 1000/1.05\) and the common ratio \(r = 1/1.05\).</p>
+      <p>
+        \[ PV = \frac{1000}{1.05} \times \frac{1 - (1/1.05)^{10}}{1 - 1/1.05} = 1000 \times \frac{1 - 1.05^{-10}}{0.05} \approx USD 7,721.73 \]
+      </p>
+    </div>
+  </div>
+
+  <h2>7. Series and Summation Notation</h2>
+  <p>The Greek letter Sigma (\(\Sigma\)) is used to denote sums concisely.</p>
+  <p>
+    \[ \sum_{i=1}^n x_i = x_1 + x_2 + \dots + x_n \]
+  </p>
+  <p>Properties of sums include linearity: \(\sum (a x_i + b y_i) = a \sum x_i + b \sum y_i\).</p>
+  <p>Product notation uses Pi (\(\Pi\)):</p>
+  <p>
+    \[ \prod_{i=1}^n x_i = x_1 \times x_2 \times \dots \times x_n \]
+  </p>
+  
+  <h2>8. Limits of Sequences</h2>
+  <div class="definition">
+    <div class="box-title">Definition 1.4: Formal Limit of a Sequence</div>
+    <div class="box-content">
+      <p>A sequence \(\{a_n\}\) converges to a limit \(L\), denoted \(\lim_{n \to \infty} a_n = L\), if for every \(\epsilon > 0\), there exists an integer \(N\) such that for all \(n > N\), we have \(|a_n - L| < \epsilon\).</p>
+    </div>
+  </div>
+  
+  <p>One of the most important limits in finance defines continuous compounding:</p>
+  <p>
+    \[ \lim_{n \to \infty} \left(1 + \frac{1}{n}\right)^n = e \]
+  </p>
+
+  <h2>9. Inequalities</h2>
+  <p>Inequalities allow us to establish bounds when exact calculations are impossible. They are heavily utilized in risk management and portfolio optimization.</p>
+  
+  <h3>9.1 Arithmetic Mean - Geometric Mean (AM-GM) Inequality</h3>
+  <div class="theorem">
+    <div class="box-title">Theorem 1.2: AM-GM Inequality</div>
+    <div class="box-content">
+      <p>For any set of non-negative real numbers \(x_1, x_2, \dots, x_n\), the arithmetic mean is greater than or equal to the geometric mean:</p>
+      <p>
+        \[ \frac{x_1 + x_2 + \dots + x_n}{n} \ge \sqrt[n]{x_1 x_2 \dots x_n} \]
+      </p>
+      <p>Equality holds if and only if \(x_1 = x_2 = \dots = x_n\).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 1.3: Proving AM-GM for n=2 and Portfolio Bounds</div>
+    <div class="box-content">
+      <p><strong>Proof for n=2:</strong></p>
+      <p>We want to show that for \(a, b \ge 0\), \(\frac{a+b}{2} \ge \sqrt{ab}\).</p>
+      <p>Consider the square of a real number, which must be non-negative: \((\sqrt{a} - \sqrt{b})^2 \ge 0\).</p>
+      <p>Expanding the square: \(a - 2\sqrt{ab} + b \ge 0\).</p>
+      <p>Rearranging terms yields: \(a + b \ge 2\sqrt{ab} \implies \frac{a+b}{2} \ge \sqrt{ab}\). \(\blacksquare\)</p>
+    </div>
+  </div>
+  
+  <h3>9.2 Cauchy-Schwarz Inequality</h3>
+  <p>For any real sequences \(a_1, \dots, a_n\) and \(b_1, \dots, b_n\):</p>
+  <p>
+    \[ \left( \sum_{i=1}^n a_i b_i \right)^2 \le \left( \sum_{i=1}^n a_i^2 \right) \left( \sum_{i=1}^n b_i^2 \right) \]
+  </p>
+
+  <h3>9.3 Jensen's Inequality</h3>
+  <div class="theorem">
+    <div class="box-title">Theorem 1.3: Jensen's Inequality</div>
+    <div class="box-content">
+      <p>If \(f(x)\) is a convex function on an interval, and \(x_1, \dots, x_n\) are in its domain, and \(w_1, \dots, w_n\) are non-negative weights summing to 1, then:</p>
+      <p>
+        \[ f\left( \sum_{i=1}^n w_i x_i \right) \le \sum_{i=1}^n w_i f(x_i) \]
+      </p>
+      <p>For concave functions, the inequality is reversed.</p>
+    </div>
+  </div>
+  
+  <div class="industry">
+    <div class="box-title">Industry Application Box: Jensen's Inequality in Finance</div>
+    <div class="box-content">
+      <p>In quantitative finance, the logarithmic function \(f(x) = \ln(x)\) is strictly concave. Therefore, by Jensen's inequality (reversed):</p>
+      <p>
+        \[ \ln(\E[1+R]) \ge \E[\ln(1+R)] \]
+      </p>
+      <p>This explains why the expected log return (geometric average return) of a volatile asset is always strictly less than its expected simple return (arithmetic average return). A failure to understand this distinction led to widespread mispricing of long-term options in the early days of derivatives trading.</p>
+    </div>
+  </div>
+
+  <h2>10. Binomial Theorem</h2>
+  
+  <div class="theorem">
+    <div class="box-title">Theorem 1.4: Binomial Theorem</div>
+    <div class="box-content">
+      <p>For any integer \(n \ge 0\):</p>
+      <p>
+        \[ (x + y)^n = \sum_{k=0}^n \binom{n}{k} x^{n-k} y^k \]
+      </p>
+      <p>where \(\binom{n}{k} = \frac{n!}{k!(n-k)!}\) are the binomial coefficients.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 1.5: Binomial expansion applied to approximate calculations</div>
+    <div class="box-content">
+      <p>Approximate \((1.01)^5\) using the Binomial Theorem.</p>
+      <p><strong>Solution:</strong></p>
+      <p>Let \(x = 1\) and \(y = 0.01\).</p>
+      <p>
+        \[ (1 + 0.01)^5 = \binom{5}{0}1^5(0.01)^0 + \binom{5}{1}1^4(0.01)^1 + \binom{5}{2}1^3(0.01)^2 + \dots \]
+      </p>
+      <p>Calculating the first three terms:</p>
+      <p>
+        \[ 1 + 5(0.01) + 10(0.0001) = 1 + 0.05 + 0.001 = 1.051 \]
+      </p>
+      <p>The exact value is 1.0510100501, showing our approximation is highly accurate and computationally cheap.</p>
+    </div>
+  </div>
+
+  <h2>11. Diagrams description</h2>
+  <p><strong>Figure 1.1 (Placeholder):</strong> A graph showing the exponential function \(y=e^x\) rising sharply against the much slower-growing logarithmic function \(y=\ln(x)\). A line \(y=x\) acts as the line of symmetry, illustrating that they are inverse functions.</p>
+  <p><strong>Figure 1.2 (Placeholder):</strong> A plot demonstrating Jensen's inequality for the concave curve \(y=\ln(x)\). The secant line between two points \((x_1, \ln x_1)\) and \((x_2, \ln x_2)\) lies strictly below the curve itself.</p>
+
+  <h2>12. Python Code Implementation</h2>
+  <p>The following script calculates the compound interest and reproduces the geometric series annuity valuation from the examples above.</p>
+  
+  <pre><code class="language-python">
+# Example 1.1: Compound Interest
+initial_investment = 10000
+rate = 0.06
+years = 5
+future_value = initial_investment * (1 + rate)**years
+print(f"Future Value of Investment: INR {future_value:.2f}")
+
+# Example 1.2: Present Value of Annuity (Geometric Series)
+cash_flow = 1000
+discount_rate = 0.05
+periods = 10
+
+# Using sum of geometric series formula
+r = 1 / (1 + discount_rate)
+a1 = cash_flow * r
+pv = a1 * (1 - r**periods) / (1 - r)
+print(f"Present Value of Annuity: USD {pv:.2f}")
+  </code></pre>
+
+  <h2>13. Common Mistakes & Misconceptions</h2>
+  <div class="warning">
+    <div class="box-title">Watch Out!</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Arithmetic and Geometric Series:</strong> Applying the geometric sum formula to an arithmetic sequence, or vice-versa. Always check if the ratio or difference is constant.</li>
+        <li><strong>Logarithm Laws:</strong> A frequent error is assuming \(\ln(x+y) = \ln(x) + \ln(y)\). This is false! Logarithms turn products into sums, not sums into sums.</li>
+        <li><strong>Jensen's Inequality Direction:</strong> Getting the inequality sign wrong. Remember: for convex functions (like \(x^2\)), the average of the function is greater than the function of the average. For concave (like \(\ln(x)\)), it is reversed.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>14. Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <div class="box-title">Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li>Quadratic Formula: \(x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}\)</li>
+        <li>Arithmetic Series Sum: \(S_n = \frac{n}{2}(2a_1 + (n-1)d)\)</li>
+        <li>Geometric Series Sum: \(S_n = a_1 \frac{1 - r^n}{1 - r}\)</li>
+        <li>Continuous Compounding: \(A = P e^{rt}\)</li>
+        <li>AM-GM Inequality: \(\frac{x_1 + x_2 + \dots + x_n}{n} \ge \sqrt[n]{x_1 x_2 \dots x_n}\)</li>
+        <li>Binomial Theorem: \((x + y)^n = \sum_{k=0}^n \binom{n}{k} x^{n-k} y^k\)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>15. Exercises</h2>
+  <div class="exercises">
+    
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> Solve the quadratic equation \(2x^2 - 5x + 3 = 0\).
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> Evaluate \(\ln(e^5)\) and \(e^{\ln(10)}\).
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> Find the 10th term of the arithmetic sequence starting with 3 and common difference 4.
+      </div>
+      <div class="exercise-item">
+        <strong>4.</strong> Expand \((2x - y)^3\) using the binomial theorem.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>5.</strong> A bank offers 4% annual interest compounded monthly. What is the effective annual yield?
+      </div>
+      <div class="exercise-item">
+        <strong>6.</strong> Find the sum of the infinite geometric series: \(5 - \frac{5}{2} + \frac{5}{4} - \frac{5}{8} + \dots\)
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> Show that for \(x>0\), \(x + \frac{1}{x} \ge 2\) using the AM-GM inequality.
+      </div>
+      <div class="exercise-item">
+        <strong>8.</strong> Calculate the partial sum \(\sum_{k=1}^n \left( \frac{1}{k} - \frac{1}{k+1} \right)\) using the telescoping property.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>9.</strong> Use Jensen's inequality to prove that for \(x, y, z > 0\), \(\left( \frac{x+y+z}{3} \right)^2 \le \frac{x^2+y^2+z^2}{3}\).
+      </div>
+      <div class="exercise-item">
+        <strong>10.</strong> Prove the Binomial Theorem by mathematical induction.
+      </div>
+      <div class="exercise-item">
+        <strong>11.</strong> A perpetuity pays USD 100 at the end of year 1, and the payments grow at 2% per year indefinitely. If the discount rate is 6%, find the present value.
+      </div>
+      <div class="exercise-item">
+        <strong>12.</strong> Evaluate \(\lim_{n \to \infty} n \ln(1 + \frac{x}{n})\) and interpret its meaning in finance.
+      </div>
+    </div>
+    
+    <div class="box-title">Solutions to Selected Exercises</div>
+    <div class="box-content">
+      <div class="solution-item">
+        <strong>1. Solution:</strong> Using the quadratic formula with \(a=2, b=-5, c=3\), we get \(x = \frac{5 \pm \sqrt{25 - 24}}{4} = \frac{5 \pm 1}{4}\). Roots are \(x=1.5\) and \(x=1\).
+      </div>
+      <div class="solution-item">
+        <strong>3. Solution:</strong> \(a_n = a_1 + (n-1)d = 3 + 9(4) = 39\).
+      </div>
+      <div class="solution-item">
+        <strong>6. Solution:</strong> Here \(a=5\) and \(r = -1/2\). Sum \(S = \frac{5}{1 - (-1/2)} = \frac{5}{3/2} = \frac{10}{3}\).
+      </div>
+      <div class="solution-item">
+        <strong>7. Solution:</strong> By AM-GM on \(x\) and \(1/x\), \(\frac{x + 1/x}{2} \ge \sqrt{x \cdot (1/x)} = \sqrt{1} = 1\). Multiplying by 2 yields \(x + 1/x \ge 2\).
+      </div>
+      <div class="solution-item">
+        <strong>8. Solution:</strong> \(\sum_{k=1}^n (1/k - 1/(k+1)) = (1 - 1/2) + (1/2 - 1/3) + \dots + (1/n - 1/(n+1)) = 1 - \frac{1}{n+1}\).
+      </div>
+      <div class="solution-item">
+        <strong>9. Solution:</strong> The function \(f(t) = t^2\) is strictly convex because \(f''(t) = 2 > 0\). Applying Jensen's Inequality with equal weights \(w_i = 1/3\), \(f(\frac{x+y+z}{3}) \le \frac{f(x)+f(y)+f(z)}{3}\).
+      </div>
+      <div class="solution-item">
+        <strong>12. Solution:</strong> We can rewrite as \(\ln( (1 + \frac{x}{n})^n )\). As \(n \to \infty\), \((1+x/n)^n \to e^x\). So the limit is \(\ln(e^x) = x\). In finance, this proves that continuous compounding is the limit of discrete compounding.
+      </div>
+    </div>
+  </div>
+
+  <h2>16. Further Reading</h2>
+  <div class="further-reading">
+    <div class="box-content">
+      <ul>
+        <li>Stewart, J. (2015). <em>Calculus: Early Transcendentals</em> (8th ed.). Cengage Learning. (Excellent review of functions and series limits).</li>
+        <li>Hull, J. C. (2018). <em>Options, Futures, and Other Derivatives</em> (10th ed.). Pearson. (For continuous compounding and Jensen's inequality application to Black-Scholes).</li>
+        <li>Steele, J. M. (2004). <em>The Cauchy-Schwarz Master Class: An Introduction to the Art of Mathematical Inequalities</em>. Cambridge University Press.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch02_calculus.html">Next Chapter →</a>
+  </nav>
+</body>
+</html>

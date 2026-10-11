@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 5: Probability Distributions</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 5: Probability Distributions</h1>
+
+  <div class="learning-objectives">
+    <h2>Learning Objectives</h2>
+    <ul>
+      <li>Categorize and apply fundamental discrete and continuous probability distributions used in finance, insurance, and quantitative analysis.</li>
+      <li>Understand the generative mechanisms, parameterizations, and mathematical properties (PMF/PDF, CDF, MGF, moments) of core distributions.</li>
+      <li>Master the \((a,b,0)\) and \((a,b,1)\) recursive classes and mixture distributions for complex risk modeling.</li>
+      <li>Fit theoretical distributions to empirical data using the Method of Moments (MoM) and Maximum Likelihood Estimation (MLE).</li>
+      <li>Assess goodness-of-fit using visual diagnostics and formal statistical tests (Chi-square, KS, Anderson-Darling).</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h2>Prerequisites & Roadmap</h2>
+    <p>This chapter builds directly on the foundational concepts established in <strong>Chapter 4: Probability Theory</strong>. You should be comfortable with random variables, expectation, variance, moment generating functions, and conditional probability. The distributions introduced here will serve as the essential toolkit for statistical inference in <strong>Chapter 6: Mathematical Statistics</strong> and for risk modeling in subsequent chapters on Actuarial Science and Quantitative Finance.</p>
+  </div>
+
+  <section>
+    <h2>5.1 Intuition & Motivation</h2>
+    <p>Consider the role of a Chief Risk Officer (CRO) at a major insurer or a quant at a hedge fund. The world presents them with empirical data: a series of daily stock returns, a history of hurricane claims, or the time-to-default of corporate bonds. Raw data is messy, noisy, and challenging to extrapolate. To make predictions, price derivatives, or reserve capital for extreme losses, we must map this empirical reality onto <em>theoretical probability distributions</em>.</p>
+    <p>Probability distributions are idealized mathematical models of randomness. They act as "data generating engines." If we believe stock prices evolve multiplicatively, we might reach for the Lognormal distribution. If we are modeling the number of car accidents in a year, the Poisson or Negative Binomial distributions are natural candidates. By carefully selecting and calibrating (fitting) a distribution to data, we transition from observing historical artifacts to making forward-looking, probabilistic statements about risk.</p>
+  </section>
+
+  <section>
+    <h2>5.2 Discrete Distributions</h2>
+    <p>Discrete distributions model random variables that take on a countable set of values (e.g., \(0, 1, 2, \dots\)).</p>
+
+    <div class="definition">
+      <div class="box-title">Bernoulli Distribution</div>
+      <div class="box-content">
+        <p>A random variable \(X \sim \text{Bernoulli}(p)\) represents a single trial with success probability \(p\) and failure probability \(q = 1-p\).</p>
+        <ul>
+          <li><strong>PMF:</strong> \(\P(X=x) = p^x (1-p)^{1-x}\) for \(x \in \{0,1\}\)</li>
+          <li><strong>Mean:</strong> \(p\)</li>
+          <li><strong>Variance:</strong> \(p(1-p)\)</li>
+          <li><strong>MGF:</strong> \(M_X(t) = 1-p + pe^t\)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Binomial Distribution</div>
+      <div class="box-content">
+        <p>A random variable \(X \sim \text{Binomial}(n, p)\) represents the number of successes in \(n\) independent Bernoulli trials.</p>
+        <ul>
+          <li><strong>PMF:</strong> \(\P(X=k) = \binom{n}{k} p^k (1-p)^{n-k}\) for \(k = 0, 1, \dots, n\)</li>
+          <li><strong>Mean:</strong> \(np\)</li>
+          <li><strong>Variance:</strong> \(np(1-p)\)</li>
+          <li><strong>MGF:</strong> \(M_X(t) = (1-p + pe^t)^n\)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Poisson Distribution</div>
+      <div class="box-content">
+        <p>A random variable \(X \sim \text{Poisson}(\lambda)\) models the number of events occurring in a fixed interval, where events occur with a known constant mean rate \(\lambda\) and independently of the time since the last event. It is the limit of the Binomial distribution as \(n \to \infty\), \(p \to 0\) with \(np = \lambda\).</p>
+        <ul>
+          <li><strong>PMF:</strong> \(\P(X=k) = \frac{\lambda^k e^{-\lambda}}{k!}\) for \(k = 0, 1, 2, \dots\)</li>
+          <li><strong>Mean:</strong> \(\lambda\)</li>
+          <li><strong>Variance:</strong> \(\lambda\)</li>
+          <li><strong>MGF:</strong> \(M_X(t) = \exp(\lambda(e^t - 1))\)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Geometric Distribution</div>
+      <div class="box-content">
+        <p>A random variable \(X \sim \text{Geometric}(p)\) models the number of failures before the first success in a sequence of independent Bernoulli trials.</p>
+        <ul>
+          <li><strong>PMF:</strong> \(\P(X=k) = (1-p)^k p\) for \(k = 0, 1, 2, \dots\)</li>
+          <li><strong>Mean:</strong> \(\frac{1-p}{p}\)</li>
+          <li><strong>Variance:</strong> \(\frac{1-p}{p^2}\)</li>
+          <li><strong>MGF:</strong> \(M_X(t) = \frac{p}{1 - (1-p)e^t}\)</li>
+        </ul>
+        <p><em>Note:</em> The geometric distribution is the only discrete distribution with the memoryless property: \(\P(X > s+t \mid X > s) = \P(X > t)\).</p>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Negative Binomial Distribution</div>
+      <div class="box-content">
+        <p>A random variable \(X \sim \text{NB}(r, p)\) models the number of failures before the \(r\)-th success. It can be viewed as a sum of \(r\) independent Geometric random variables.</p>
+        <ul>
+          <li><strong>PMF:</strong> \(\P(X=k) = \binom{k+r-1}{k} p^r (1-p)^k\) for \(k = 0, 1, 2, \dots\)</li>
+          <li><strong>Mean:</strong> \(\frac{r(1-p)}{p}\)</li>
+          <li><strong>Variance:</strong> \(\frac{r(1-p)}{p^2}\)</li>
+          <li><strong>MGF:</strong> \(M_X(t) = \left( \frac{p}{1 - (1-p)e^t} \right)^r\)</li>
+        </ul>
+        <p>Because its variance is strictly greater than its mean, the Negative Binomial is extensively used in insurance to model <em>overdispersed</em> claim counts, often conceptualized as a Gamma-mixed Poisson distribution.</p>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Hypergeometric Distribution</div>
+      <div class="box-content">
+        <p>Models the number of successes in a sequence of \(n\) draws from a finite population without replacement. If the population is of size \(N\) containing \(K\) successes, then \(X \sim \text{Hypergeometric}(N, K, n)\) has PMF \(\P(X=k) = \frac{\binom{K}{k}\binom{N-K}{n-k}}{\binom{N}{n}}\).</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>5.3 Continuous Distributions</h2>
+    <p>Continuous distributions model random variables defined on an interval of the real line.</p>
+
+    <div class="definition">
+      <div class="box-title">Uniform Distribution</div>
+      <div class="box-content">
+        <p>\(X \sim \text{Uniform}(a, b)\)</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(x) = \frac{1}{b-a}\) for \(x \in [a, b]\)</li>
+          <li><strong>CDF:</strong> \(F(x) = \frac{x-a}{b-a}\)</li>
+          <li><strong>Mean:</strong> \(\frac{a+b}{2}\)</li>
+          <li><strong>Variance:</strong> \(\frac{(b-a)^2}{12}\)</li>
+        </ul>
+        <p>Crucial for simulation (via the probability integral transform).</p>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Exponential Distribution</div>
+      <div class="box-content">
+        <p>\(X \sim \text{Exponential}(\lambda)\) models waiting times between Poisson events.</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(x) = \lambda e^{-\lambda x}\) for \(x > 0\)</li>
+          <li><strong>CDF:</strong> \(F(x) = 1 - e^{-\lambda x}\)</li>
+          <li><strong>Mean:</strong> \(1/\lambda\)</li>
+          <li><strong>Variance:</strong> \(1/\lambda^2\)</li>
+        </ul>
+        <p>The only continuous distribution with the memoryless property.</p>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Gamma Distribution</div>
+      <div class="box-content">
+        <p>\(X \sim \text{Gamma}(\alpha, \beta)\) where \(\alpha\) is the shape and \(\beta\) is the rate (sometimes parameterized by scale \(\theta = 1/\beta\)). It models the waiting time until the \(\alpha\)-th Poisson event.</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(x) = \frac{\beta^\alpha}{\Gamma(\alpha)} x^{\alpha-1} e^{-\beta x}\) for \(x > 0\)</li>
+          <li><strong>Mean:</strong> \(\alpha / \beta\)</li>
+          <li><strong>Variance:</strong> \(\alpha / \beta^2\)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Normal (Gaussian) Distribution</div>
+      <div class="box-content">
+        <p>\(X \sim \mathcal{N}(\mu, \sigma^2)\). The cornerstone of statistics due to the Central Limit Theorem.</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(x) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)\)</li>
+          <li><strong>CDF:</strong> Denoted by \(\Phi(z)\) for the standard normal \(Z \sim \mathcal{N}(0,1)\)</li>
+          <li><strong>Mean:</strong> \(\mu\)</li>
+          <li><strong>Variance:</strong> \(\sigma^2\)</li>
+        </ul>
+        <p>Follows the 68-95-99.7 empirical rule.</p>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Lognormal Distribution</div>
+      <div class="box-content">
+        <p>If \(X \sim \mathcal{N}(\mu, \sigma^2)\), then \(Y = e^X \sim \text{Lognormal}(\mu, \sigma^2)\).</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(y) = \frac{1}{y\sigma\sqrt{2\pi}} \exp\left(-\frac{(\ln y - \mu)^2}{2\sigma^2}\right)\) for \(y > 0\)</li>
+          <li><strong>Mean:</strong> \(\exp(\mu + \sigma^2/2)\)</li>
+          <li><strong>Variance:</strong> \([\exp(\sigma^2) - 1] \exp(2\mu + \sigma^2)\)</li>
+        </ul>
+        <p>Widely used for stock prices and asset values, as it ensures positive values and arises from multiplicative processes (geometric Brownian motion).</p>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Beta Distribution</div>
+      <div class="box-content">
+        <p>\(X \sim \text{Beta}(\alpha, \beta)\) is defined on \([0,1]\). Often used as a prior distribution for probabilities or proportions.</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(x) = \frac{x^{\alpha-1}(1-x)^{\beta-1}}{B(\alpha, \beta)}\)</li>
+          <li><strong>Mean:</strong> \(\frac{\alpha}{\alpha+\beta}\)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Weibull Distribution</div>
+      <div class="box-content">
+        <p>\(X \sim \text{Weibull}(k, \lambda)\) with shape \(k\) and scale \(\lambda\). Used in survival analysis and reliability.</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(x) = \frac{k}{\lambda} \left(\frac{x}{\lambda}\right)^{k-1} e^{-(x/\lambda)^k}\) for \(x \ge 0\)</li>
+          <li><strong>Hazard Rate:</strong> \(h(x) = \frac{k}{\lambda} \left(\frac{x}{\lambda}\right)^{k-1}\). Decreasing for \(k < 1\), constant (Exponential) for \(k=1\), increasing for \(k > 1\).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="definition">
+      <div class="box-title">Pareto Distribution</div>
+      <div class="box-content">
+        <p>Models heavy-tailed phenomena (the "80/20 rule"). If \(X \sim \text{Pareto}(\alpha, x_m)\), where \(x_m\) is the minimum possible value and \(\alpha\) is the shape parameter (tail index).</p>
+        <ul>
+          <li><strong>PDF:</strong> \(f(x) = \frac{\alpha x_m^\alpha}{x^{\alpha+1}}\) for \(x \ge x_m\)</li>
+          <li><strong>CDF:</strong> \(F(x) = 1 - \left(\frac{x_m}{x}\right)^\alpha\)</li>
+          <li><strong>Mean:</strong> \(\frac{\alpha x_m}{\alpha - 1}\) (only exists if \(\alpha > 1\))</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Distributions Related to the Normal</h3>
+    <p>
+      <strong>Student-t Distribution:</strong> With \(\nu\) degrees of freedom. Heavy tails for small \(\nu\), approaches Normal as \(\nu \to \infty\). Used in small-sample inference.<br>
+      <strong>Chi-square (\(\chi^2\)) Distribution:</strong> Sum of \(\nu\) squared independent standard normals. Used in goodness-of-fit and variance testing.<br>
+      <strong>F-distribution:</strong> Ratio of two scaled \(\chi^2\) variables. Used in ANOVA and testing equality of variances.
+    </p>
+
+    <h3>Extreme Value Distributions</h3>
+    <p>
+      <strong>GEV (Generalized Extreme Value):</strong> Parameters \(\mu, \sigma, \xi\). Used for modeling block maxima (e.g., maximum daily loss in a year).<br>
+      <strong>Generalized Pareto (GPD):</strong> Parameters \(\sigma, \xi\). Used in Peaks-Over-Threshold (POT) methods to model excesses over a high threshold.
+    </p>
+  </section>
+
+  <section>
+    <h2>5.4 Special Topics in Distribution Theory</h2>
+
+    <h3>5.4.1 Mixture Distributions</h3>
+    <p>A mixture distribution arises when a population is composed of distinct subpopulations. For instance, an insurance portfolio might contain "good risks" and "bad risks". Let \(f_1(x)\) and \(f_2(x)\) be the PDFs of the subpopulations, and \(w\) be the proportion of the first subpopulation. The mixture PDF is:</p>
+    \[ f_M(x) = w f_1(x) + (1-w) f_2(x) \]
+    <p>The \(k\)-th moment of a mixture is the weighted sum of the \(k\)-th moments of the components. Mixture models are often fitted using the Expectation-Maximization (EM) algorithm.</p>
+
+    <h3>5.4.2 The \((a, b, 0)\) Class of Discrete Distributions</h3>
+    <p>A profound result by Harry Panjer shows that the three fundamental counting distributions—Poisson, Binomial, and Negative Binomial—are the only discrete distributions (supported on \(\N_0\)) that satisfy the recursive relationship:</p>
+    \[ \frac{p_k}{p_{k-1}} = a + \frac{b}{k} \quad \text{for } k = 1, 2, 3, \dots \]
+    <div class="theorem">
+      <div class="box-title">Theorem 5.1: Panjer's (a,b,0) Classification</div>
+      <div class="box-content">
+        <p>A counting distribution \(\{p_k\}_{k=0}^{\infty}\) with \(p_0 > 0\) belongs to the \((a,b,0)\) class if and only if it is one of: <strong>Poisson</strong>, <strong>Binomial</strong>, or <strong>Negative Binomial</strong>. These are the only distributions satisfying the recursion \(\frac{p_k}{p_{k-1}} = a + \frac{b}{k}\) for \(k = 1, 2, 3, \dots\) with constants \(a, b\).</p>
+        <p><em>Reference:</em> Panjer, H.H. (1981). "Recursive Evaluation of a Family of Compound Distributions." <em>ASTIN Bulletin</em>, 12(1), 22–26.</p>
+      </div>
+    </div>
+    <p>Where \(p_k = \P(X=k)\). The sign of \(a\) determines the distribution:</p>
+    <ul>
+      <li>\(a = 0\): Poisson (\(b = \lambda\))</li>
+      <li>\(a < 0\): Binomial (\(a = \frac{-p}{1-p}\))</li>
+      <li>\(a > 0\): Negative Binomial (\(a = 1-p\))</li>
+    </ul>
+
+    <h3>5.4.3 The \((a, b, 1)\) Class</h3>
+    <p>Sometimes empirical data has too many zeros (e.g., probability of zero claims is very high) or zero is impossible (truncated). The \((a,b,1)\) class modifies the recursion to start at \(k=2\):</p>
+    \[ \frac{p_k}{p_{k-1}} = a + \frac{b}{k} \quad \text{for } k = 2, 3, 4, \dots \]
+    <p>This class includes Zero-Truncated and Zero-Modified versions of the \((a,b,0)\) distributions, plus the Logarithmic distribution (which only exists for \(a > 0, b = -a\)).</p>
+  </section>
+
+  <section>
+    <h2>5.5 Distribution Relationships</h2>
+    <p>Probability distributions are deeply interconnected. A conceptual relationship chart would illustrate the following pathways:</p>
+    <ul>
+      <li><strong>Summation Limits:</strong> Bernoulli \(\xrightarrow{\text{Sum}}\) Binomial \(\xrightarrow{n \to \infty, p \to 0}\) Poisson.</li>
+      <li><strong>Central Limit Theorem:</strong> Sums of almost any independent distributions approach the Normal distribution.</li>
+      <li><strong>Time/Count Duality:</strong> If times between events are Exponential, the count of events is Poisson. If times are Gamma(k, \(\lambda\)), the count is related to Poisson.</li>
+      <li><strong>Transformations:</strong> Normal \(\xrightarrow{\exp}\) Lognormal. Normal \(\xrightarrow{\text{Square}}\) Chi-Square \(\xrightarrow{\text{Ratio}}\) F-Distribution.</li>
+      <li><strong>Special Cases:</strong> Exponential is a special case of Gamma (\(\alpha=1\)) and Weibull (\(k=1\)).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5.6 Fitting Methods & Goodness of Fit</h2>
+
+    <h3>Method of Moments (MoM)</h3>
+    <p>Equate sample moments to theoretical moments and solve for parameters. If a distribution has \(k\) parameters, we use the first \(k\) moments.</p>
+    \[ \E[X] = \frac{1}{n}\sum x_i, \quad \E[X^2] = \frac{1}{n}\sum x_i^2 \]
+
+    <h3>Maximum Likelihood Estimation (MLE)</h3>
+    <p>Find the parameters \(\theta\) that maximize the probability (likelihood) of observing the given sample \(\mathbf{x}\).</p>
+    \[ \hat{\theta}_{\text{MLE}} = \arg\max_{\theta} \mathcal{L}(\theta \mid \mathbf{x}) = \arg\max_{\theta} \prod_{i=1}^n f(x_i \mid \theta) \]
+    <p>Usually, we maximize the log-likelihood \(\ell(\theta) = \sum \ln f(x_i \mid \theta)\).</p>
+
+    <h3>Goodness of Fit Diagnostics</h3>
+    <ul>
+      <li><strong>Q-Q Plots:</strong> Plot empirical quantiles vs theoretical quantiles. A straight line indicates a good fit.</li>
+      <li><strong>Chi-Square Test:</strong> Bins data and compares observed counts to expected counts.</li>
+      <li><strong>Kolmogorov-Smirnov (KS) Test:</strong> Based on the maximum absolute distance between the empirical CDF and theoretical CDF.</li>
+      <li><strong>Anderson-Darling (AD) Test:</strong> Similar to KS but gives more weight to the tails, crucial for financial/actuarial data.</li>
+    </ul>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>5.7 Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 5.1: Fitting a Poisson Distribution</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An insurer observes the following number of claims per policyholder over one year for a sample of 1000 policies:</p>
+        <p>0 claims: 810, 1 claim: 165, 2 claims: 22, 3 claims: 3, 4+ claims: 0.</p>
+        <p>Fit a Poisson distribution using MLE and calculate the expected frequencies.</p>
+        <p><strong>Solution:</strong></p>
+        <p>1. Calculate sample mean (MLE for Poisson \(\lambda\)):<br>
+        \(\hat{\lambda} = \frac{0(810) + 1(165) + 2(22) + 3(3)}{1000} = \frac{218}{1000} = 0.218\)</p>
+        <p>2. Calculate expected probabilities \(\P(X=k) = \frac{e^{-0.218}(0.218)^k}{k!}\):<br>
+        \(p_0 = e^{-0.218} \approx 0.8041\)<br>
+        \(p_1 = 0.8041 \times 0.218 \approx 0.1753\)<br>
+        \(p_2 = 0.1753 \times \frac{0.218}{2} \approx 0.0191\)<br>
+        \(p_3 = 0.0191 \times \frac{0.218}{3} \approx 0.0014\)<br>
+        \(p_{4+} = 1 - (p_0+p_1+p_2+p_3) \approx 0.0001\)</p>
+        <p>3. Expected frequencies (multiply by 1000):<br>
+        0: 804.1, 1: 175.3, 2: 19.1, 3: 1.4, 4+: 0.1.</p>
+        <p>The fit looks visually reasonable, though a formal Chi-square test would confirm it.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 5.2: Lognormal Model for VaR</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A stock currently trades at $100. Its price in one year, \(S_1\), is modeled as Lognormal. The continuously compounded return has mean \(\mu = 0.08\) and volatility \(\sigma = 0.20\). Find the probability that the stock drops below $90, and find the 5% Value at Risk (VaR) relative to the initial price.</p>
+        <p><strong>Solution:</strong></p>
+        <p>1. We know \(\ln(S_1/S_0) \sim \mathcal{N}(0.08, 0.20^2)\). Therefore \(\ln S_1 \sim \mathcal{N}(\ln(100) + 0.08, 0.20^2) = \mathcal{N}(4.685, 0.04)\).</p>
+        <p>2. Probability \(S_1 < 90\):<br>
+        \(\P(S_1 < 90) = \P(\ln S_1 < \ln 90) = \P(\ln S_1 < 4.4998)\)<br>
+        Convert to standard normal: \(Z = \frac{4.4998 - 4.685}{0.20} = -0.926\)<br>
+        \(\Phi(-0.926) \approx 17.7\%\)</p>
+        <p>3. 5% VaR: We need the 5th percentile of \(S_1\). The 5th percentile of \(Z\) is \(-1.645\).<br>
+        \(\ln S_{5\%} = 4.685 + (-1.645)(0.20) = 4.356\)<br>
+        \(S_{5\%} = e^{4.356} = \$77.94\)<br>
+        VaR = Initial Value - 5th Percentile = $100 - $77.94 = $22.06.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 5.3: Pareto Limited Expected Value</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Losses follow a Pareto distribution with \(\alpha = 3\) and \(x_m = 1000\). An insurance policy has a deductible of 0 and a policy limit of \(L = 5000\). Calculate the expected loss to the insurer.</p>
+        <p><strong>Solution:</strong></p>
+        <p>We need the Limited Expected Value (LEV), denoted \(\E[X \wedge L]\). For a Pareto distribution, the formula is:</p>
+        \[ \E[X \wedge L] = \frac{\alpha x_m}{\alpha - 1} \left[ 1 - \left(\frac{x_m}{L}\right)^{\alpha-1} \right] \]
+        <p>\(\E[X \wedge 5000] = \frac{3(1000)}{2} \left[ 1 - \left(\frac{1000}{5000}\right)^2 \right]\)<br>
+        \(= 1500 \left[ 1 - (0.2)^2 \right] = 1500 [1 - 0.04] = 1500(0.96) = 1440\).</p>
+        <p>Without the limit, the expected loss would be 1500. The limit reduces the expected payout by 60.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 5.4: Verifying the (a,b,0) Class</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Prove that the Binomial\((n,p)\) distribution belongs to the \((a,b,0)\) class and find \(a\) and \(b\).</p>
+        <p><strong>Solution:</strong></p>
+        <p>The PMF is \(p_k = \binom{n}{k} p^k (1-p)^{n-k}\).</p>
+        <p>Calculate the ratio \(p_k / p_{k-1}\):</p>
+        \[ \frac{p_k}{p_{k-1}} = \frac{\frac{n!}{k!(n-k)!} p^k (1-p)^{n-k}}{\frac{n!}{(k-1)!(n-k+1)!} p^{k-1} (1-p)^{n-k+1}} \]
+        \[ = \frac{(k-1)!}{k!} \frac{(n-k+1)!}{(n-k)!} \frac{p}{1-p} \]
+        \[ = \frac{n-k+1}{k} \frac{p}{1-p} \]
+        \[ = \left( \frac{n+1}{k} - 1 \right) \frac{p}{1-p} \]
+        \[ = \frac{-p}{1-p} + \frac{(n+1)p/(1-p)}{k} \]
+        <p>This matches \(a + b/k\), where \(a = \frac{-p}{1-p}\) and \(b = \frac{(n+1)p}{1-p}\).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 5.5: Moments of a Mixture</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A hedge fund's daily returns are modeled as a mixture of two normal distributions. 90% of days are "calm" (\(\mu_1=0.001, \sigma_1=0.01\)) and 10% are "volatile" (\(\mu_2=-0.005, \sigma_2=0.05\)). Find the mean and variance of the daily return \(X\).</p>
+        <p><strong>Solution:</strong></p>
+        <p>Let \(w=0.9\). Mean \(\E[X] = w\mu_1 + (1-w)\mu_2 = 0.9(0.001) + 0.1(-0.005) = 0.0009 - 0.0005 = 0.0004\).</p>
+        <p>To find variance, first find \(\E[X^2]\) for the mixture:<br>
+        \(\E[X_1^2] = \sigma_1^2 + \mu_1^2 = 0.0001 + 0.000001 = 0.000101\)<br>
+        \(\E[X_2^2] = \sigma_2^2 + \mu_2^2 = 0.0025 + 0.000025 = 0.002525\)<br>
+        \(\E[X^2] = 0.9(0.000101) + 0.1(0.002525) = 0.0000909 + 0.0002525 = 0.0003434\)</p>
+        <p>\(\Var(X) = \E[X^2] - (\E[X])^2 = 0.0003434 - (0.0004)^2 = 0.0003434 - 0.00000016 = 0.00034324\).</p>
+        <p>Standard deviation is \(\sqrt{0.00034324} \approx 0.0185\).</p>
+      </div>
+    </div>
+
+  </section>
+
+  <section>
+    <h2>5.8 Python Code: Distribution Fitting and AIC</h2>
+    <p>In practice, quants fit multiple distributions to empirical data and compare them using the Akaike Information Criterion (AIC). Lower AIC indicates a better model.</p>
+    <pre><code class="language-python">
+import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+
+# Generate some synthetic "heavy-tailed" loss data
+np.random.seed(42)
+true_data = stats.lognorm.rvs(s=0.8, scale=np.exp(5), size=1000)
+
+# Define distributions to fit
+dist_names = ['expon', 'lognorm', 'weibull_min']
+
+for dist_name in dist_names:
+    dist = getattr(stats, dist_name)
+    # Fit the distribution to the data via MLE
+    params = dist.fit(true_data)
+    
+    # Calculate Log-Likelihood
+    ll = np.sum(dist.logpdf(true_data, *params))
+    k = len(params) # Number of parameters
+    
+    # Calculate AIC
+    aic = 2 * k - 2 * ll
+    
+    print(f"Distribution: {dist_name.ljust(12)} | AIC: {aic:.2f} | Params: {params}")
+
+# Expected Output structure:
+# Distribution: expon        | AIC: 16738.54 | Params: (...)
+# Distribution: lognorm      | AIC: 13915.22 | Params: (...)
+# Distribution: weibull_min  | AIC: 14522.10 | Params: (...)
+# Result: Lognormal has the lowest AIC, making it the best fit.
+    </code></pre>
+  </section>
+
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Assuming Normality:</strong> Financial returns and insurance losses are almost never normally distributed. They exhibit fat tails and skewness. Assuming normality severely underestimates extreme risks (tail risk).</li>
+        <li><strong>Confusing Gamma and Exponential:</strong> Exponential models the time to the <em>first</em> event. Gamma models the time to the <em>\(\alpha\)-th</em> event.</li>
+        <li><strong>Misunderstanding Memorylessness:</strong> Only the Exponential (continuous) and Geometric (discrete) distributions are memoryless. A Weibull distribution with \(k>1\) implies that items "age" and become more likely to fail.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Actuarial Reserving & Catastrophe Modeling</div>
+    <div class="box-content">
+      <p>Property & Casualty (P&C) actuaries constantly model the Aggregate Loss \(S = \sum_{i=1}^N X_i\). The count \(N\) is modeled using a discrete distribution (often Negative Binomial to capture volatility in storm frequency). The severity \(X_i\) is modeled using continuous, heavy-tailed distributions like Lognormal, Gamma, or Pareto. By combining these via Monte Carlo simulation or Panjer recursion, insurers calculate the capital reserves needed to survive a 1-in-200-year catastrophe, fulfilling regulatory frameworks like Solvency II.</p>
+    </div>
+  </div>
+
+  <section class="formula-sheet">
+    <h2>Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>Poisson:</strong> \(\E[X] = \lambda\), \(\Var(X) = \lambda\)</li>
+      <li><strong>Negative Binomial:</strong> \(\E[X] = \frac{r(1-p)}{p}\), \(\Var(X) = \frac{r(1-p)}{p^2}\)</li>
+      <li><strong>Exponential:</strong> \(\E[X] = 1/\lambda\), \(\Var(X) = 1/\lambda^2\)</li>
+      <li><strong>Gamma:</strong> \(\E[X] = \alpha/\beta\), \(\Var(X) = \alpha/\beta^2\)</li>
+      <li><strong>Lognormal:</strong> \(\E[X] = \exp(\mu + \sigma^2/2)\)</li>
+      <li><strong>Panjer \((a,b,0)\) recursion:</strong> \(\frac{p_k}{p_{k-1}} = a + \frac{b}{k}\)</li>
+    </ul>
+  </section>
+
+  <section class="exercises">
+    <h2>Exercises</h2>
+    
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> Let \(X \sim \text{Poisson}(4)\). Calculate \(\P(X=2)\).
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> Let \(X \sim \text{Exponential}(0.2)\). Find the median of \(X\).
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> A portfolio has 10 independent bonds, each with a 5% chance of default. What is the probability of exactly 2 defaults?
+      </div>
+      <div class="exercise-item">
+        <strong>4.</strong> Identify the \((a,b,0)\) parameters for a Poisson(5) distribution.
+      </div>
+      <div class="exercise-item">
+        <strong>5.</strong> A random variable is Uniformly distributed on \([10, 50]\). Find its variance.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>6.</strong> Losses follow a Pareto distribution with \(\alpha=4\) and \(x_m = 500\). Calculate the probability that a loss exceeds 1000.
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> Show that for a Geometric distribution with parameter \(p\), \(\P(X \ge k) = (1-p)^k\).
+      </div>
+      <div class="exercise-item">
+        <strong>8.</strong> A stock's price next year is Lognormal with \(\mu=0.05, \sigma=0.3\). The current price is 50. What is the expected price next year?
+      </div>
+      <div class="exercise-item">
+        <strong>9.</strong> Use the Method of Moments to estimate \(\alpha\) and \(\beta\) for a Gamma distribution if a sample has mean 10 and variance 20.
+      </div>
+      <div class="exercise-item">
+        <strong>10.</strong> Prove that the sum of two independent Poisson random variables is also Poisson.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>11.</strong> Derive the Maximum Likelihood Estimators (MLE) for \(\mu\) and \(\sigma^2\) of the Normal distribution.
+      </div>
+      <div class="exercise-item">
+        <strong>12.</strong> Prove the memoryless property of the Exponential distribution: \(\P(X > s+t \mid X > s) = \P(X > t)\).
+      </div>
+      <div class="exercise-item">
+        <strong>13.</strong> A mixture distribution is composed of \(N(0,1)\) with weight 0.8 and \(N(0,25)\) with weight 0.2. Calculate the kurtosis of this mixture. Is it leptokurtic?
+      </div>
+      <div class="exercise-item">
+        <strong>14.</strong> Derive the Limited Expected Value \(\E[X \wedge L]\) formula for an Exponential distribution with parameter \(\lambda\).
+      </div>
+      <div class="exercise-item">
+        <strong>15.</strong> Demonstrate that the Negative Binomial distribution satisfies the \((a,b,0)\) recursion and state \(a\) and \(b\).
+      </div>
+    </div>
+
+    <h3>Solutions to Selected Exercises</h3>
+    <div class="solution-item">
+      <strong>Solution to 1:</strong> \(\P(X=2) = \frac{e^{-4}4^2}{2!} = \frac{16e^{-4}}{2} = 8e^{-4} \approx 0.1465\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 2:</strong> The median \(m\) satisfies \(1 - e^{-0.2m} = 0.5 \implies e^{-0.2m} = 0.5 \implies m = \frac{-\ln(0.5)}{0.2} \approx 3.466\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 3:</strong> \(X \sim \text{Binomial}(10, 0.05)\). \(\P(X=2) = \binom{10}{2} (0.05)^2 (0.95)^8 = 45(0.0025)(0.6634) \approx 0.0746\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 6:</strong> \(\P(X > 1000) = 1 - F(1000) = \left(\frac{500}{1000}\right)^4 = (0.5)^4 = 0.0625\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 8:</strong> \(S_1 \sim \text{Lognormal}(\ln(50) + 0.05, 0.3^2)\). \(\E[S_1] = \exp(\ln(50) + 0.05 + 0.3^2/2) = 50 \exp(0.05 + 0.045) = 50 \exp(0.095) \approx 54.98\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 9:</strong> Mean \(=\alpha/\beta = 10\). Var \(=\alpha/\beta^2 = 20\). Divide mean by variance: \( (\alpha/\beta) / (\alpha/\beta^2) = \beta = 10/20 = 0.5 \). Then \(\alpha = 10\beta = 5\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 11:</strong> \(\mathcal{L} = \prod \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(x_i-\mu)^2}{2\sigma^2}\right)\). Log-likelihood: \(\ell = -\frac{n}{2}\ln(2\pi) - \frac{n}{2}\ln(\sigma^2) - \frac{1}{2\sigma^2}\sum(x_i-\mu)^2\). Setting \(\pdv{\ell}{\mu} = 0\) gives \(\hat{\mu} = \frac{1}{n}\sum x_i\). Setting \(\pdv{\ell}{(\sigma^2)} = 0\) gives \(\widehat{\sigma^2} = \frac{1}{n}\sum(x_i-\hat{\mu})^2\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 12:</strong> \(\P(X > s+t \mid X > s) = \frac{\P(X > s+t \text{ and } X > s)}{\P(X > s)} = \frac{\P(X > s+t)}{\P(X > s)} = \frac{e^{-\lambda(s+t)}}{e^{-\lambda s}} = e^{-\lambda t} = \P(X > t)\).
+    </div>
+  </section>
+
+  <section class="further-reading">
+    <h2>Further Reading</h2>
+    <ul>
+      <li>Klugman, S. A., Panjer, H. H., & Willmot, G. E. (2012). <em>Loss Models: From Data to Decisions</em> (4th ed.). Wiley. (The definitive text on actuarial distributions).</li>
+      <li>Casella, G., & Berger, R. L. (2001). <em>Statistical Inference</em> (2nd ed.). Duxbury Press.</li>
+      <li>Hull, J. C. (2017). <em>Options, Futures, and Other Derivatives</em> (10th ed.). Pearson. (For lognormal property applications in finance).</li>
+    </ul>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch04_probability.html">← Previous Chapter (Ch 4: Probability Theory)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch06_statistics.html">Next Chapter (Ch 6: Mathematical Statistics) →</a>
+  </nav>
+
+</body>
+</html>

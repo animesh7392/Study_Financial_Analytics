@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 17: Interest-Rate Derivatives</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 17: Interest-Rate Derivatives</h1>
+  
+  <section id="learning-objectives">
+    <h2>17.1 Learning Objectives</h2>
+    <div class="learning-objectives">
+      <div class="box-title">Learning Objectives</div>
+      <div class="box-content">
+        <ul>
+          <li>Understand the structure and valuation of interest rate caps, floors, and swaptions using Black's Formula.</li>
+          <li>Analyze and price options on zero-coupon and coupon-bearing bonds under various term structure models.</li>
+          <li>Explain the fundamental dynamics of the LIBOR Market Model (BGM) and its calibration.</li>
+          <li>Decompose complex structured products (e.g., callable bonds, inverse floaters, range accruals) into basic derivative building blocks.</li>
+          <li>Model cash flows and risks of Mortgage-Backed Securities (MBS), incorporating prepayment behavior (CPR, PSA) and analyzing negative convexity.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="prerequisites">
+    <h2>17.2 Prerequisites & Roadmap</h2>
+    <div class="prerequisites">
+      <div class="box-title">Prerequisites & Roadmap</div>
+      <div class="box-content">
+        <p>This chapter builds extensively upon the foundational material presented in:</p>
+        <ul>
+          <li><strong>Chapter 11: Fixed Income Fundamentals</strong> — bond math, yield curves, and duration/convexity.</li>
+          <li><strong>Chapter 12: Term Structure Models</strong> — forward rates, short-rate models (Vasicek, Hull-White).</li>
+          <li><strong>Chapter 15: Options Theory</strong> — Black-Scholes framework, risk-neutral valuation, and the Greeks.</li>
+        </ul>
+        <p>In this chapter, we extend the continuous-time option pricing framework to interest rates, where the underlying is not a single traded asset but a yield curve. We start with simple caps/floors, move to swaptions, touch upon advanced models like BGM, and conclude with structured products and MBS. We prepare the ground for <strong>Chapter 18: Credit Risk</strong>, where we will add default probabilities to these cash flow streams.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="intuition-motivation">
+    <h2>17.3 Intuition & Motivation</h2>
+    <p>Imagine a regional bank, "Springfield Savings & Loan", that issues 30-year fixed-rate mortgages to its customers at 4.5%. To fund these loans, the bank borrows short-term on the interbank market (e.g., rolling over 3-month deposits) paying a floating rate based on SOFR (Secured Overnight Financing Rate).</p>
+    
+    <p>This creates a classic <strong>asset-liability mismatch</strong>. If short-term interest rates spike to 6%, the bank is paying 6% on its liabilities while earning only 4.5% on its assets. The bank faces catastrophic interest rate risk. How can it protect itself? It could buy an <em>interest rate cap</em>—a derivative that pays off if the floating rate exceeds a certain strike (e.g., 5%). Alternatively, it could use an interest rate swap to convert its floating liabilities to fixed, but perhaps it wants the flexibility to benefit if rates fall. What if it wants an option to enter a swap in the future? That's a <em>swaption</em>.</p>
+    
+    <p>The valuation of these derivatives is notoriously complex because interest rates are not simple traded assets. An equity option involves one stock price. An interest rate option involves the entire yield curve evolving over time. Furthermore, unlike a stock price which can theoretically go to infinity, interest rates exhibit mean reversion. In recent years, they have even gone negative, forcing a paradigm shift from log-normal (Black) models to normal (Bachelier) or shifted log-normal models.</p>
+  </section>
+
+  <section id="formal-theory">
+    <h2>17.4 Formal Theory</h2>
+    
+    <h3>17.4.1 Interest Rate Caps and Floors</h3>
+    <p>An interest rate <strong>cap</strong> is a contract that provides a payoff if a specified reference rate (e.g., SOFR, EURIBOR, or traditionally LIBOR) exceeds a predetermined strike rate \( K \) on a series of future dates. A cap is mathematically equivalent to a portfolio of individual options on the interest rate, known as <strong>caplets</strong>.</p>
+    
+    <div class="definition">
+      <div class="box-title">Definition: Caplet and Floorlet</div>
+      <div class="box-content">
+        <p>A <strong>caplet</strong> covering the period \([T_{k-1}, T_k]\) with strike \( K \), notional \( N \), and day-count fraction \(\delta_k\) pays out at time \( T_k \):
+        \[ \text{Caplet Payoff}_{T_k} = N \delta_k \max(R(T_{k-1}, T_k) - K, 0) \]
+        where \( R(T_{k-1}, T_k) \) is the reference floating rate fixed at \( T_{k-1} \) for the period to \( T_k \).</p>
+        <p>A <strong>floorlet</strong> pays out if the rate is below \( K \):
+        \[ \text{Floorlet Payoff}_{T_k} = N \delta_k \max(K - R(T_{k-1}, T_k), 0) \]</p>
+      </div>
+    </div>
+    
+    <p>Note the timing mismatch: the rate is observed (reset) at \( T_{k-1} \), but the payoff is received at the end of the accrual period \( T_k \). By shifting our numéraire to the zero-coupon bond \( P(t, T_k) \), we can price this under the \( T_k \)-forward measure.</p>
+    
+    <div class="theorem">
+      <div class="box-title">Theorem: Black's Formula for Caplets</div>
+      <div class="box-content">
+        <p>Assuming the forward rate \( F_k(t) \) for the period \([T_{k-1}, T_k]\) follows a geometric Brownian motion with volatility \( \sigma_k \), the value of a caplet at time \( t=0 \) is given by Black's Formula (Black 1976):
+        \[ \text{Caplet}(0) = N \delta_k P(0, T_k) \left[ F_k(0) N(d_1) - K N(d_2) \right] \]
+        where:
+        \[ d_1 = \frac{\ln(F_k(0)/K) + \frac{1}{2}\sigma_k^2 T_{k-1}}{\sigma_k \sqrt{T_{k-1}}} \]
+        \[ d_2 = d_1 - \sigma_k \sqrt{T_{k-1}} \]</p>
+        <p>A floorlet is priced as:
+        \[ \text{Floorlet}(0) = N \delta_k P(0, T_k) \left[ K N(-d_2) - F_k(0) N(-d_1) \right] \]</p>
+      </div>
+    </div>
+    
+    <p><strong>Cap-Floor Parity:</strong> Buying a cap and selling a floor with the same strike is equivalent to entering a payer forward rate agreement (or a swap, if it's a strip).
+    \[ \text{Cap}(0) - \text{Floor}(0) = \text{Value of Payer Swap} \]</p>
+    
+    <h3>17.4.2 Swaptions</h3>
+    <p>A swaption is an option to enter into an interest rate swap at a future date \( T \) at a specified fixed rate \( K \). A <strong>payer swaption</strong> gives the right to pay fixed and receive floating; a <strong>receiver swaption</strong> gives the right to receive fixed and pay floating.</p>
+    
+    <p>Using the annuity factor \( A(t) = \sum_{i=1}^n \delta_i P(t, T_i) \) as the numéraire, the forward swap rate \( S(t) \) is a martingale under the corresponding swap measure. Applying Black's formula:</p>
+    
+    <div class="theorem">
+      <div class="box-title">Theorem: Black's Formula for Swaptions</div>
+      <div class="box-content">
+        <p>The price of a payer swaption expiring at \( T_0 \) on a swap with payment dates \( T_1, \dots, T_n \), strike \( K \), and forward swap rate \( S_0 \) is:
+        \[ \text{Payer Swaption}(0) = N \cdot A(0) \left[ S_0 N(d_1) - K N(d_2) \right] \]
+        where \( d_1 = \frac{\ln(S_0/K) + \frac{1}{2}\sigma^2 T_0}{\sigma \sqrt{T_0}} \) and \( d_2 = d_1 - \sigma \sqrt{T_0} \).</p>
+      </div>
+    </div>
+    <p>Because caps and swaptions are both actively traded, there is often a tension in calibrating models to match both sets of implied volatilities simultaneously.</p>
+
+    <h3>17.4.3 The Normal (Bachelier) Model for Negative Rates</h3>
+    <p>When interest rates approach zero or turn negative (as they did in Europe and Japan), the log-normal Black model fails because \( \ln(S_0/K) \) is undefined for negative values. The market shifted to the <strong>Bachelier (Normal) Model</strong>, assuming rates follow arithmetic Brownian motion: \( dF = \sigma_N dW \).</p>
+    <p>The Bachelier pricing formula for a payer swaption is:
+    \[ \text{Payer Swaption}_N(0) = N \cdot A(0) \sigma_N \sqrt{T_0} \left[ d N(d) + n(d) \right] \]
+    where \( d = \frac{S_0 - K}{\sigma_N \sqrt{T_0}} \), and \( n(x) \) is the standard normal PDF.</p>
+
+    <h3>17.4.4 LIBOR Market Model (BGM)</h3>
+    <p>The Brace-Gatarek-Musiela (BGM) model models observable forward rates directly, rather than abstract instantaneous short rates (like Vasicek). The forward rate \( F_k(t) \) under its own \( T_k \)-forward measure is driftless: \( dF_k(t) = \sigma_k(t) F_k(t) dW^k(t) \).</p>
+    <p>Under the terminal measure (numéraire \( P(t, T_N) \)), all forward rates have a drift induced by their correlation with other forward rates. BGM is powerful because it can exactly match the market prices of caps (and approximate swaptions) by adjusting the volatility functions and correlation matrix of the forward rates, making it the industry standard for exotic interest rate products.</p>
+
+    <h3>17.4.5 Bond Options (Closed Form)</h3>
+    <p>Under affine short-rate models like Vasicek or Hull-White, zero-coupon bond options have analytical solutions. For Vasicek (\( dr = a(b-r)dt + \sigma dW \)):</p>
+    <p>The price of a call option expiring at \( T \) on a zero-coupon bond maturing at \( S \) (\( T < S \)) with strike \( K \):
+    \[ C(t) = P(t,S) N(h_1) - K P(t,T) N(h_2) \]
+    where \( \sigma_P \) is the volatility of the zero-coupon bond price, and
+    \[ h_1 = \frac{\ln(P(t,S) / (K P(t,T))) + \frac{1}{2}\sigma_P^2}{\sigma_P} \]</p>
+
+    <h3>17.4.6 Structured Products & MBS</h3>
+    <p>Structured products combine vanilla bonds and derivatives to create custom payoff profiles.</p>
+    <ul>
+      <li><strong>Callable Bond:</strong> Non-callable (bullet) bond \( - \) Receiver Swaption. The issuer holds the option to recall the debt, effectively buying a call option on the bond (which is equivalent to an option to enter a receive-fixed swap).</li>
+      <li><strong>Inverse Floater:</strong> A bond that pays a coupon like \( 15\% - 2 \times \text{SOFR} \). High leverage when rates fall. Capped at a minimum of 0% (embedded floor).</li>
+      <li><strong>Mortgage-Backed Securities (MBS):</strong> Pools of residential mortgages. Homeowners have a "prepayment option"—they can refinance if rates drop. Therefore, an MBS is equivalent to a regular bond short a call option held by the homeowners. This creates <strong>negative convexity</strong>: as rates fall, the duration shortens exactly when investors want it to lengthen. Prepayment is modeled using CPR (Conditional Prepayment Rate) and the PSA model.</li>
+    </ul>
+
+  </section>
+
+  <section id="worked-examples">
+    <h2>17.5 Worked Examples</h2>
+    
+    <div class="example">
+      <div class="box-title">Example 17.1: Price a Caplet using Black's Formula</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Price a single SOFR caplet. Current time \( t=0 \). The caplet fixes at \( T_1 = 1.0 \) year and pays at \( T_2 = 1.25 \) years (quarterly, \(\delta = 0.25\)). The strike \( K = 4.00\% \). The forward rate \( F(0, T_1, T_2) = 4.50\% \). The log-normal volatility \(\sigma = 20\%\). The discount factor \( P(0, 1.25) = 0.945 \). Notional \( N = \text{USD } 10,000,000 \).</p>
+        <p><strong>Solution:</strong><br>
+        1. Identify parameters: \( F = 0.045 \), \( K = 0.04 \), \( T_1 = 1.0 \), \( \sigma = 0.20 \), \( \delta = 0.25 \).<br>
+        2. Calculate \( d_1 \) and \( d_2 \):<br>
+        \( d_1 = \frac{\ln(0.045/0.04) + 0.5(0.20^2)(1.0)}{0.20 \sqrt{1.0}} = \frac{0.11778 + 0.02}{0.20} = 0.6889 \)<br>
+        \( d_2 = d_1 - 0.20 = 0.4889 \)<br>
+        3. Standard normal CDFs:<br>
+        \( N(d_1) = N(0.6889) \approx 0.7546 \)<br>
+        \( N(d_2) = N(0.4889) \approx 0.6876 \)<br>
+        4. Apply Black's formula:<br>
+        Caplet Price = \( 10,000,000 \times 0.25 \times 0.945 \times [0.045(0.7546) - 0.04(0.6876)] \)<br>
+        = \( 2,362,500 \times [0.033957 - 0.027504] = 2,362,500 \times 0.006453 \approx \text{USD } 15,245.21 \)</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 17.2: Payer Swaption Valuation</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Price a 1y into 4y (1x4) payer swaption. Option expires in 1 year. The underlying swap lasts 4 years (payments at years 2, 3, 4, 5). Annuity factor \( A(0) = 3.450 \). Forward swap rate \( S_0 = 5.2\% \). Strike \( K = 5.5\% \). Swaption vol \( \sigma = 18\% \). Notional \( N = \text{INR } 1,000,000,000 \) (1 billion INR).</p>
+        <p><strong>Solution:</strong><br>
+        1. \( d_1 = \frac{\ln(0.052/0.055) + 0.5(0.18^2)(1)}{0.18 \sqrt{1}} = \frac{-0.05608 + 0.0162}{0.18} = -0.2215 \)<br>
+        2. \( d_2 = -0.2215 - 0.18 = -0.4015 \)<br>
+        3. \( N(d_1) = 0.4124 \), \( N(d_2) = 0.3440 \)<br>
+        4. Price = \( 1,000,000,000 \times 3.450 \times [0.052(0.4124) - 0.055(0.3440)] \)<br>
+        = \( 3,450,000,000 \times [0.021445 - 0.018920] = 3,450,000,000 \times 0.002525 \approx \text{INR } 8,711,250 \)</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 17.3: Callable Bond Decomposition</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A corporation issues a 10-year bond paying 6% annual coupon. It is callable at par (100) after 5 years. Decompose this into vanilla instruments.</p>
+        <p><strong>Solution:</strong><br>
+        The investor receives a 10-year 6% bullet bond, but has implicitly written an option to the issuer to call the bond back at 100 at year 5. If rates drop below 6%, the bond's value exceeds 100, the issuer will call the bond, and the investor loses out on the high coupons.<br>
+        Therefore: <strong>Callable Bond = 10-year Bullet Bond - Receiver Swaption (5y into 5y)</strong>.<br>
+        The receiver swaption gives the issuer the right to receive fixed 6% (implicitly by canceling the 6% debt) and pay floating (funding at new lower market rates). Because the investor is short this option, the callable bond trades at a higher yield (lower price) than a non-callable equivalent.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 17.4: WAL and Mortgage Pass-Through</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An MBS pool has a constant Conditional Prepayment Rate (CPR) of 10%. Calculate the Single Monthly Mortality (SMM).</p>
+        <p><strong>Solution:</strong><br>
+        The SMM is the percentage of the remaining principal balance that prepays in a given month, over and above the scheduled principal payment.<br>
+        \( \text{SMM} = 1 - (1 - \text{CPR})^{1/12} \)<br>
+        \( \text{SMM} = 1 - (1 - 0.10)^{1/12} = 1 - (0.90)^{0.0833} = 1 - 0.99124 = 0.00876 \) or \( 0.876\% \) per month.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 17.5: Zero-Coupon Bond Option (Vasicek)</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Under Vasicek, an option expires at \( T=1 \), bond matures at \( S=3 \). \( P(0,1) = 0.96 \), \( P(0,3) = 0.88 \), strike \( K=0.90 \), bond volatility \( \sigma_P = 3\% \).</p>
+        <p><strong>Solution:</strong><br>
+        1. \( h_1 = \frac{\ln(0.88 / (0.90 \times 0.96)) + 0.5(0.03^2)}{0.03} = \frac{\ln(1.0185) + 0.00045}{0.03} = 0.626 \)<br>
+        2. \( h_2 = 0.626 - 0.03 = 0.596 \)<br>
+        3. \( N(h_1) = 0.734 \), \( N(h_2) = 0.724 \)<br>
+        4. Call Price = \( 0.88(0.734) - 0.90(0.96)(0.724) = 0.6459 - 0.6255 = 0.0204 \) (per $1 face value).</p>
+      </div>
+    </div>
+
+  </section>
+
+  <section id="python-code">
+    <h2>17.6 Python Code: Cap Pricer</h2>
+    <p>This script prices an interest rate cap across a simple flat term structure using Black's formula.</p>
+    <pre><code class="language-python">import numpy as np
+from scipy.stats import norm
+
+def black_caplet(F, K, T, sigma, delta, P):
+    """Prices a single caplet using Black's formula."""
+    if F <= 0 or K <= 0: return 0.0  # Log-normal requires positive rates
+    d1 = (np.log(F / K) + 0.5 * sigma**2 * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    return delta * P * (F * norm.cdf(d1) - K * norm.cdf(d2))
+
+def price_cap(notional, strike, F_list, T_list, sigma, delta):
+    """
+    Prices a multi-period cap.
+    T_list: reset times (T_{k-1})
+    Assume discount factor P roughly exp(-F * (T + delta))
+    """
+    cap_value = 0.0
+    print(f"Pricing Cap | Notional: {notional:,.0f} | Strike: {strike:.2%}")
+    print("-" * 55)
+    print(f"{'Period':<10} {'Reset Time':<15} {'Fwd Rate':<10} {'Caplet Val'}")
+    
+    for i, (F, T) in enumerate(zip(F_list, T_list)):
+        P = np.exp(-F * (T + delta)) # Approximate discount factor
+        val = notional * black_caplet(F, strike, T, sigma, delta, P)
+        cap_value += val
+        print(f"{i+1:<10} {T:<15.2f} {F:<10.2%} ${val:,.2f}")
+        
+    print("-" * 55)
+    print(f"Total Cap Value: ${cap_value:,.2f}")
+    return cap_value
+
+# Term structure for 3 years, quarterly resets (12 periods)
+delta = 0.25
+T_resets = np.arange(0, 3, delta)
+# Upward sloping forward curve
+F_curve = np.linspace(0.04, 0.06, len(T_resets))
+
+price_cap(notional=10_000_000, strike=0.045, F_list=F_curve, 
+          T_list=T_resets, sigma=0.20, delta=delta)
+</code></pre>
+  </section>
+
+  <section id="diagrams">
+    <h2>17.7 Diagrams & Data Visualization</h2>
+    <p>Visualizing these derivatives helps clarify cash flow timing and risk sensitivity.</p>
+    <ul>
+      <li><strong>Figure 17.1 (Placeholder): Swaption Volatility Cube.</strong> A 3D surface plot showing implied volatility on the Z-axis, against Swap Tenor (X-axis) and Option Expiry (Y-axis). Typically exhibits a "hump" shape where short-expiry, medium-tenor swaptions have the highest volatility.</li>
+      <li><strong>Figure 17.2 (Placeholder): MBS Negative Convexity.</strong> A price-yield curve graph showing a straight non-callable bond (convex to the origin) versus an MBS price curve. As yields drop, the MBS price curve flattens out (curves downward) due to prepayments, graphically illustrating negative convexity.</li>
+      <li><strong>Figure 17.3 (Placeholder): Caplet Cashflow Timing.</strong> A timeline showing \( T_{k-1} \) (reset date, rate observed), \( T_k \) (payment date, cashflow received).</li>
+    </ul>
+  </section>
+
+  <section id="common-mistakes">
+    <h2>17.8 Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Warning: Pitfalls in IR Derivatives</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Confusing Reset and Payment Dates:</strong> In a caplet, the rate is determined at time \( T_{k-1} \) but paid at \( T_k \). Discounting from \( T_{k-1} \) without accounting for this delay is a classic error.</li>
+          <li><strong>Spot vs. Forward Volatility:</strong> Black's formula uses the volatility of the <em>forward</em> rate, not the spot rate. Forward rates have their own term structure of volatility.</li>
+          <li><strong>Flat Volatility Assumption:</strong> Quoting a cap using a single "flat" volatility across all caplets vs. "spot" caplet volatilities. A cap is a portfolio; summing caplets priced at a flat vol requires careful stripping to extract true individual caplet volatilities.</li>
+          <li><strong>Misunderstanding MBS Yield (OAS vs YTM):</strong> Quoting a standard Yield-to-Maturity for an MBS is misleading because cash flows change with interest rates. One must use Option-Adjusted Spread (OAS) to measure true relative value.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="industry-application">
+    <h2>17.9 Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Industry Perspective: Bermudan Swaptions & Cancelable Swaps</div>
+      <div class="box-content">
+        <p>At major investment banks and life insurance companies, standard European swaptions are heavily traded. However, a massive portion of the OTC market involves <strong>Bermudan Swaptions</strong>—the right to enter a swap on <em>several</em> specific dates (e.g., any quarterly coupon date after 2 years).</p>
+        <p>A Bermudan swaption is inherently path-dependent because exercising early kills the option for future dates. Therefore, closed-form Black's formulas cannot price them. Quants at banks use BGM (LIBOR Market Model) calibrated to the European swaption volatility surface, paired with Longstaff-Schwartz Monte Carlo simulation (Least-Squares Monte Carlo) to price the early-exercise boundary.</p>
+        <p>These are actively used to hedge callable bonds. If a bank issues a callable bond, it implicitly buys a Bermudan receiver swaption from investors. The bank will immediately delta-hedge and vega-hedge this by selling European or Bermudan swaptions in the interbank market.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="summary-formula">
+    <h2>17.10 Summary & Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <div class="box-title">Key Formulas</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Caplet (Black):</strong> \( \text{Caplet}_0 = N \delta_k P(0, T_k) [ F_k(0) N(d_1) - K N(d_2) ] \)</li>
+          <li><strong>Payer Swaption (Black):</strong> \( \text{Swpn}_0 = N A(0) [ S_0 N(d_1) - K N(d_2) ] \)</li>
+          <li><strong>Annuity Factor:</strong> \( A(0) = \sum_{i=1}^n \delta_i P(0, T_i) \)</li>
+          <li><strong>Cap-Floor Parity:</strong> \( \text{Cap}(K) - \text{Floor}(K) = \text{Payer Swap}(K) \)</li>
+          <li><strong>SMM to CPR:</strong> \( \text{SMM} = 1 - (1 - \text{CPR})^{1/12} \)</li>
+          <li><strong>Bachelier Swaption:</strong> \( N \cdot A(0) \sigma_N \sqrt{T_0} [ d N(d) + n(d) ] \)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="exercises">
+    <h2>17.11 Exercises</h2>
+    <div class="exercises">
+      
+      <div class="exercise-group">
+        <h3>Basic Questions</h3>
+        <div class="exercise-item"><strong>Exercise 1:</strong> Define a caplet and a floorlet. Draw their payoff diagrams at maturity.</div>
+        <div class="exercise-item"><strong>Exercise 2:</strong> What is the difference between a payer swaption and a receiver swaption?</div>
+        <div class="exercise-item"><strong>Exercise 3:</strong> Explain Cap-Floor parity conceptually.</div>
+        <div class="exercise-item"><strong>Exercise 4:</strong> Why do MBS exhibit negative convexity?</div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Intermediate Questions</h3>
+        <div class="exercise-item"><strong>Exercise 5:</strong> Given CPR = 15%, calculate the SMM.</div>
+        <div class="exercise-item"><strong>Exercise 6:</strong> Price a caplet using Black's formula. \( F = 3\% \), \( K = 3.5\% \), \( T=2 \), \( \sigma=25\% \), \( \delta=0.5 \), \( P(0,2.5)=0.92 \), \( N = 10,000 \).</div>
+        <div class="exercise-item"><strong>Exercise 7:</strong> An investor buys a callable bond. Are they long or short volatility? Explain.</div>
+        <div class="exercise-item"><strong>Exercise 8:</strong> Contrast the Black (log-normal) model with the Bachelier (normal) model for interest rates. When is Bachelier preferred?</div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Advanced Questions</h3>
+        <div class="exercise-item"><strong>Exercise 9:</strong> Decompose a "Range Accrual Note" which pays 5% daily as long as SOFR stays between 2% and 4%, into digital caplets/floorlets.</div>
+        <div class="exercise-item"><strong>Exercise 10:</strong> Price a receiver swaption using Black's formula: \( S_0 = 4\% \), \( K = 4.2\% \), \( \sigma = 15\% \), \( T=1 \), Annuity factor = 4.5, \( N = 1,000,000 \).</div>
+        <div class="exercise-item"><strong>Exercise 11:</strong> Outline the steps to price a Bermudan Swaption using the Longstaff-Schwartz algorithm.</div>
+        <div class="exercise-item"><strong>Exercise 12:</strong> Explain the "Jamshidian Decomposition" for pricing options on coupon bonds under the Vasicek model.</div>
+      </div>
+
+      <h3>Selected Solutions</h3>
+      <div class="solution-item"><strong>Solution to Ex 3:</strong> Buying a cap (pays when rate > K) and selling a floor (pays when rate < K) results in a payoff exactly equal to receiving floating and paying fixed (strike K) in all states of the world. This is equivalent to a payer swap.</div>
+      <div class="solution-item"><strong>Solution to Ex 5:</strong> SMM = \( 1 - (1 - 0.15)^{1/12} = 1 - 0.85^{0.0833} = 1 - 0.9865 = 1.35\% \).</div>
+      <div class="solution-item"><strong>Solution to Ex 6:</strong> \( d_1 = [\ln(0.03/0.035) + 0.5(0.25^2)(2)] / (0.25 \sqrt{2}) = [-0.15415 + 0.0625] / 0.3535 = -0.2593 \). \( d_2 = -0.2593 - 0.3535 = -0.6128 \). Caplet = \( 10000(0.5)(0.92) [0.03 N(-0.259) - 0.035 N(-0.612)] \). Calculate N(d) to finish.</div>
+      <div class="solution-item"><strong>Solution to Ex 7:</strong> Short volatility. The investor owns a regular bond and has sold a call option to the issuer. As volatility increases, the value of the option the investor sold goes up, which decreases the total value of their position.</div>
+      <div class="solution-item"><strong>Solution to Ex 9:</strong> For each day, the payoff is a digital option. The investor receives the coupon if SOFR < 4% (short a digital caplet at 4%) AND SOFR > 2% (short a digital floorlet at 2%). The product is a strip of digital double-no-touch or binary collars.</div>
+      <div class="solution-item"><strong>Solution to Ex 10:</strong> Use receiver swaption formula: \( N \cdot A(0) [ K N(-d_2) - S_0 N(-d_1) ] \). \( d_1 = [\ln(0.04/0.042) + 0.5(0.15^2)(1)]/0.15 = [-0.04879 + 0.01125]/0.15 = -0.250 \). \( d_2 = -0.250 - 0.15 = -0.400 \). \( N(-d_1) = N(0.250) = 0.5987 \). \( N(-d_2) = N(0.400) = 0.6554 \). Price = \( 1000000(4.5) [ 0.042(0.6554) - 0.04(0.5987) ] = 4500000 [ 0.0275268 - 0.023948 ] = 4500000(0.0035788) = 16,104.60 \).</div>
+    </div>
+  </section>
+
+  <section id="further-reading">
+    <h2>17.12 Further Reading</h2>
+    <div class="further-reading">
+      <div class="box-title">References and Further Reading</div>
+      <div class="box-content">
+        <ul>
+          <li>Brigo, D., & Mercurio, F. (2006). <em>Interest Rate Models - Theory and Practice: With Smile, Inflation and Credit</em>. Springer. (The definitive reference for BGM and swaptions).</li>
+          <li>Hull, J. C. (2018). <em>Options, Futures, and Other Derivatives</em> (10th ed.). Pearson. (Chapters 29-31 on interest rate derivatives and models).</li>
+          <li>Fabozzi, F. J. (2012). <em>The Handbook of Fixed Income Securities</em>. McGraw-Hill. (For deep detail on MBS, CPR/PSA, and structured products).</li>
+          <li>Jamshidian, F. (1989). "An Exact Bond Option Formula." <em>The Journal of Finance</em>, 44(1), 205-209.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch16_advanced_derivatives.html">← Previous Chapter (Ch 16)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch18_credit_risk.html">Next Chapter (Ch 18) →</a>
+  </nav>
+
+</body>
+</html>

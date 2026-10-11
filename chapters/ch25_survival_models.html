@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 25: Survival Models and Life Tables</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 25: Survival Models and Life Tables</h1>
+  
+  <div class="learning-objectives">
+    <h2>Learning Objectives</h2>
+    <ul>
+      <li>Master the mathematical theory of survival functions, hazard rates, and future lifetime random variables.</li>
+      <li>Construct, interpret, and manipulate standard life table functions (\(l_x, d_x, q_x, p_x\)).</li>
+      <li>Apply parametric mortality laws and fractional age assumptions for interpolation.</li>
+      <li>Estimate non-parametric survival functions using Kaplan-Meier and Nelson-Aalen estimators.</li>
+      <li>Model mortality trends and improvements using Cox Proportional Hazards and the Lee-Carter model.</li>
+    </ul>
+  </div>
+  
+  <div class="prerequisites">
+    <h2>Prerequisites & Roadmap</h2>
+    <p>This chapter relies heavily on calculus and probability theory. It follows <a href="ch24_utility_theory.html">Chapter 24: Utility Theory</a>, where we learned how individuals value risky outcomes. Here, we quantify the most fundamental risk: the timing of death. This demographic foundation is essential for <a href="ch26_life_insurance.html">Chapter 26: Life Insurance</a>.</p>
+  </div>
+
+  <h2>25.1 Intuition & Motivation</h2>
+  <p>Imagine you are the Chief Actuary for a newly established life insurance company in Mumbai. You are tasked with pricing a 20-year term life insurance policy for a 35-year-old female. To determine a fair premium, you need to know the probability that she will pass away in the 1st year, the 2nd year, and so forth, up to the 20th year. If you underestimate these probabilities, the company will not collect enough premium to pay out claims and will face insolvency. If you overestimate them, the premiums will be uncompetitive, and you won't sell any policies.</p>
+  <p>How do we mathematically describe the random variable representing the time of death? We use survival models. By studying empirical data from large populations, actuaries and statisticians construct life tables and survival functions that capture the essence of human mortality. These tools are not only crucial in insurance but also in reliability engineering (when will a machine fail?) and biostatistics (how long will a patient survive after a cancer treatment?).</p>
+
+  <h2>25.2 The Survival Function</h2>
+  <p>Let \( X \) be a continuous non-negative random variable representing the age at death of a newborn. The cumulative distribution function (CDF) of \( X \), denoted by \( F(x) \), is the probability that death occurs at or before age \( x \):</p>
+  <p>\( F(x) = \P(X \le x), \quad x \ge 0 \)</p>
+  <p>In actuarial science and survival analysis, it is more natural to focus on the probability of surviving past a certain age. This is captured by the <strong>Survival Function</strong>, \( S(x) \).</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 25.1: Survival Function</div>
+    <div class="box-content">
+      The survival function \( S(x) \) is the probability that a newborn survives to at least age \( x \):
+      \[ S(x) = \P(X > x) = 1 - F(x) \]
+    </div>
+  </div>
+
+  <p>The survival function has several key properties:</p>
+  <ul>
+    <li>\( S(0) = 1 \) (everyone starts alive).</li>
+    <li>\( \lim_{x \to \infty} S(x) = 0 \) (nobody lives forever).</li>
+    <li>\( S(x) \) is a non-increasing function of \( x \).</li>
+  </ul>
+  <p>If \( X \) is continuous, it has a probability density function (PDF), denoted by \( f(x) \). The PDF is the derivative of the CDF, and consequently, the negative derivative of the survival function:</p>
+  \[ f(x) = \dv{F(x)}{x} = -\dv{S(x)}{x} \]
+
+  <h2>25.3 Hazard Rate (Force of Mortality)</h2>
+  <p>While the PDF \( f(x) \) represents the unconditional rate of death at age \( x \), it is often more useful to consider the <em>conditional</em> rate of death. That is, given that a person has survived to age \( x \), what is the instantaneous rate of death at that exact age?</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 25.2: Hazard Rate / Force of Mortality</div>
+    <div class="box-content">
+      The hazard rate, or force of mortality, denoted by \( \mu(x) \), is defined as:
+      \[ \mu(x) = \lim_{\Delta x \to 0^+} \frac{\P(x < X \le x + \Delta x \mid X > x)}{\Delta x} = \frac{f(x)}{S(x)} \]
+    </div>
+  </div>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 25.1: Relationship between S(x) and \(\mu(x)\)</div>
+    <div class="box-content">
+      The survival function can be expressed entirely in terms of the force of mortality:
+      \[ S(x) = \exp\left( - \int_0^x \mu(t) \dd t \right) \]
+    </div>
+  </div>
+  <div class="proof">
+    <div class="box-title">Proof</div>
+    <div class="box-content">
+      Since \( \mu(x) = \frac{f(x)}{S(x)} = \frac{-S'(x)}{S(x)} = -\dv{}{x} \ln S(x) \), we can integrate both sides from 0 to \( x \):
+      \[ \int_0^x \mu(t) \dd t = -[\ln S(t)]_0^x = -(\ln S(x) - \ln S(0)) \]
+      Since \( S(0) = 1 \), \( \ln S(0) = 0 \). Thus, \( \ln S(x) = -\int_0^x \mu(t) \dd t \). Exponentiating both sides yields the result.
+    </div>
+  </div>
+
+  <h2>25.4 Future Lifetime Random Variables</h2>
+  <p>When dealing with an individual who is currently aged \( x \) (denoted as \( (x) \)), we are interested in their <em>future</em> lifetime.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 25.3: Future Lifetime</div>
+    <div class="box-content">
+      Let \( X \) be the age at death. For a person currently alive at age \( x \), the <strong>continuous future lifetime</strong> random variable is \( T(x) = X - x \), defined for \( X > x \).
+      <br>
+      The <strong>curtate future lifetime</strong> is the number of complete future years lived: \( K(x) = \lfloor T(x) \rfloor \).
+    </div>
+  </div>
+
+  <p>The survival function of \( T(x) \), representing the probability that \( (x) \) survives at least \( t \) more years, is denoted by \( {}_tp_x \):</p>
+  \[ {}_tp_x = \P(T(x) > t) = \P(X > x + t \mid X > x) = \frac{S(x+t)}{S(x)} \]
+  <p>The probability that \( (x) \) dies within \( t \) years is denoted by \( {}_tq_x \):</p>
+  \[ {}_tq_x = 1 - {}_tp_x \]
+  <p>If \( t=1 \), we usually drop the prefix: \( p_x \) and \( q_x \).</p>
+
+  <p>The expected value of continuous future lifetime is the <strong>complete expectation of life</strong>, \( \mathring{e}_x \):</p>
+  \[ \mathring{e}_x = \E[T(x)] = \int_0^\infty t \cdot f_{T(x)}(t) \dd t = \int_0^\infty {}_tp_x \dd t \]
+  <p>The expected value of curtate future lifetime is the <strong>curtate expectation of life</strong>, \( e_x \):</p>
+  \[ e_x = \E[K(x)] = \sum_{k=1}^\infty k \cdot \P(K(x) = k) = \sum_{k=1}^\infty {}_kp_x \]
+
+  <h2>25.5 Life Table Construction</h2>
+  <p>A life table (or mortality table) is a discrete representation of a survival model. It tracks a hypothetical cohort of newborns (the radix, usually \( l_0 = 100,000 \)) through life.</p>
+  <ul>
+    <li>\( l_x \): Expected number of survivors to age \( x \). \( l_x = l_0 \cdot S(x) \).</li>
+    <li>\( d_x \): Expected number of deaths between age \( x \) and \( x+1 \). \( d_x = l_x - l_{x+1} \).</li>
+    <li>\( q_x \): Probability of dying within one year for \( (x) \). \( q_x = d_x / l_x \).</li>
+    <li>\( p_x \): Probability of surviving one year for \( (x) \). \( p_x = l_{x+1} / l_x \).</li>
+  </ul>
+  <p>The <strong>central death rate</strong> \( m_x \) approximates the force of mortality in the interval \([x, x+1]\). It is the ratio of deaths to the total time lived in the year by the cohort (\( L_x \)):</p>
+  \[ m_x = \frac{d_x}{L_x} \approx \frac{d_x}{l_x - 0.5 d_x} = \frac{q_x}{1 - 0.5 q_x} \]
+
+  <div class="example">
+    <div class="box-title">Example 25.1: Computing Life Table Functions</div>
+    <div class="box-content">
+      Given a partial life table with \( l_{40} = 98,000 \) and \( d_{40} = 150, d_{41} = 160 \). Calculate \( l_{41}, l_{42}, p_{40}, q_{41}, {}_2p_{40} \), and approximate \( m_{40} \).
+      <br><br>
+      <strong>Solution:</strong><br>
+      1. \( l_{41} = l_{40} - d_{40} = 98,000 - 150 = 97,850 \)<br>
+      2. \( l_{42} = l_{41} - d_{41} = 97,850 - 160 = 97,690 \)<br>
+      3. \( p_{40} = l_{41} / l_{40} = 97,850 / 98,000 \approx 0.998469 \)<br>
+      4. \( q_{41} = d_{41} / l_{41} = 160 / 97,850 \approx 0.001635 \)<br>
+      5. \( {}_2p_{40} = l_{42} / l_{40} = 97,690 / 98,000 \approx 0.996837 \)<br>
+      6. \( m_{40} \approx \frac{q_{40}}{1 - 0.5 q_{40}} \). Here \( q_{40} = 150 / 98,000 \approx 0.0015306 \). Thus \( m_{40} \approx \frac{0.0015306}{1 - 0.5(0.0015306)} \approx 0.0015318 \).
+    </div>
+  </div>
+
+  <h2>25.6 Parametric Mortality Laws</h2>
+  <p>Instead of relying purely on discrete tables, we can model \( \mu(x) \) using mathematical functions.</p>
+  <ul>
+    <li><strong>De Moivre (1729):</strong> \( \mu(x) = \frac{1}{\omega - x} \) for \( 0 \le x < \omega \). Assumes uniform distribution of death.</li>
+    <li><strong>Gompertz (1825):</strong> \( \mu(x) = B c^x \) (where \( B > 0, c > 1 \)). Mortality increases exponentially. Excellent for middle-to-old ages.</li>
+    <li><strong>Makeham (1860):</strong> \( \mu(x) = A + B c^x \). Adds a constant term \( A \) to Gompertz to capture age-independent accidental deaths.</li>
+    <li><strong>Weibull:</strong> \( \mu(x) = k x^n \). Often used in engineering and reliability, less common in human life tables but useful for early life mortality.</li>
+  </ul>
+
+  <div class="example">
+    <div class="box-title">Example 25.2: Gompertz vs Makeham</div>
+    <div class="box-content">
+      Suppose a population follows Makeham's law with \( A = 0.0005, B = 0.00002, c = 1.1 \). Calculate \( \mu(50) \) and compare it to a Gompertz law that omits \( A \).<br><br>
+      <strong>Solution:</strong><br>
+      For Makeham: \( \mu(50) = 0.0005 + 0.00002(1.1)^{50} = 0.0005 + 0.00002(117.39) = 0.0005 + 0.0023478 = 0.0028478 \).<br>
+      For Gompertz (ignoring A): \( \mu(50) = 0.0023478 \).<br>
+      At age 50, the "accidental" factor \( A \) still accounts for \( 0.0005 / 0.0028478 \approx 17.5\% \) of the total hazard rate. At age 80, the Gompertz term dominates.
+    </div>
+  </div>
+
+  <h2>25.7 Select and Ultimate Tables</h2>
+  <p>When someone buys life insurance, they undergo underwriting (medical checks). Thus, a person who just passed underwriting at age 40 has a lower mortality risk than a person currently aged 40 who was underwritten 10 years ago. This creates a <strong>selection effect</strong>.</p>
+  <p>We denote the age at selection in brackets. \( [x] \) means selected at age \( x \). \( [x]+t \) is the mortality for someone selected at age \( x \) who is now aged \( x+t \).</p>
+  <p>The selection effect typically wears off after a <strong>select period</strong> (e.g., 2 to 5 years). After this period, mortality depends only on the attained age. This is the <strong>ultimate</strong> mortality table.</p>
+  <p>Example: If the select period is 3 years, then \( q_{[40]+3} = q_{43} \).</p>
+
+  <h2>25.8 Fractional Age Assumptions</h2>
+  <p>Life tables only give values at integer ages. What if we need to evaluate \( {}_{0.5}q_{40} \)? We must make an assumption about how deaths are distributed within the year.</p>
+  <ol>
+    <li><strong>Uniform Distribution of Deaths (UDD):</strong> Assumes deaths occur linearly over the year.
+      <br>\( {}_tq_x = t \cdot q_x \) for \( 0 \le t \le 1 \).
+    </li>
+    <li><strong>Constant Force of Mortality:</strong> Assumes \( \mu(x+t) \) is constant between integer ages.
+      <br>\( {}_tp_x = (p_x)^t \).
+    </li>
+    <li><strong>Balducci Assumption (Hyperbolic):</strong> Assumes the mortality rate for the remainder of the year is proportional.
+      <br>\( 1 - {}_tq_x = \frac{p_x}{1 - (1-t)q_x} \). (Rarely used today, historically useful for manual calculations).
+    </li>
+  </ol>
+
+  <div class="example">
+    <div class="box-title">Example 25.4: Fractional Age Calculations</div>
+    <div class="box-content">
+      Given \( q_{50} = 0.02 \). Calculate \( {}_{0.4}q_{50} \) under UDD and Constant Force.<br><br>
+      <strong>UDD:</strong> \( {}_{0.4}q_{50} = 0.4 \times 0.02 = 0.008000 \).<br>
+      <strong>Constant Force:</strong> \( {}_{0.4}p_{50} = (1 - 0.02)^{0.4} = 0.98^{0.4} \approx 0.991951 \implies {}_{0.4}q_{50} = 1 - 0.991951 = 0.008049 \).<br>
+      Notice that UDD yields slightly lower mortality in the first half of the year compared to Constant Force.
+    </div>
+  </div>
+
+  <h2>25.9 Kaplan-Meier Estimator</h2>
+  <p>In practice, we estimate survival functions from incomplete data. Medical trials and insurance portfolios suffer from <strong>right-censoring</strong> (a patient drops out, or the study ends before they die). The Kaplan-Meier (Product-Limit) estimator elegantly handles this.</p>
+  <p>Let \( t_1 < t_2 < \dots < t_k \) be the distinct times of death. At time \( t_j \), let \( d_j \) be the number of deaths, and \( n_j \) be the number of people "at risk" (alive and not censored just before \( t_j \)).</p>
+  \[ \hat{S}(t) = \prod_{t_j \le t} \left( 1 - \frac{d_j}{n_j} \right) \]
+  <p>The variance of this estimator is approximated using <strong>Greenwood's Formula</strong>:</p>
+  \[ \widehat{\Var}(\hat{S}(t)) = \hat{S}(t)^2 \sum_{t_j \le t} \frac{d_j}{n_j(n_j - d_j)} \]
+
+  <div class="example">
+    <div class="box-title">Example 25.3: Kaplan-Meier Curve</div>
+    <div class="box-content">
+      Data: 5 patients. Death times: 3, 5, 8. Censored times: 4, 7.<br>
+      Calculate \( \hat{S}(t) \).<br><br>
+      - At \( t_1 = 3 \): \( n_1 = 5, d_1 = 1 \). \( \hat{S}(3) = 1 \times (1 - 1/5) = 0.80 \).<br>
+      - Patient censored at \( t=4 \). Remaining at risk: 3.<br>
+      - At \( t_2 = 5 \): \( n_2 = 3, d_2 = 1 \). \( \hat{S}(5) = 0.80 \times (1 - 1/3) = 0.533 \).<br>
+      - Patient censored at \( t=7 \). Remaining at risk: 1.<br>
+      - At \( t_3 = 8 \): \( n_3 = 1, d_3 = 1 \). \( \hat{S}(8) = 0.533 \times (1 - 1/1) = 0 \).
+    </div>
+  </div>
+
+  <h2>25.10 Nelson-Aalen Estimator</h2>
+  <p>An alternative to Kaplan-Meier focuses on estimating the cumulative hazard function \( H(t) = \int_0^t \mu(s) \dd s \). The Nelson-Aalen estimator is:</p>
+  \[ \tilde{H}(t) = \sum_{t_j \le t} \frac{d_j}{n_j} \]
+  <p>The survival function can then be obtained via the relationship \( S(t) = \exp(-H(t)) \), giving the Fleming-Harrington estimator: \( \tilde{S}(t) = \exp(-\tilde{H}(t)) \).</p>
+
+  <h2>25.11 Cox Proportional Hazards Model</h2>
+  <p>How do covariates (smoking status, weight, gender) affect survival? The Cox Proportional Hazards model assumes that covariates multiplicatively scale the baseline hazard function \( \mu_0(t) \):</p>
+  \[ \mu(t \mid X) = \mu_0(t) \exp(\beta_1 X_1 + \beta_2 X_2 + \dots + \beta_p X_p) \]
+  <p>The beauty of this model is that we can estimate the coefficients \( \beta \) without knowing the baseline hazard \( \mu_0(t) \), using partial likelihood estimation. The quantity \( \exp(\beta_i) \) is the <strong>hazard ratio</strong>.</p>
+
+  <div class="warning">
+    <div class="box-title">Common Mistake</div>
+    <div class="box-content">
+      A hazard ratio of 2.0 does <strong>not</strong> mean the probability of dying is twice as high. It means the instantaneous <em>rate</em> of death is twice as high. For short time intervals and small hazards, the probability is roughly doubled, but as time extends, survival functions decline exponentially, so the relationship on probabilities is non-linear.
+    </div>
+  </div>
+
+  <h2>25.12 Mortality Improvement and Indian Tables</h2>
+  <p>Mortality isn't static; it improves over time due to healthcare advancements. The <strong>Lee-Carter Model (1992)</strong> models the central death rate over age \( x \) and time \( t \):</p>
+  \[ \ln m_{x,t} = a_x + b_x k_t + \epsilon_{x,t} \]
+  <ul>
+    <li>\( a_x \): Average age-specific mortality profile.</li>
+    <li>\( k_t \): The general time trend of mortality.</li>
+    <li>\( b_x \): Sensitivity of age \( x \) to the time trend \( k_t \).</li>
+  </ul>
+  <p>The parameters are typically estimated using Singular Value Decomposition (SVD). The time index \( k_t \) is then forecast into the future using time-series methods (like ARIMA) to project future mortality.</p>
+
+  <div class="example">
+    <div class="box-title">Example 25.5: Lee-Carter Projection</div>
+    <div class="box-content">
+      Suppose \( m_{60, 2020} = 0.015 \). The Lee-Carter parameters are \( b_{60} = 0.12 \) and the forecasted drop in the time factor over 10 years is \( \Delta k = -1.5 \). Estimate \( m_{60, 2030} \).<br><br>
+      <strong>Solution:</strong><br>
+      The model implies \( \ln m_{60, 2030} \approx \ln m_{60, 2020} + b_{60} \Delta k \).<br>
+      \( \ln m_{60, 2030} = \ln(0.015) + (0.12)(-1.5) = -4.1997 - 0.18 = -4.3797 \).<br>
+      \( m_{60, 2030} = \exp(-4.3797) \approx 0.0125 \).<br>
+      The mortality rate drops from 1.5% to 1.25%.
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Indian Assured Lives Mortality (IALM)</div>
+    <div class="box-content">
+      In India, life insurers base pricing and reserving on the <strong>IALM (2012-14)</strong> table, published by the Institute of Actuaries of India. Earlier, tables were largely based on Life Insurance Corporation of India (LIC) data (e.g., LIC 94-96, LIC 2006-08). Current regulations by the IRDAI require companies to use IALM (2012-14) modified by their own experience (using credible expected-to-actual mortality ratios) to set statutory reserves.
+    </div>
+  </div>
+
+  <h2>Python Code: Kaplan-Meier Estimator</h2>
+  <p>The following Python code uses the <code>lifelines</code> package (a standard tool in Python for survival analysis) to fit and plot a Kaplan-Meier curve.</p>
+  
+  <pre><code class="language-python">
+import pandas as pd
+from lifelines import KaplanMeierFitter
+import matplotlib.pyplot as plt
+
+# Fictional data: durations and event observed (1 = death, 0 = censored)
+data = {
+    'duration': [3, 4, 5, 7, 8, 10, 12, 12, 14, 15],
+    'observed': [1, 0, 1, 0, 1, 1,  0,  1,  0,  1]
+}
+df = pd.DataFrame(data)
+
+kmf = KaplanMeierFitter()
+kmf.fit(durations=df['duration'], event_observed=df['observed'], label='KM Estimate')
+
+# Print the survival table
+print(kmf.survival_function_)
+
+# Normally, you would plot this:
+# kmf.plot_survival_function()
+# plt.title('Kaplan-Meier Survival Curve')
+# plt.show()
+  </code></pre>
+  <p><em>Figure Description: If plotted, the graph shows a step function that starts at 1.0 at \(t=0\), stepping downwards only at times where an event (death) occurs, with shaded confidence intervals widening at later durations due to fewer individuals remaining at risk.</em></p>
+
+  <div class="formula-sheet">
+    <h2>Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li>\( S(x) = \exp(-\int_0^x \mu(t)\dd t) \)</li>
+      <li>\( \mu(x) = \frac{f(x)}{S(x)} = -\dv{}{x} \ln S(x) \)</li>
+      <li>\( {}_tp_x = \frac{S(x+t)}{S(x)}, \quad {}_tq_x = 1 - {}_tp_x \)</li>
+      <li>\( l_x = l_0 S(x), \quad d_x = l_x - l_{x+1}, \quad q_x = \frac{d_x}{l_x} \)</li>
+      <li>UDD: \( {}_tq_x = t \cdot q_x \)</li>
+      <li>Constant Force: \( {}_tp_x = (p_x)^t \)</li>
+      <li>Gompertz: \( \mu(x) = B c^x \)</li>
+      <li>Makeham: \( \mu(x) = A + B c^x \)</li>
+    </ul>
+  </div>
+
+  <h2>Exercises</h2>
+  <div class="exercises">
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">1. Given \( S(x) = 1 - \frac{x}{100} \) for \( 0 \le x \le 100 \). Calculate \( \mu(50) \).</div>
+      <div class="exercise-item">2. In a life table, \( l_{30} = 90,000 \) and \( l_{31} = 89,800 \). Find \( q_{30} \) and \( p_{30} \).</div>
+      <div class="exercise-item">3. Prove that under UDD, the force of mortality \( \mu(x+t) \) is increasing for \( 0 < t < 1 \).</div>
+      <div class="exercise-item">4. A Gompertz model has \( B = 0.0001 \) and \( c = 1.05 \). Evaluate \( \mu(40) \).</div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">5. Given \( q_{60} = 0.03 \). Calculate \( {}_{0.7}q_{60} \) assuming (a) UDD, and (b) Constant Force.</div>
+      <div class="exercise-item">6. Construct the complete Kaplan-Meier survival curve for deaths at \( t = 2, 4, 6 \) and censored observations at \( t = 3, 5 \). (Sample size \( N=5 \)).</div>
+      <div class="exercise-item">7. Use Makeham's law \( \mu(x) = A + Bc^x \). Express the survival function \( S(x) \) explicitly in terms of \( A, B, c, x \).</div>
+      <div class="exercise-item">8. Calculate the curtate expectation of life \( e_{98} \) given \( q_{98} = 0.4 \), \( q_{99} = 0.6 \), and \( q_{100} = 1.0 \).</div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">9. Let \( \mu(x) = k \). Show that the complete expectation of life \( \mathring{e}_x = 1/k \) for all \( x \).</div>
+      <div class="exercise-item">10. In a Cox PH model, the hazard ratio for smoking is 1.5. If the baseline hazard is constant at 0.01, find the probability a smoker survives 10 years.</div>
+      <div class="exercise-item">11. A Lee-Carter model has \( b_x = 0.05 \). If \( k_t \) drops by 2 units over a decade, what is the percentage change in the mortality rate at age \( x \)?</div>
+      <div class="exercise-item">12. Derive Greenwood's formula for the variance of the Kaplan-Meier estimator using the delta method.</div>
+    </div>
+  </div>
+
+  <h2>Solutions to Selected Exercises</h2>
+  <div class="solution-item">
+    <strong>1.</strong> \( f(x) = -S'(x) = 1/100 \). \( \mu(x) = f(x)/S(x) = \frac{1/100}{1 - x/100} = \frac{1}{100-x} \). So, \( \mu(50) = 1/50 = 0.02 \).
+  </div>
+  <div class="solution-item">
+    <strong>2.</strong> \( q_{30} = \frac{l_{30} - l_{31}}{l_{30}} = \frac{200}{90,000} = 0.00222 \). \( p_{30} = 1 - q_{30} = 0.99778 \).
+  </div>
+  <div class="solution-item">
+    <strong>5.</strong> (a) UDD: \( {}_{0.7}q_{60} = 0.7(0.03) = 0.0210 \).<br>
+    (b) CF: \( {}_{0.7}p_{60} = (0.97)^{0.7} = 0.9789 \implies {}_{0.7}q_{60} = 0.0211 \).
+  </div>
+  <div class="solution-item">
+    <strong>7.</strong> \( S(x) = \exp(-\int_0^x (A + Bc^t)\dd t) = \exp(-Ax - \frac{B}{\ln c}(c^x - 1)) \).
+  </div>
+  <div class="solution-item">
+    <strong>8.</strong> \( p_{98} = 0.6 \). \( p_{99} = 0.4 \). \( p_{100} = 0 \).<br>
+    \( e_{98} = p_{98} + {}_{2}p_{98} + {}_{3}p_{98} = p_{98} + p_{98}p_{99} + 0 \)<br>
+    \( = 0.6 + (0.6)(0.4) = 0.6 + 0.24 = 0.84 \).
+  </div>
+  <div class="solution-item">
+    <strong>10.</strong> Smoker hazard \( \mu = 0.01 \times 1.5 = 0.015 \). Survival for 10 years: \( S(10) = \exp(-0.015 \times 10) = \exp(-0.15) \approx 0.8607 \).
+  </div>
+
+  <div class="further-reading">
+    <h2>Further Reading</h2>
+    <ul>
+      <li>Dickson, D. C. M., Hardy, M. R., & Waters, H. R. (2019). <em>Actuarial Mathematics for Life Contingent Risks</em> (3rd ed.). Cambridge University Press.</li>
+      <li>Bowers, N. L., Gerber, H. U., Hickman, J. C., Jones, D. A., & Nesbitt, C. J. (1997). <em>Actuarial Mathematics</em> (2nd ed.). Society of Actuaries.</li>
+      <li>Lee, R. D., & Carter, L. R. (1992). "Modeling and Forecasting U.S. Mortality." <em>Journal of the American Statistical Association</em>.</li>
+      <li>Klein, J. P., & Moeschberger, M. L. (2003). <em>Survival Analysis: Techniques for Censored and Truncated Data</em>. Springer.</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch24_utility_theory.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch26_life_insurance.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

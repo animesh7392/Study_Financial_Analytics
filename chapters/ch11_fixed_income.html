@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 11: Fixed Income Mathematics</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 11: Fixed Income Mathematics</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the mechanics of bond pricing, including clean vs. dirty prices, pull-to-par, and accrued interest based on standard day-count conventions.</li>
+        <li>Calculate Yield to Maturity (YTM) and grasp its relationship with coupon rates for par, premium, and discount bonds.</li>
+        <li>Distinguish between spot rates and forward rates, and extract a zero-coupon yield curve via the bootstrapping method.</li>
+        <li>Quantify interest rate risk using Macaulay, Modified, and Effective Duration, as well as Convexity.</li>
+        <li>Apply Redington's immunization principles to protect portfolios against parallel shifts in the yield curve.</li>
+        <li>Navigate real-world institutional details of Indian and global fixed income markets, including callable, putable, and floating-rate bonds.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds directly upon the concepts of the Time Value of Money (TVM), annuities, and discounting covered in <strong>Chapter 10</strong>. You should be comfortable with calculating present values of cash flow streams and solving for internal rates of return (IRR). From here, we branch off into the fundamental core of fixed income analytics.</p>
+      <p><strong>Next steps:</strong> The models developed here—particularly spot and forward rates—will serve as the foundation for <strong>Chapter 12: Term Structure of Interest Rates</strong> and advanced derivative pricing later in the book.</p>
+    </div>
+  </div>
+
+  <h2>11.1 Intuition & Motivation</h2>
+  <p>Imagine a large infrastructure company, let's call it <em>Bharatmala Tollways</em>, needing to raise ₹10,000 crores to construct a network of new expressways. They cannot simply ask a single bank for this amount. Instead, they borrow directly from the financial markets by issuing "bonds"—essentially IOU certificates. Investors (pension funds, insurance companies, retail investors) buy these bonds, giving the company cash today in exchange for a promise of regular interest payments (coupons) and the return of the principal at the end of the term (maturity).</p>
+  <p>Once issued, these bonds trade in the secondary market. If the Reserve Bank of India (RBI) or the US Federal Reserve raises interest rates, new bonds will offer higher coupons. As a result, the old bonds issued by Bharatmala Tollways become less attractive, and their price falls. The central question of fixed income mathematics is: <em>by exactly how much?</em></p>
+  <p>Understanding bond valuation is not merely an academic exercise. For life insurance companies, mismatching the sensitivity of their assets (bonds) with their liabilities (future payouts to policyholders) can lead to catastrophic insolvency if interest rates move violently. Thus, actuaries and quantitative analysts rely on metrics like <strong>duration</strong> and <strong>convexity</strong> to mathematically guarantee (or at least highly optimize) their financial stability.</p>
+
+  <h2>11.2 Bond Pricing: The Core Mathematics</h2>
+  
+  <h3>11.2.1 The Pricing Formula</h3>
+  <p>The price of any financial asset is the present value (PV) of its expected future cash flows. For a plain-vanilla bond, the cash flows consist of periodic coupon payments \(C\) and a final principal payment (face value or par value) \(F\) at maturity time \(T\).</p>
+  
+  <div class="definition">
+    <div class="box-title">Definition: Bond Price</div>
+    <div class="box-content">
+      The theoretical fair value or price \(P\) of a bond with \(n\) periods remaining to maturity is given by:
+      \[ P = \sum_{t=1}^{n} \frac{C}{(1+y)^t} + \frac{F}{(1+y)^n} \]
+      where:
+      <ul>
+        <li>\(C\) = periodic coupon payment</li>
+        <li>\(F\) = Face (Par) value</li>
+        <li>\(y\) = discount rate per period (Yield to Maturity)</li>
+        <li>\(n\) = number of periods to maturity</li>
+      </ul>
+      Using annuity notation from Chapter 10, this can be written as:
+      \[ P = C \cdot a_{\overline{n}|y} + F \cdot v^n \]
+      where \(v = (1+y)^{-1}\) and \(a_{\overline{n}|y} = \frac{1-v^n}{y}\).
+    </div>
+  </div>
+
+  <p>Note that if the bond pays coupons semi-annually (the standard in the US and UK, and generally for corporate bonds in India), the period is six months. Thus, an annual coupon rate \(c\) implies \(C = \frac{c \cdot F}{2}\), \(y\) is the semi-annual yield, and \(n\) is the number of half-years.</p>
+
+  <h3>11.2.2 Par, Premium, and Discount Bonds</h3>
+  <p>The relationship between the coupon rate \(c\) and the required yield \(y\) dictates the price of the bond relative to its face value:</p>
+  <ul>
+    <li><strong>Par Bond:</strong> If \(c = y\), the bond trades at exactly its face value (\(P = F\)).</li>
+    <li><strong>Premium Bond:</strong> If \(c > y\), the bond pays more than the current market rate, making it more valuable. It trades at a premium (\(P > F\)).</li>
+    <li><strong>Discount Bond:</strong> If \(c < y\), the bond pays less than the market rate, making it less attractive. It trades at a discount (\(P < F\)).</li>
+  </ul>
+
+  <h3>11.2.3 Pull-to-Par Effect</h3>
+  <p>As a bond approaches maturity, its price naturally converges to its face value, assuming no default risk. This phenomenon is known as the <strong>pull-to-par</strong> effect. A premium bond's price will steadily decline towards par, while a discount bond's price will steadily increase towards par, even if market interest rates remain perfectly constant. This capital loss/gain is exactly offset by the higher/lower coupon payments, ensuring the total return equals the yield to maturity.</p>
+
+  <h2>11.3 Yield to Maturity (YTM)</h2>
+  
+  <p>The Yield to Maturity (YTM) is the single constant discount rate that equates the present value of a bond's cash flows to its current market price. Mathematically, it is the Internal Rate of Return (IRR) of the bond.</p>
+
+  <p>It is important to contrast YTM with the <strong>Current Yield</strong>:</p>
+  \[ \text{Current Yield} = \frac{\text{Annual Coupon Payment}}{\text{Current Market Price}} \]
+  <p>The current yield only captures the income component of the bond's return, ignoring any capital gain or loss from pull-to-par. YTM captures both.</p>
+
+  <div class="remark">
+    <div class="box-title">Computational Remark</div>
+    <div class="box-content">
+      Because the pricing equation is a high-degree polynomial in \(v = (1+y)^{-1}\), there is no algebraic closed-form solution to find \(y\) given \(P\) (for \(n > 2\)). It must be found numerically. <strong>Newton-Raphson method</strong> is commonly used:
+      \[ y_{k+1} = y_k - \frac{P(y_k) - P_{\text{market}}}{P'(y_k)} \]
+      where \(P(y)\) is the pricing function and \(P'(y)\) is its derivative with respect to \(y\).
+    </div>
+  </div>
+
+  <h2>11.4 Accrued Interest and Clean vs. Dirty Prices</h2>
+  
+  <p>In reality, bonds are traded on any business day, not just precisely on coupon payment dates. If an investor buys a bond between coupon dates, they are legally entitled to receive the <em>entire</em> next coupon. However, the seller held the bond for part of that period and deserves a portion of that coupon. To ensure fairness, the buyer pays the seller the <strong>Accrued Interest (AI)</strong>.</p>
+
+  <div class="definition">
+    <div class="box-title">Clean vs. Dirty Price</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Dirty Price (Full/Invoice Price):</strong> The actual cash amount exchanged. This is the theoretical present value calculated using fractional periods.</li>
+        <li><strong>Accrued Interest (AI):</strong> The interest earned but not yet paid since the last coupon date.</li>
+        <li><strong>Clean Price (Quoted/Flat Price):</strong> The price stripped of accrued interest.</li>
+      </ul>
+      \[ \text{Dirty Price} = \text{Clean Price} + \text{Accrued Interest} \]
+    </div>
+  </div>
+
+  <p>When you see a bond price quoted on a trading terminal (like Bloomberg or NDS-OM), it is almost always the <strong>Clean Price</strong>. This prevents the quoted price from exhibiting a "sawtooth" pattern—steadily rising every day as interest accrues and then dropping precipitously on the exact day the coupon is paid.</p>
+
+  <h3>11.4.1 Day-Count Conventions</h3>
+  <p>How exactly do we calculate the fraction of the period? It depends on the market's standard day-count convention, expressed as (Days in Month / Days in Year).</p>
+  <ul>
+    <li><strong>Actual/Actual (ICMA):</strong> Used for most sovereign government bonds (US Treasuries, UK Gilts). You count the exact number of days.</li>
+    <li><strong>30/360:</strong> Assumes every month has 30 days and a year has 360 days. Standard for US corporate bonds.</li>
+    <li><strong>Actual/365:</strong> Standard in many Commonwealth countries, and used widely in the Indian G-Sec and corporate bond market.</li>
+    <li><strong>Actual/360:</strong> Standard for money market instruments (commercial paper, T-bills).</li>
+  </ul>
+  <p>Formula for Accrued Interest: \( \text{AI} = C \times \frac{\text{Days since last coupon}}{\text{Days in coupon period}} \)</p>
+
+  <h2>11.5 Spot Rates and Forward Rates</h2>
+  
+  <p>The assumption that a single discount rate (YTM) applies to all cash flows, whether they occur in 6 months or 30 years, is mathematically flawed. In reality, the discount rate depends on the maturity of the cash flow. The yield curve is rarely flat.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition: Spot Rate</div>
+    <div class="box-content">
+      The spot rate \(z(t)\) (or zero-coupon rate) is the annualized interest rate applied to a single cash flow occurring at time \(t\). The theoretically correct way to price a bond is:
+      \[ P = \sum_{t=1}^{n} \frac{CF_t}{(1+z(t))^t} \]
+    </div>
+  </div>
+
+  <div class="definition">
+    <div class="box-title">Definition: Forward Rate</div>
+    <div class="box-content">
+      A forward rate \(f(t_1, t_2)\) is the interest rate implied by current spot rates for a period between future time \(t_1\) and \(t_2\). It is the rate you can "lock in" today for a future investment.
+    </div>
+  </div>
+
+  <p><strong>No-Arbitrage Relationship:</strong> By the principle of no-arbitrage, investing for \(t_2\) periods at spot rate \(z(t_2)\) must yield the same return as investing for \(t_1\) periods at \(z(t_1)\) and then reinvesting for the remaining \((t_2-t_1)\) periods at the forward rate \(f(t_1, t_2)\).</p>
+  \[ (1 + z(t_2))^{t_2} = (1 + z(t_1))^{t_1} \times (1 + f(t_1, t_2))^{t_2-t_1} \]
+  <p>Solving for the forward rate (usually a 1-period forward rate, \(t_2 = t_1 + 1\)):</p>
+  \[ f(t, t+1) = \frac{(1 + z(t+1))^{t+1}}{(1 + z(t))^t} - 1 \]
+
+  <h2>11.6 Bootstrapping the Zero Curve</h2>
+  
+  <p>Spot rates are theoretically elegant, but in practice, you only observe the prices (and YTMs) of coupon-paying bonds in the market. <strong>Bootstrapping</strong> is the recursive algorithm used to deduce spot rates from the prices of par bonds.</p>
+  
+  <p><strong>The Algorithm:</strong></p>
+  <ol>
+    <li>Start with the shortest maturity bond (usually a zero-coupon T-bill or a 6-month bond). Its YTM is, by definition, the spot rate for that maturity. \(z(1) = YTM_1\).</li>
+    <li>Take the next maturity bond (e.g., 1-year). Since you know the 6-month spot rate from step 1, you can discount the first coupon at \(z(0.5)\). The only unknown in the pricing equation is \(z(1.0)\), the discount rate for the final cash flow.</li>
+    <li>Solve algebraically for \(z(1.0)\).</li>
+    <li>Repeat recursively for all maturities.</li>
+  </ol>
+  <p>If there are gaps in maturities (e.g., you have 3-year and 5-year bonds but no 4-year), interpolation methods (like linear interpolation or cubic splines) are used to estimate the missing par yields before bootstrapping.</p>
+
+  <div class="example">
+    <div class="box-title">Example 11.2: Bootstrapping Spot Rates</div>
+    <div class="box-content">
+      <p>Assume we observe the following annual-pay par bonds (trading at 100):</p>
+      <ul>
+        <li>1-year bond: 4% coupon</li>
+        <li>2-year bond: 5% coupon</li>
+        <li>3-year bond: 6% coupon</li>
+      </ul>
+      <p><strong>Step 1: 1-year spot rate</strong><br>
+      Since it's a par bond, \(z(1) = \text{YTM} = 4.000\%\).</p>
+      
+      <p><strong>Step 2: 2-year spot rate</strong><br>
+      The 2-year bond pays a 5 coupon in year 1 and 105 in year 2. Price = 100.<br>
+      \( 100 = \frac{5}{1+z(1)} + \frac{105}{(1+z(2))^2} \)<br>
+      \( 100 = \frac{5}{1.04} + \frac{105}{(1+z(2))^2} \)<br>
+      \( 100 = 4.8077 + \frac{105}{(1+z(2))^2} \)<br>
+      \( 95.1923 = \frac{105}{(1+z(2))^2} \implies (1+z(2))^2 = 1.10303 \implies z(2) = 5.025\% \)</p>
+      
+      <p><strong>Step 3: 3-year spot rate</strong><br>
+      The 3-year bond pays 6 in year 1, 6 in year 2, and 106 in year 3. Price = 100.<br>
+      \( 100 = \frac{6}{1.04} + \frac{6}{(1.05025)^2} + \frac{106}{(1+z(3))^3} \)<br>
+      \( 100 = 5.7692 + 5.4395 + \frac{106}{(1+z(3))^3} \)<br>
+      \( 88.7913 = \frac{106}{(1+z(3))^3} \implies (1+z(3))^3 = 1.1938 \implies z(3) = 6.080\% \)</p>
+      
+      <p><strong>Conclusion:</strong> While the YTM curve is {4%, 5%, 6%}, the true underlying zero-coupon spot curve is {4.000%, 5.025%, 6.080%}.</p>
+    </div>
+  </div>
+
+  <h2>11.7 Duration</h2>
+  
+  <p>Interest rate risk is the risk that a bond's price will fall if market interest rates rise. How do we quantify this sensitivity? We look at the first derivative of the price function.</p>
+
+  <h3>11.7.1 Macaulay Duration</h3>
+  <p>Introduced by Frederick Macaulay in 1938, it is a measure of <em>time</em>. Specifically, it is the weighted average time until a bond's cash flows are received, where the weights are the present values of the cash flows relative to the total price.</p>
+  
+  <div class="definition">
+    <div class="box-title">Definition: Macaulay Duration</div>
+    <div class="box-content">
+      \[ D_{mac} = \frac{\sum_{t=1}^{n} t \cdot PV(CF_t)}{P} = \sum_{t=1}^{n} t \cdot w_t \]
+      where \( w_t = \frac{CF_t / (1+y)^t}{P} \).
+    </div>
+  </div>
+  <p>For a zero-coupon bond, \(D_{mac} = T\), because there is only one cash flow at maturity. For a coupon bond, \(D_{mac} < T\).</p>
+
+  <h3>11.7.2 Modified Duration</h3>
+  <p>Macaulay duration is elegant in time, but we want a metric that measures <em>price sensitivity</em>. We take the derivative of the pricing equation with respect to yield:</p>
+  
+  <div class="theorem">
+    <div class="box-title">Derivation of Modified Duration</div>
+    <div class="box-content">
+      Let \( P = \sum_{t=1}^{n} CF_t \cdot (1+y)^{-t} \). Taking the first derivative with respect to \(y\):
+      \[ \frac{dP}{dy} = \sum_{t=1}^{n} -t \cdot CF_t \cdot (1+y)^{-(t+1)} \]
+      \[ \frac{dP}{dy} = -(1+y)^{-1} \sum_{t=1}^{n} t \cdot \frac{CF_t}{(1+y)^t} \]
+      Multiply and divide by \(P\):
+      \[ \frac{dP}{dy} = - \frac{1}{1+y} \cdot P \cdot \left[ \frac{\sum_{t=1}^{n} t \cdot PV(CF_t)}{P} \right] \]
+      The term in the brackets is exactly Macaulay Duration. Thus:
+      \[ \frac{dP}{dy} = -P \cdot \frac{D_{mac}}{1+y} \]
+      We define <strong>Modified Duration</strong> (\(D_{mod}\)) as \(\frac{D_{mac}}{1+y}\). 
+      \[ \frac{dP}{dy} = -P \cdot D_{mod} \]
+      Or, expressed in percentage price change:
+      \[ \frac{\Delta P}{P} \approx -D_{mod} \cdot \Delta y \]
+    </div>
+  </div>
+
+  <h3>11.7.3 Effective Duration and Dollar Duration</h3>
+  <p>If a bond has embedded options (like callable or putable bonds), its cash flows are not fixed—they change as yields change. The analytical derivative above breaks down. In practice, we use numerical finite difference estimation called <strong>Effective Duration</strong>:</p>
+  \[ D_{eff} = \frac{P_{-} - P_{+}}{2 \cdot P_0 \cdot \Delta y} \]
+  <p>Where \(P_{-}\) is the price if yields drop by \(\Delta y\), and \(P_{+}\) is the price if yields rise by \(\Delta y\).</p>
+  
+  <p>Traders often use <strong>Dollar Duration</strong> or <strong>DV01 / PV01</strong> (Price Value of a Basis Point), which is the absolute dollar amount the price will change for a 1 basis point (0.01%) shift in yield.</p>
+  \[ DV01 = P \cdot D_{mod} \cdot 0.0001 \]
+
+  <div class="example">
+    <div class="box-title">Example 11.3: Duration Calculations</div>
+    <div class="box-content">
+      <p>Consider a 3-year annual pay bond with a 6% coupon, trading at a YTM of 5%. Face value is 100.</p>
+      
+      <strong>Step 1: Calculate Price</strong><br>
+      \( P = \frac{6}{1.05} + \frac{6}{1.05^2} + \frac{106}{1.05^3} = 5.7143 + 5.4422 + 91.5683 = 102.7248 \)<br>
+      
+      <strong>Step 2: Calculate Macaulay Duration</strong><br>
+      \( w_1 = \frac{5.7143}{102.7248} = 0.0556 \)<br>
+      \( w_2 = \frac{5.4422}{102.7248} = 0.0530 \)<br>
+      \( w_3 = \frac{91.5683}{102.7248} = 0.8914 \)<br>
+      \( D_{mac} = (1 \times 0.0556) + (2 \times 0.0530) + (3 \times 0.8914) = 0.0556 + 0.1060 + 2.6742 = 2.8358 \text{ years} \)<br>
+      
+      <strong>Step 3: Calculate Modified Duration</strong><br>
+      \( D_{mod} = \frac{2.8358}{1.05} = 2.7008 \)<br>
+      
+      <p>If yields rise by 100 basis points (1%) from 5% to 6%, the approximate price change is:<br>
+      \( \Delta P \approx -P \times D_{mod} \times \Delta y = -102.7248 \times 2.7008 \times 0.01 = -2.774 \)</p>
+      <p>(Since at 6% YTM it would be a par bond trading at 100, the exact change is \(100 - 102.7248 = -2.7248\). The difference is due to convexity).</p>
+    </div>
+  </div>
+
+  <h2>11.8 Convexity</h2>
+  
+  <p>Notice in the example above that the duration approximation predicted a slightly larger price drop than what actually occurred. The relationship between bond prices and yields is a curved, convex line, not a straight line. Duration is merely the first-order Taylor series approximation (a straight line tangent to the curve). To get a better approximation, we need the second derivative, or <strong>Convexity</strong>.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition: Convexity</div>
+    <div class="box-content">
+      Convexity \(C\) is the second derivative of the price function with respect to yield, divided by price:
+      \[ C = \frac{1}{P} \frac{d^2 P}{dy^2} = \frac{1}{P \cdot (1+y)^2} \sum_{t=1}^{n} \frac{CF_t \cdot t \cdot (t+1)}{(1+y)^t} \]
+      The second-order Taylor expansion for price change becomes:
+      \[ \frac{\Delta P}{P} \approx -D_{mod} \cdot \Delta y + \frac{1}{2} C \cdot (\Delta y)^2 \]
+    </div>
+  </div>
+
+  <p><strong>Positive Convexity is Desirable:</strong> Standard plain-vanilla non-callable bonds always have positive convexity. Because of the \((\Delta y)^2\) term, convexity always <em>adds</em> to the return regardless of the direction of the interest rate move. If yields drop, the price rises more than duration predicts. If yields rise, the price falls less than duration predicts. Investors love convexity and will pay a premium for bonds with higher convexity (like zero-coupon bonds compared to coupon bonds of the same duration).</p>
+
+  <div class="example">
+    <div class="box-title">Example 11.5: Price Approximation with Convexity</div>
+    <div class="box-content">
+      <p>An institutional portfolio manager holds a 10-year bond with Modified Duration = 7.5 and Convexity = 70. Yields suddenly drop by 150 basis points (0.015).</p>
+      
+      <p><strong>First-order effect (Duration only):</strong><br>
+      \( \frac{\Delta P}{P} \approx -7.5 \times (-0.015) = +0.1125 = 11.25\% \)</p>
+      
+      <p><strong>Second-order effect (Convexity adjustment):</strong><br>
+      \( \frac{1}{2} \times 70 \times (-0.015)^2 = 35 \times 0.000225 = 0.007875 = 0.7875\% \)</p>
+      
+      <p><strong>Total Estimated Price Change:</strong><br>
+      \( 11.25\% + 0.7875\% = 12.0375\% \)</p>
+      <p>The convexity adjustment provides an extra 78.75 bps of return!</p>
+    </div>
+  </div>
+
+  <h2>11.9 Immunization Strategies</h2>
+  
+  <p>How does a life insurance company ensure it has exactly enough money to pay out claims in 20 years, regardless of what interest rates do between now and then? This is the problem of Asset-Liability Management (ALM).</p>
+  
+  <p><strong>Cash Flow Matching (Dedication):</strong> The simplest approach. Buy zero-coupon bonds that mature on the exact days the liabilities are due. In practice, long-term zero-coupon bonds are illiquid or non-existent, making perfect matching impossible.</p>
+  
+  <p><strong>Redington Immunization:</strong> Developed by F.M. Redington in 1952, this strategy mathematically immunizes a surplus against small, parallel shifts in the yield curve by matching the sensitivities of assets and liabilities.</p>
+  
+  <div class="theorem">
+    <div class="box-title">Redington's Conditions for Immunization</div>
+    <div class="box-content">
+      To immunize a single liability at time \(T\) (or a portfolio of liabilities):
+      <ol>
+        <li><strong>PV Match:</strong> Present Value of Assets = Present Value of Liabilities (\(V_A = V_L\))</li>
+        <li><strong>Duration Match:</strong> Modified Duration of Assets = Modified Duration of Liabilities (\(D_A = D_L\))</li>
+        <li><strong>Convexity Condition:</strong> Convexity of Assets > Convexity of Liabilities (\(C_A > C_L\))</li>
+      </ol>
+      The third condition ensures that if yields move in <em>either</em> direction, the value of the assets will drop less (or rise more) than the value of the liabilities, keeping the surplus positive.
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 11.4: Portfolio Immunization</div>
+    <div class="box-content">
+      <p>A pension fund has a single liability of INR 100 Crore due in 5 years. Current yield curve is flat at 6%.<br>
+      PV of Liability = \( \frac{100}{(1.06)^5} = 74.73 \) Cr.<br>
+      Duration of Liability = 5 years.</p>
+      
+      <p>The fund manager must construct an asset portfolio with PV = 74.73 and Macaulay Duration = 5 years using two available zero-coupon bonds:<br>
+      Bond A: 2-year zero, Yield = 6%, Duration = 2<br>
+      Bond B: 10-year zero, Yield = 6%, Duration = 10</p>
+      
+      <p>Let \(w_A\) be the weight in Bond A, and \(w_B\) be the weight in Bond B.<br>
+      Condition 1: \( w_A + w_B = 1 \)<br>
+      Condition 2: \( w_A(2) + w_B(10) = 5 \)</p>
+      
+      <p>Substituting \(w_A = 1 - w_B\):<br>
+      \( 2(1 - w_B) + 10w_B = 5 \)<br>
+      \( 2 - 2w_B + 10w_B = 5 \)<br>
+      \( 8w_B = 3 \implies w_B = 0.375, w_A = 0.625 \)</p>
+      
+      <p><strong>Investment Amounts:</strong><br>
+      Invest in Bond A: \( 0.625 \times 74.73 = 46.71 \) Cr.<br>
+      Invest in Bond B: \( 0.375 \times 74.73 = 28.02 \) Cr.</p>
+      
+      <p><strong>Checking Convexity:</strong> Since the assets are dispersed (2y and 10y) around the single centralized liability (5y), the dispersion of assets is greater, guaranteeing \(C_A > C_L\).</p>
+    </div>
+  </div>
+
+  <h2>11.10 Special Bond Types</h2>
+  
+  <p>The real world goes beyond plain-vanilla bonds:</p>
+  <ul>
+    <li><strong>Callable Bonds:</strong> The issuer has the right to buy back the bond before maturity at a pre-specified call price. If rates drop, the issuer will call the bond to refinance cheaper. This caps the price appreciation for the investor. <em>Callable bonds exhibit negative convexity at low yields.</em> They are evaluated using Option-Adjusted Spread (OAS).</li>
+    <li><strong>Putable Bonds:</strong> The investor has the right to sell the bond back to the issuer at par. Protects the investor if rates rise.</li>
+    <li><strong>Floating-Rate Notes (FRNs):</strong> The coupon is not fixed; it resets periodically based on a reference rate (like MIBOR or SOFR) plus a spread. Because the coupon adjusts to current market rates, <em>the price stays very close to par, and the duration is practically zero</em> (equal to the time to the next reset date).</li>
+    <li><strong>Inflation-Linked Bonds (TIPS in US, IIBs in India):</strong> The principal amount is adjusted periodically according to a consumer price index (e.g., WPI or CPI in India). The coupon rate is fixed, but it is applied to an expanding principal, protecting against inflation.</li>
+    <li><strong>Convertible Bonds:</strong> A hybrid instrument that can be converted into a predetermined number of shares of the issuing company's equity. Priced as a straight bond plus a call option on the equity.</li>
+  </ul>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: The Indian Fixed Income Market</div>
+    <div class="box-content">
+      <p>The Indian fixed income market is dominated by Government Securities (G-Secs) issued by the Reserve Bank of India (RBI). Key operational mechanics include:</p>
+      <ul>
+        <li><strong>Auctions:</strong> The RBI conducts weekly auctions on Fridays via the e-Kuber system using either uniform-price or multiple-price formats.</li>
+        <li><strong>Trading & Settlement:</strong> Secondary market trading primarily occurs on the NDS-OM (Negotiated Dealing System - Order Matching) platform, an anonymous electronic order book. Settlement for outright transactions is generally on a <strong>T+1</strong> basis via the Clearing Corporation of India Ltd (CCIL).</li>
+        <li><strong>Day-Count Convention:</strong> 30/360 for calculating accrued interest on most standard dated G-Secs.</li>
+        <li><strong>Valuation:</strong> FIMMDA (Fixed Income Money Market and Derivatives Association of India) and FBIL (Financial Benchmarks India Pvt. Ltd.) publish daily closing yields and valuation curves. Mutual funds and insurers are mandated by regulators (SEBI/IRDAI) to mark-to-market their portfolios using these specific benchmark matrices to prevent pricing manipulation.</li>
+        <li><strong>Corporate Bonds:</strong> Compared to G-Secs, corporate bonds in India are relatively illiquid, mostly trading over-the-counter (OTC) and often heavily reliant on private placements rather than public issues.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing YTM with Expected Return:</strong> YTM assumes you hold the bond to maturity <em>and</em> that you can reinvest all intermediate coupons at exactly the YTM rate. If you spend the coupons or reinvest at lower rates, your realized return will be lower than the YTM.</li>
+        <li><strong>Duration for FRNs:</strong> Assuming a 10-year floating rate note has a high duration. Because the coupon resets, its duration is only the time to the next reset (e.g., 0.25 years for a quarterly reset).</li>
+        <li><strong>Symmetrical Convexity:</strong> Forgetting that callable bonds have <em>negative</em> convexity when yields fall, meaning price appreciation is choked off as the probability of the bond being called approaches 100%.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>11.11 Python Code implementation</h2>
+  <p>Here is an object-oriented Python implementation to price bonds, calculate YTM via Newton optimization, and compute risk metrics (Duration and Convexity).</p>
+
+  <pre><code class="language-python">
+import numpy as np
+import scipy.optimize as optimize
+
+class Bond:
+    def __init__(self, face_value, coupon_rate, years_to_maturity, frequency=2):
+        self.face = face_value
+        self.coupon_rate = coupon_rate
+        self.ytm = years_to_maturity
+        self.freq = frequency
+        
+        self.periods = int(years_to_maturity * frequency)
+        self.coupon = (coupon_rate * face_value) / frequency
+        self.times = np.arange(1, self.periods + 1)
+        self.cashflows = np.full(self.periods, self.coupon)
+        self.cashflows[-1] += self.face
+        
+    def price(self, yield_to_maturity):
+        y = yield_to_maturity / self.freq
+        discount_factors = 1 / ((1 + y) ** self.times)
+        return np.sum(self.cashflows * discount_factors)
+        
+    def ytm_calc(self, market_price):
+        # Objective function for root finder: Price(y) - MarketPrice = 0
+        def objective(y_guess):
+            return self.price(y_guess) - market_price
+        # Using Brent's method (robust scalar root finding)
+        ytm = optimize.newton(objective, 0.05)
+        return ytm
+        
+    def risk_metrics(self, yield_to_maturity):
+        y = yield_to_maturity / self.freq
+        p = self.price(yield_to_maturity)
+        
+        discount_factors = 1 / ((1 + y) ** self.times)
+        pv_cashflows = self.cashflows * discount_factors
+        
+        # Macaulay Duration (in years)
+        weights = pv_cashflows / p
+        mac_dur_periods = np.sum(weights * self.times)
+        mac_dur_years = mac_dur_periods / self.freq
+        
+        # Modified Duration
+        mod_dur = mac_dur_years / (1 + y)
+        
+        # Convexity (annualized)
+        t_sq = self.times * (self.times + 1)
+        convexity_periods = np.sum((pv_cashflows * t_sq) / (p * (1 + y)**2))
+        convexity_annual = convexity_periods / (self.freq**2)
+        
+        return {"Price": p, "Macaulay Duration": mac_dur_years, 
+                "Modified Duration": mod_dur, "Convexity": convexity_annual}
+
+# Example 11.3 equivalent
+b = Bond(face_value=100, coupon_rate=0.06, years_to_maturity=3, frequency=1)
+metrics = b.risk_metrics(0.05)
+
+print(f"Price: {metrics['Price']:.4f}")
+print(f"Macaulay Duration: {metrics['Macaulay Duration']:.4f}")
+print(f"Modified Duration: {metrics['Modified Duration']:.4f}")
+print(f"Convexity: {metrics['Convexity']:.4f}")
+  </code></pre>
+
+  <div class="formula-sheet">
+    <div class="box-title">Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Bond Price:</strong> \( P = \sum_{t=1}^{n} \frac{CF_t}{(1+y)^t} \)</li>
+        <li><strong>Clean vs Dirty:</strong> \( \text{Dirty Price} = \text{Clean Price} + \text{Accrued Interest} \)</li>
+        <li><strong>Forward Rate (1-period):</strong> \( f(t, t+1) = \frac{(1 + z(t+1))^{t+1}}{(1 + z(t))^t} - 1 \)</li>
+        <li><strong>Macaulay Duration:</strong> \( D_{mac} = \sum t \cdot w_t \) where \(w_t = \frac{PV(CF_t)}{P}\)</li>
+        <li><strong>Modified Duration:</strong> \( D_{mod} = \frac{D_{mac}}{1 + (y/m)} \) (where \(m\) is compounding freq)</li>
+        <li><strong>Price Approx (Duration):</strong> \( \Delta P \approx -P \cdot D_{mod} \cdot \Delta y \)</li>
+        <li><strong>Price Approx (w/ Convexity):</strong> \( \Delta P \approx -P \cdot D_{mod} \cdot \Delta y + \frac{1}{2} P \cdot C \cdot (\Delta y)^2 \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>11.12 Exercises</h2>
+  
+  <div class="exercises">
+    
+    <div class="exercise-group">
+      <h4>Basic Mechanics</h4>
+      
+      <div class="exercise-item">
+        <strong>1.</strong> An Indian corporation issues a 10-year bond with a face value of ₹1,000 and an annual coupon of 8%. If the current market YTM is 10%, calculate the price of the bond. Is it trading at a premium or discount?
+      </div>
+      
+      <div class="exercise-item">
+        <strong>2.</strong> Consider a 5-year zero-coupon bond with a face value of USD 100. If the YTM is 4% (annual compounding), what is its price today? What will be its price exactly 2 years from today, assuming the YTM remains 4%?
+      </div>
+      
+      <div class="exercise-item">
+        <strong>3.</strong> A bond pays a semi-annual coupon of 6% on a face value of $1,000. It is exactly 45 days since the last coupon payment. Using an Actual/360 day-count convention, calculate the Accrued Interest.
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h4>Yield Curve & Bootstrapping</h4>
+      
+      <div class="exercise-item">
+        <strong>4.</strong> Given the following 1-year and 2-year spot rates: \(z(1) = 3.0\%\), \(z(2) = 4.0\%\). Calculate the 1-year forward rate starting 1 year from now, \(f(1,2)\).
+      </div>
+      
+      <div class="exercise-item">
+        <strong>5.</strong> You are given a 1-year zero-coupon bond yielding 2.0% and a 2-year annual-pay bond with a 4% coupon trading at par. Extract the 2-year spot rate \(z(2)\).
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h4>Duration and Risk Management</h4>
+      
+      <div class="exercise-item">
+        <strong>6.</strong> Calculate the Macaulay Duration of a 4-year annual-pay bond with a 5% coupon, trading at a 5% YTM.
+      </div>
+      
+      <div class="exercise-item">
+        <strong>7.</strong> A bond has a Modified Duration of 6.2 and a price of $105. If interest rates increase by 25 basis points (0.25%), estimate the new price of the bond using duration only.
+      </div>
+      
+      <div class="exercise-item">
+        <strong>8.</strong> An insurance company has a liability of $50 million due in exactly 8 years. The current flat yield curve is at 5%. They wish to immunize this liability using a 3-year zero-coupon bond and a 15-year zero-coupon bond. Calculate the weight of the portfolio to allocate to each bond.
+      </div>
+    </div>
+
+    <!-- Additional exercises abbreviated in view to save space, but logically flow up to 15 -->
+    <div class="exercise-group">
+      <h4>Advanced Applications</h4>
+      <div class="exercise-item">
+        <strong>9.</strong> Explain why a floating rate note (FRN) with semi-annual resets has a duration of at most 0.5 years, regardless of its final maturity.
+      </div>
+      <div class="exercise-item">
+        <strong>10.</strong> Discuss the convexity profile of a callable bond as interest rates fall dramatically.
+      </div>
+       <div class="exercise-item">
+        <strong>11.</strong> A portfolio manager holds 100,000 par value of an 8% coupon 10-yr bond yielding 6%. It has ModDur=7.2 and Convexity=65. Calculate the exact percentage price change if yields drop to 4%, and compare it to the Duration+Convexity approximation.
+      </div>
+       <div class="exercise-item">
+        <strong>12.</strong> What happens to the price of an Inflation Indexed Bond (IIB) if deflation occurs?
+      </div>
+       <div class="exercise-item">
+        <strong>13.</strong> Assume a parallel yield curve shift upward by 200bps. Which bond will suffer a larger percentage price drop: a 10-year zero coupon bond, or a 10-year 5% coupon bond? Prove using duration mathematics.
+      </div>
+       <div class="exercise-item">
+        <strong>14.</strong> Calculate the PV01 for a bond priced at ₹102.50 with a Modified Duration of 5.5.
+      </div>
+       <div class="exercise-item">
+        <strong>15.</strong> Evaluate the Indian corporate bond market's liquidity relative to the G-Sec market and the role of FIMMDA in standardized valuation.
+      </div>
+    </div>
+
+    <h4>Selected Solutions</h4>
+    <div class="solution-item">
+      <strong>Solution to 1:</strong><br>
+      \( P = \frac{80}{1.10} + \frac{80}{(1.10)^2} + ... + \frac{1080}{(1.10)^{10}} = 80 \cdot a_{\overline{10}|10\%} + 1000(1.10)^{-10} \)<br>
+      \( P = 80(6.1446) + 1000(0.3855) = 491.57 + 385.54 = ₹877.11 \)<br>
+      Since Coupon (8%) < YTM (10%), it trades at a <strong>discount</strong>.
+    </div>
+    
+    <div class="solution-item">
+      <strong>Solution to 4:</strong><br>
+      \( (1+z(2))^2 = (1+z(1))(1+f(1,2)) \)<br>
+      \( (1.04)^2 = (1.03)(1+f(1,2)) \implies 1.0816 = 1.03(1+f(1,2)) \implies f(1,2) = 5.01\% \)
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 7:</strong><br>
+      \( \Delta P \approx -P \cdot D_{mod} \cdot \Delta y \)<br>
+      \( \Delta P \approx -105 \cdot 6.2 \cdot 0.0025 = -\$1.6275 \)<br>
+      New Price \(\approx 105 - 1.6275 = \$103.37\)
+    </div>
+    
+    <div class="solution-item">
+      <strong>Solution to 8:</strong><br>
+      Liability Duration = 8. <br>
+      \( w_1(3) + w_2(15) = 8 \)<br>
+      \( w_1 + w_2 = 1 \implies w_1 = 1 - w_2 \)<br>
+      \( 3(1-w_2) + 15w_2 = 8 \implies 3 + 12w_2 = 8 \implies 12w_2 = 5 \implies w_2 = 5/12 \approx 41.67\% \)<br>
+      Weight in 3-yr zero = 58.33%, Weight in 15-yr zero = 41.67%.
+    </div>
+
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">Further Reading & References</div>
+    <div class="box-content">
+      <ul>
+        <li>Tuckman, B., & Serrat, A. (2011). <em>Fixed Income Securities: Tools for Today's Markets</em> (3rd ed.). Wiley Finance.</li>
+        <li>Fabozzi, F. J. (2012). <em>Bond Markets, Analysis, and Strategies</em> (8th ed.). Pearson.</li>
+        <li>Redington, F. M. (1952). "Review of the Principles of Life-Office Valuations". <em>Journal of the Institute of Actuaries</em>, 78(3), 286-340.</li>
+        <li>RBI Circulars on G-Sec market operations and FIMMDA valuation methodologies (www.fimmda.org).</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch10_time_value.html">← Previous Chapter (10: Time Value)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch12_term_structure.html">Next Chapter (12: Term Structure) →</a>
+  </nav>
+
+</body>
+</html>

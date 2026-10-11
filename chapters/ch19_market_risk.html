@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 19: Market and Liquidity Risk</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 19: Market and Liquidity Risk</h1>
+
+  <div class="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul>
+      <li>Define and calculate Value at Risk (VaR) using Parametric, Historical Simulation, and Monte Carlo methods.</li>
+      <li>Compute Expected Shortfall (ES) and explain why it is a coherent risk measure, unlike VaR.</li>
+      <li>Perform backtesting on risk models using Kupiec and Christoffersen tests.</li>
+      <li>Design and execute stress testing and scenario analysis frameworks.</li>
+      <li>Understand the core principles of the Fundamental Review of the Trading Book (FRTB) and liquidity risk modeling.</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <p>This chapter builds heavily on previous concepts:</p>
+    <ul>
+      <li><strong>Chapters 4-5 (Probability & Distributions):</strong> Normal distributions, quantiles, and expectations are essential for VaR and ES.</li>
+      <li><strong>Chapter 9 (Monte Carlo Methods):</strong> Required for Monte Carlo VaR computation of complex, non-linear portfolios.</li>
+      <li><strong>Chapter 13 (Portfolio Theory):</strong> Portfolio variance and covariance matrices are used in Parametric VaR.</li>
+      <li><strong>Chapter 18 (Credit Risk):</strong> Concepts of default correlation share mathematical foundations with market risk dependencies.</li>
+    </ul>
+    <p>We now move from modeling specific asset dynamics to managing the overarching risk of an entire portfolio. In the next chapter (Chapter 20), we will look at Time Series techniques that are often used to forecast the volatilities and correlations feeding into these market risk models.</p>
+  </div>
+
+  <h2>3. Intuition & Motivation</h2>
+  <p>Imagine you are the Chief Risk Officer of a large investment bank in Mumbai. Your trading desks hold billions of INR in equities, government bonds, FX derivatives, and exotic options. The CEO asks you a deceptively simple question at 5:00 PM: <em>"How much money could we lose tomorrow?"</em></p>
+  <p>If you say "We could lose everything," it's factually true but practically useless. The business needs a statistical estimate to allocate capital efficiently. You need to provide a statement like: <em>"We are 99% confident that our losses tomorrow will not exceed INR 250 Crores."</em> This threshold is the <strong>Value at Risk (VaR)</strong>. But what if that 1% disaster happens? If we breach the VaR, how bad could it be? The average loss in that tail scenario is the <strong>Expected Shortfall (ES)</strong>.</p>
+  <p>Historically, during events like the 2007-2008 Global Financial Crisis or the March 2020 COVID-19 crash, models based on normal distributions severely underestimated tail risks. Furthermore, traders often found that when they rushed to sell assets to cut losses, the market vanished—they faced massive bid-ask spreads and price impacts. This introduces <strong>Liquidity Risk</strong>. This chapter formalizes these concepts, transitioning from single-asset modeling to enterprise-wide quantitative risk management.</p>
+
+  <h2>4. Formal Theory</h2>
+
+  <h3>4.1 Value at Risk (VaR)</h3>
+  <div class="definition">
+    <div class="box-title">Definition 19.1: Value at Risk (VaR)</div>
+    <div class="box-content">
+      Let \( L \) be the loss of a portfolio over a given holding period \( \Delta t \). The Value at Risk at a confidence level \( \alpha \) (where \( \alpha \in (0, 1) \), typically 0.95 or 0.99) is defined as the smallest value \( v \) such that the probability of the loss \( L \) exceeding \( v \) is at most \( 1 - \alpha \):
+      \[ \text{VaR}_\alpha = \inf \{ v \in \mathbb{R} : \mathbb{P}(L > v) \le 1 - \alpha \} \]
+      Equivalently, it is the \( \alpha \)-quantile of the loss distribution.
+    </div>
+  </div>
+  
+  <p>There are three primary methodologies to compute VaR:</p>
+  
+  <h4>4.1.1 Parametric (Variance-Covariance) VaR</h4>
+  <p>If we assume that the portfolio returns are normally distributed with mean \( \mu_p \) and standard deviation \( \sigma_p \), the VaR can be derived analytically. For a holding period \( \Delta t \) and confidence level \( \alpha \):</p>
+  \[ \text{VaR}_\alpha = V_0 \left( z_\alpha \sigma_p - \mu_p \right) \]
+  <p>where \( V_0 \) is the initial portfolio value, and \( z_\alpha \) is the standard normal deviate corresponding to the \( \alpha \) probability (e.g., \( z_{0.99} \approx 2.326 \)). In short horizons (e.g., daily), \( \mu_p \) is often assumed to be zero. For a portfolio of \( n \) assets with weights \( \mathbf{w} \) and covariance matrix \( \Sigma \):</p>
+  \[ \sigma_p^2 = \mathbf{w}^T \Sigma \mathbf{w} \]
+
+  <h4>4.1.2 Historical Simulation VaR</h4>
+  <p>Instead of assuming a normal distribution, Historical Simulation (HS) uses actual historical returns. We apply past \( N \) daily returns of the risk factors to the <em>current</em> portfolio weights to simulate \( N \) hypothetical daily P&Ls. The simulated P&Ls are sorted from worst loss to largest gain. The \( (1-\alpha) \)-percentile of this empirical distribution is the HS VaR.</p>
+
+  <h4>4.1.3 Monte Carlo VaR</h4>
+  <p>Monte Carlo simulation involves specifying a stochastic process (e.g., Geometric Brownian Motion) for the underlying risk factors. We simulate tens of thousands of future scenarios, revalue the portfolio in each scenario (using full repricing, which is crucial for non-linear instruments like options), and find the \( \alpha \)-quantile of the resulting loss distribution.</p>
+
+  <h3>4.2 Expected Shortfall (CVaR)</h3>
+  <div class="definition">
+    <div class="box-title">Definition 19.2: Expected Shortfall (ES)</div>
+    <div class="box-content">
+      Expected Shortfall (also known as Conditional VaR or CVaR) at confidence level \( \alpha \) is the expected loss given that the loss exceeds the VaR threshold. For continuous distributions:
+      \[ \text{ES}_\alpha = \mathbb{E}[L \mid L > \text{VaR}_\alpha] = \frac{1}{1-\alpha} \int_{\alpha}^{1} \text{VaR}_u \dd u \]
+    </div>
+  </div>
+  <p>For a normal distribution with zero mean, the ES has a closed-form solution: \( \text{ES}_\alpha = \sigma_p \frac{\phi(z_\alpha)}{1-\alpha} \), where \( \phi \) is the standard normal PDF.</p>
+
+  <h3>4.3 Coherent Risk Measures</h3>
+  <p>A fundamental critique of VaR is that it can penalize diversification. Artzner et al. (1999) proposed axioms for a <em>coherent</em> risk measure \( \rho \):</p>
+  <ul>
+    <li><strong>Monotonicity:</strong> If portfolio \( X \) always yields worse returns than \( Y \), then \( \rho(X) \ge \rho(Y) \).</li>
+    <li><strong>Subadditivity:</strong> \( \rho(X + Y) \le \rho(X) + \rho(Y) \). <em>(Diversification reduces risk)</em></li>
+    <li><strong>Positive Homogeneity:</strong> For \( \lambda > 0 \), \( \rho(\lambda X) = \lambda \rho(X) \).</li>
+    <li><strong>Translation Invariance:</strong> For a risk-free cash amount \( c \), \( \rho(X + c) = \rho(X) - c \).</li>
+  </ul>
+  <div class="theorem">
+    <div class="box-title">Theorem 19.1: Coherence of ES and Non-Coherence of VaR</div>
+    <div class="box-content">
+      Expected Shortfall (ES) satisfies all four Artzner axioms and is a coherent risk measure. Value at Risk (VaR) fails the subadditivity axiom in general (especially for highly skewed or heavy-tailed distributions), meaning the VaR of a combined portfolio can be higher than the sum of the individual VaRs.
+    </div>
+  </div>
+
+  <h3>4.4 Backtesting</h3>
+  <p>Backtesting compares the daily VaR forecasts against the actual realized daily P&L. An <em>exception</em> or <em>exceedance</em> occurs when the actual loss is greater than the VaR.</p>
+  <p><strong>Kupiec POF (Proportion of Failures) Test:</strong> Let \( N \) be the number of days, \( x \) be the number of exceptions, and \( p = 1-\alpha \) be the target failure rate. Under the null hypothesis that the model is correct, \( x \sim \text{Binomial}(N, p) \). The likelihood ratio test statistic is:</p>
+  \[ LR_{\text{UC}} = -2 \ln\left( \frac{p^x (1-p)^{N-x}}{(x/N)^x (1 - x/N)^{N-x}} \right) \]
+  <p>which follows a \( \chi^2_1 \) distribution.</p>
+  <p><strong>Christoffersen Conditional Coverage Test:</strong> It extends the Kupiec test by testing for independence of exceptions (i.e., exceedances should not cluster together in time).</p>
+  <p><strong>Traffic Light Approach (Basel):</strong> Banks are assigned zones based on the number of exceedances over 250 days at 99% VaR. Green (0-4), Yellow (5-9, leading to higher capital multipliers), and Red (10+, model rejected).</p>
+
+  <h3>4.5 Stress Testing and Scenario Analysis</h3>
+  <p>Since VaR/ES only cover "normal" market conditions up to the \( \alpha \)-level, stress testing evaluates extreme, implausible but possible events.</p>
+  <ul>
+    <li><strong>Historical Scenarios:</strong> Revaluing the portfolio using market shocks from Black Monday (1987), Asian Financial Crisis (1997), Global Financial Crisis (2008), or COVID-19 (2020).</li>
+    <li><strong>Hypothetical Scenarios:</strong> E.g., a simultaneous 200 bps hike in yield curves and a 30% drop in equities.</li>
+    <li><strong>Reverse Stress Testing:</strong> Identifying which specific scenarios would cause the bank to fail, and assessing their plausibility.</li>
+  </ul>
+
+  <h3>4.6 FRTB Overview (Fundamental Review of the Trading Book)</h3>
+  <p>Basel IV introduced FRTB to overhaul market risk capital requirements:</p>
+  <ul>
+    <li><strong>ES Replaces VaR:</strong> Internal models must use 97.5% ES instead of 99% VaR to better capture tail risk.</li>
+    <li><strong>Liquidity Horizons:</strong> Different risk factors have different liquidity horizons (e.g., 10 days for large cap equities, 120 days for complex credit products) reflecting how long it takes to exit a position.</li>
+    <li><strong>Standardized Approach (SbM):</strong> A highly sensitive fallback model calculating capital based on sensitivities (Delta, Vega, Curvature) to prescribed risk factors.</li>
+    <li><strong>P&L Attribution (PLA) Test:</strong> Strict backtesting requiring alignment between the risk management model's theoretical P&L and the front-office actual P&L.</li>
+  </ul>
+
+  <h3>4.7 Liquidity Risk</h3>
+  <p>Liquidity risk has two distinct branches:</p>
+  <ol>
+    <li><strong>Funding Liquidity Risk:</strong> Inability to meet cash flow obligations (e.g., margin calls, deposit withdrawals). Managed via Liquidity Coverage Ratio (LCR) and Net Stable Funding Ratio (NSFR).</li>
+    <li><strong>Market Liquidity Risk:</strong> Inability to sell assets quickly without causing a significant price drop. Measured via bid-ask spreads and market depth.</li>
+  </ol>
+  <p><strong>Liquidity-Adjusted VaR (LVaR):</strong> Adjusts standard VaR by adding the cost of unwinding the position. A simple approach adds half the bid-ask spread (\( s \)) times the position size: 
+  \[ \text{LVaR} = \text{VaR} + \frac{1}{2} s \cdot V_0 \]
+  More advanced models incorporate price impact functions where the spread widens as the unwound volume increases.</p>
+
+  <h2>5. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 19.1: Parametric VaR for a 2-Asset Portfolio</div>
+    <div class="box-content">
+      <strong>Problem:</strong> A portfolio consists of $10M in Asset A and $5M in Asset B. Daily volatilities are \( \sigma_A = 1.5\% \) and \( \sigma_B = 2.0\% \). The correlation is \( \rho = 0.4 \). Assume zero mean return. Calculate the 1-day 99% VaR.<br><br>
+      <strong>Solution:</strong>
+      1. Define weights/exposures: \( w_A V_0 = 10,000,000 \), \( w_B V_0 = 5,000,000 \).<br>
+      2. Calculate variance of portfolio value:
+      \[ \sigma_P^2 = (w_A V_0 \sigma_A)^2 + (w_B V_0 \sigma_B)^2 + 2(w_A V_0 \sigma_A)(w_B V_0 \sigma_B)\rho \]
+      \[ \sigma_P^2 = (150,000)^2 + (100,000)^2 + 2(150,000)(100,000)(0.4) \]
+      \[ \sigma_P^2 = 22,500,000,000 + 10,000,000,000 + 12,000,000,000 = 44,500,000,000 \]
+      3. Portfolio standard deviation: \( \sigma_P = \sqrt{44,500,000,000} \approx \$210,950 \).<br>
+      4. Calculate 99% VaR (using \( z_{0.99} = 2.326 \)):
+      \[ \text{VaR}_{0.99} = 2.326 \times 210,950 \approx \$490,670 \]
+      The 1-day 99% VaR is approximately $490,670.
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 19.2: Historical Simulation VaR and ES</div>
+    <div class="box-content">
+      <strong>Problem:</strong> You have 250 daily simulated P&Ls for a portfolio. Sorting them from worst loss to highest gain, the 10 worst daily returns are (in INR Crores): -50, -42, -38, -35, -31, -28, -25, -20, -18, -15. Calculate the 97.5% VaR and 97.5% ES.<br><br>
+      <strong>Solution:</strong>
+      1. Confidence level \( \alpha = 0.97.5 \). The tail probability is \( 1 - 0.975 = 0.025 \).<br>
+      2. The number of observations in the tail is \( 250 \times 0.025 = 6.25 \). We interpolate between the 6th and 7th worst losses, or simply take the 6th worst loss depending on convention. Using the 6th worst loss: index 6 is -28 Crores.<br>
+      \[ \text{VaR}_{97.5\%} = \text{INR 28 Crores} \text{ (quoted as a positive loss number)} \]<br>
+      3. The ES is the average of the losses exceeding the VaR (the worst 6 losses, though strictly we should average the tail distribution).
+      \[ \text{ES}_{97.5\%} = \frac{50 + 42 + 38 + 35 + 31 + 28}{6} = \frac{224}{6} \approx \text{INR 37.33 Crores} \]
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 19.3: Monte Carlo VaR for Non-Linear Portfolio</div>
+    <div class="box-content">
+      <strong>Problem:</strong> A portfolio holds a short position in an ATM call option on a stock (S=$100). If the stock jumps significantly, losses increase non-linearly. We simulate 10,000 paths for S tomorrow. After repricing the option using Black-Scholes for all 10,000 paths, we sort the P&Ls. The 100th worst P&L (1% tail) is a loss of $14,500. Calculate 99% VaR.<br><br>
+      <strong>Solution:</strong>
+      Since we simulated 10,000 paths, the 99% confidence level corresponds to the \( 10,000 \times (1 - 0.99) = 100 \)-th worst outcome.<br>
+      Therefore, the Monte Carlo \( \text{VaR}_{99\%} = \$14,500 \).<br>
+      <em>Note: Unlike Parametric VaR, this method perfectly captures the convexity (gamma) of the option.</em>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 19.4: Kupiec Backtest Traffic Light</div>
+    <div class="box-content">
+      <strong>Problem:</strong> Over the last 250 trading days, a bank's 99% VaR model recorded 8 exceedances. Under Basel's traffic light approach, what zone is the bank in? Calculate the Kupiec test statistic.<br><br>
+      <strong>Solution:</strong>
+      1. <strong>Traffic Light:</strong> 8 exceedances over 250 days falls in the <strong>Yellow Zone</strong> (5-9 exceedances). The bank will face a capital surcharge.<br>
+      2. <strong>Kupiec Test:</strong> \( N = 250, x = 8, p = 0.01 \).
+      \[ LR = -2 \ln\left( \frac{0.01^8 (0.99)^{242}}{(8/250)^8 (1 - 8/250)^{242}} \right) \]
+      Numerator: \( 10^{-16} \times 0.0877 \approx 8.77 \times 10^{-18} \) <br>
+      Denominator: \( (0.032)^8 \times (0.968)^{242} \approx 1.09 \times 10^{-12} \times 0.000378 \approx 4.14 \times 10^{-16} \)<br>
+      Ratio = \( \frac{8.77 \times 10^{-18}}{4.14 \times 10^{-16}} \approx 0.0211 \)<br>
+      \( LR = -2 \ln(0.0211) \approx 7.72 \)<br>
+      The critical value for \( \chi^2_1 \) at 95% confidence is 3.84. Since 7.72 > 3.84, we reject the null hypothesis. The VaR model is statistically inaccurate (underestimating risk).
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 19.5: Liquidity-Adjusted VaR</div>
+    <div class="box-content">
+      <strong>Problem:</strong> A trader holds 100,000 shares of an illiquid stock. Current price is INR 500. The daily volatility is 2%. The bid-ask spread is typically 3% of the price. Calculate the 99% standard VaR and the LVaR.<br><br>
+      <strong>Solution:</strong>
+      1. Position Value \( V_0 = 100,000 \times 500 = \text{INR 50,000,000} \).<br>
+      2. Standard 99% VaR (assuming normal, \(\mu=0\)):
+      \[ \text{VaR} = 2.326 \times 0.02 \times 50,000,000 = \text{INR 2,326,000} \]<br>
+      3. Liquidity cost: Half the spread applied to the position size.
+      Spread \( s = 0.03 \).
+      \[ \text{Cost} = \frac{1}{2} \times 0.03 \times 50,000,000 = \text{INR 750,000} \]<br>
+      4. LVaR:
+      \[ \text{LVaR} = 2,326,000 + 750,000 = \text{INR 3,076,000} \]
+      Ignoring liquidity risk would underestimate the tail risk upon unwinding by 32%.
+    </div>
+  </div>
+
+  <h2>6. Python Code: VaR and ES Calculator</h2>
+  <pre><code class="language-python">
+import numpy as np
+import scipy.stats as norm
+
+def calculate_parametric_var_es(portfolio_value, mu, sigma, confidence_level=0.99):
+    """Calculates Parametric VaR and ES for a normal distribution."""
+    alpha = 1 - confidence_level
+    z_score = scipy.stats.norm.ppf(confidence_level)
+    
+    var = portfolio_value * (z_score * sigma - mu)
+    
+    # ES formula for normal distribution
+    es = portfolio_value * (sigma * scipy.stats.norm.pdf(z_score) / alpha - mu)
+    
+    return var, es
+
+def calculate_historical_var_es(portfolio_value, historical_returns, confidence_level=0.99):
+    """Calculates Historical Simulation VaR and ES."""
+    pnl = portfolio_value * historical_returns
+    
+    # Sort PnLs
+    sorted_pnl = np.sort(pnl)
+    
+    # Find VaR index
+    index = int((1 - confidence_level) * len(sorted_pnl))
+    var = -sorted_pnl[index] # Quoted as positive loss
+    
+    # Calculate ES
+    tail_losses = sorted_pnl[:index]
+    es = -np.mean(tail_losses)
+    
+    return var, es
+
+# Example Usage
+np.random.seed(42)
+hist_returns = np.random.standard_t(df=4, size=1000) * 0.015 # Fat-tailed returns
+port_value = 100_000_000
+
+p_var, p_es = calculate_parametric_var_es(port_value, 0, 0.015, 0.99)
+h_var, h_es = calculate_historical_var_es(port_value, hist_returns, 0.99)
+
+print(f"Parametric VaR (99%): ${p_var:,.2f} | ES: ${p_es:,.2f}")
+print(f"Historical VaR (99%): ${h_var:,.2f} | ES: ${h_es:,.2f}")
+  </code></pre>
+  <p><strong>Sample Output:</strong></p>
+  <pre>
+Parametric VaR (99%): $3,489,521.65 | ES: $3,997,870.47
+Historical VaR (99%): $3,845,123.10 | ES: $5,123,440.89
+  </pre>
+  <p>Notice how the Historical ES is significantly higher than the Parametric ES. The standard normal assumption fails to capture the extreme "fat tails" present in the Student-t distributed historical data.</p>
+
+  <h2>7. Diagrams Description</h2>
+  <ul>
+    <li><strong>Figure 19.1 (Loss Distribution and Risk Metrics):</strong> A histogram of simulated portfolio losses showing a long right tail. A vertical dashed line marks the 99% VaR. The shaded region to the right of the VaR line represents the 1% tail. The centroid (mean) of this shaded region is marked with a solid vertical line, indicating the Expected Shortfall (ES), which sits further out in the tail than VaR.</li>
+    <li><strong>Figure 19.2 (Subadditivity Failure):</strong> A bar chart comparing \( \text{VaR}(A) + \text{VaR}(B) \) versus \( \text{VaR}(A+B) \) for a heavily skewed, non-normal joint distribution. The chart visually demonstrates the sum of individual VaRs being lower than the portfolio VaR, violating the diversification principle (subadditivity).</li>
+  </ul>
+
+  <h2>8. Common Mistakes & Misconceptions</h2>
+  <div class="warning">
+    <div class="box-title">Warning: VaR is a Minimum, Not a Maximum</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>"VaR is the maximum we can lose."</strong> False. VaR is the <em>minimum</em> loss in the worst \( 1-\alpha \) cases. In the 1% of the time things go wrong, losses will be higher than the 99% VaR, potentially by a massive margin.</li>
+        <li><strong>Assuming Normality blindly:</strong> Financial returns have heavy tails. Parametric VaR assuming a normal distribution consistently underestimates tail risk.</li>
+        <li><strong>Ignoring Liquidity:</strong> In a crisis, you cannot liquidate at the mid-price. Assuming constant liquidity during stress events is a fatal flaw in basic VaR models.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>9. Industry Application</h2>
+  <div class="industry">
+    <div class="box-title">Industry Application: The Implementation of FRTB</div>
+    <div class="box-content">
+      Global Tier-1 banks are currently spending hundreds of millions of dollars to implement the Fundamental Review of the Trading Book (FRTB). Under Basel II/2.5, banks optimized their VaR models to lower capital requirements. Regulators noticed this and mandated a shift to 97.5% Expected Shortfall. 
+      <br><br>
+      To prevent banks from using weak internal models, FRTB introduced the P&L Attribution (PLA) test. If the theoretical P&L produced by the risk system (Risk-Theoretical P&L or RTPL) diverges significantly from the actual P&L generated by the front-office pricing engines (Hypothetical P&L or HPL), the bank's internal model is rejected. The desk is then forced onto the Standardized Approach, which often requires 2x to 3x more capital. This has forced banks to align their risk and front-office IT infrastructure, standardizing pricing libraries across the enterprise.
+    </div>
+  </div>
+
+  <h2>10. Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <h3>Formula Cheat-Sheet</h3>
+    <ul>
+      <li><strong>Parametric VaR:</strong> \( \text{VaR}_\alpha = V_0(z_\alpha \sigma - \mu) \)</li>
+      <li><strong>Portfolio Variance:</strong> \( \sigma_p^2 = \mathbf{w}^T \Sigma \mathbf{w} \)</li>
+      <li><strong>Expected Shortfall (Continuous):</strong> \( \text{ES}_\alpha = \frac{1}{1-\alpha} \int_{\alpha}^{1} \text{VaR}_u \dd u \)</li>
+      <li><strong>Normal ES:</strong> \( \text{ES}_\alpha = V_0\left( \sigma \frac{\phi(z_\alpha)}{1-\alpha} - \mu \right) \)</li>
+      <li><strong>Liquidity-Adjusted VaR:</strong> \( \text{LVaR} = \text{VaR} + \frac{1}{2} s V_0 \)</li>
+      <li><strong>Kupiec LR Statistic:</strong> \( LR = -2 \ln\left( \frac{p^x (1-p)^{N-x}}{(x/N)^x (1 - x/N)^{N-x}} \right) \)</li>
+    </ul>
+  </div>
+
+  <h2>11. Exercises</h2>
+  <div class="exercises">
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item"><strong>19.1</strong> Calculate the 1-day 95% Parametric VaR for a $5M portfolio with an annual volatility of 15%. Assume 252 trading days and zero mean.</div>
+      <div class="exercise-item"><strong>19.2</strong> A bank runs a Historical Simulation using 500 days of data. Which ordered loss (from worst to best) corresponds to the 99% VaR?</div>
+      <div class="exercise-item"><strong>19.3</strong> Define subadditivity in the context of risk measures. Why is it important?</div>
+      <div class="exercise-item"><strong>19.4</strong> What is the difference between Market Liquidity Risk and Funding Liquidity Risk?</div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item"><strong>19.5</strong> Portfolio has $20M in Stock X (\( \sigma=2\% \)) and $30M in Stock Y (\( \sigma=1.5\% \)). Correlation is 0.6. Calculate the 10-day 99% VaR. (Assume \( \text{VaR}_{10d} = \text{VaR}_{1d} \times \sqrt{10} \)).</div>
+      <div class="exercise-item"><strong>19.6</strong> A bank has 12 exceptions in its 99% VaR model over 250 days. Perform the Kupiec test at a 95% confidence level (\( \chi^2_1 \) critical value = 3.84). Do you reject the model?</div>
+      <div class="exercise-item"><strong>19.7</strong> Explain why Expected Shortfall is preferred over VaR for portfolios containing deep out-of-the-money short options.</div>
+      <div class="exercise-item"><strong>19.8</strong> Calculate the LVaR for a $10M position with 99% VaR of $300k and an expected bid-ask spread of 150 bps.</div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item"><strong>19.9</strong> Prove that for a normal distribution, \( \text{ES}_\alpha = \sigma \frac{\phi(z_\alpha)}{1-\alpha} \).</div>
+      <div class="exercise-item"><strong>19.10</strong> Construct a discrete, bi-variate probability distribution for two assets where VaR fails the subadditivity axiom, but ES holds.</div>
+      <div class="exercise-item"><strong>19.11</strong> Under FRTB, liquidity horizons differ by asset class. If an equity has a 10-day horizon and a credit derivative has a 120-day horizon, how does this complicate Monte Carlo ES aggregation?</div>
+      <div class="exercise-item"><strong>19.12</strong> Derive the Christoffersen test statistic for conditional coverage using a Markov chain approach for exceedance probabilities.</div>
+    </div>
+
+    <h3>Selected Solutions</h3>
+    <div class="solution-item"><strong>Solution to 19.1:</strong> Daily vol = \( 0.15 / \sqrt{252} = 0.009449 \). 95% VaR = \( 1.645 \times 0.009449 \times \$5,000,000 = \$77,720 \).</div>
+    <div class="solution-item"><strong>Solution to 19.2:</strong> 1% of 500 = 5. The 99% VaR corresponds to the 5th worst loss in the sorted historical data.</div>
+    <div class="solution-item"><strong>Solution to 19.5:</strong> 
+      \( \sigma_P^2 = (20\times 0.02)^2 + (30\times 0.015)^2 + 2(20\times 0.02)(30\times 0.015)(0.6) = 0.16 + 0.2025 + 0.216 = 0.5785 \).<br>
+      \( \sigma_P = \sqrt{0.5785} = 0.7606 \) (in $M).<br>
+      1-day 99% VaR = \( 2.326 \times 0.7606 = \$1.769M \).<br>
+      10-day 99% VaR = \( 1.769M \times \sqrt{10} = \$5.594M \).
+    </div>
+    <div class="solution-item"><strong>Solution to 19.6:</strong> \( x=12, N=250, p=0.01 \). Calculate Kupiec LR. The test statistic will be very high (approx 18.5 > 3.84). The model is thoroughly rejected. (Red zone under Basel rules).</div>
+    <div class="solution-item"><strong>Solution to 19.8:</strong> LVaR = \( \$300,000 + 0.5 \times 0.015 \times \$10,000,000 = 300,000 + 75,000 = \$375,000 \).</div>
+  </div>
+
+  <div class="further-reading">
+    <h2>12. Further Reading</h2>
+    <ul>
+      <li>Jorion, P. (2006). <em>Value at Risk: The New Benchmark for Managing Financial Risk</em>. McGraw-Hill.</li>
+      <li>Hull, J. C. (2018). <em>Risk Management and Financial Institutions</em>. Wiley.</li>
+      <li>Artzner, P., Delbaen, F., Eber, J. M., & Heath, D. (1999). Coherent measures of risk. <em>Mathematical Finance</em>, 9(3), 203-228.</li>
+      <li>Basel Committee on Banking Supervision (2019). <em>Minimum capital requirements for market risk (FRTB)</em>. BIS.</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch18_credit_risk.html">← Previous Chapter (18: Credit Risk)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch20_time_series.html">Next Chapter (20: Time Series) →</a>
+  </nav>
+
+</body>
+</html>

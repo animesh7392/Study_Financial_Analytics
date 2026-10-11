@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 47: Systems Thinking, Digital Twins & Decision Frameworks</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          Z: ['\\mathbb{Z}'],
+          Q: ['\\mathbb{Q}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  <h1>Chapter 47: Systems Thinking, Digital Twins & Decision Frameworks</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">1. Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand and draw Causal Loop Diagrams (CLDs) for complex insurance systems.</li>
+        <li>Model insurance balance sheets using System Dynamics (Stocks and Flows).</li>
+        <li>Construct a simplified Digital Twin for scenario testing and real-time dashboarding.</li>
+        <li>Evaluate hedging strategies using Pareto Frontiers to balance cost, volatility, and dividend capacity.</li>
+        <li>Apply Real Options theory to value managerial flexibility in dividend declarations.</li>
+        <li>Utilize Explainable AI (XAI), particularly SHAP values, to communicate quantitative insights to boards.</li>
+        <li>Design and execute Reverse Stress Testing to identify critical vulnerabilities.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">2. Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds heavily on Chapter 46 (Stochastic Programming). You must be comfortable with risk-neutral pricing, duration-convexity hedging, and basic machine learning concepts. We bridge the gap between abstract optimization and real-world executive decision-making. In Chapter 48, we will move into practical implementations with a detailed Excel IR workshop.</p>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">3. Intuition & Motivation</div>
+    <div class="box-content">
+      <p>Consider the Dividend Optimizer project at Scottish Widows. The goal is to determine the optimal dividend given uncertain future interest rates. However, an insurance company is not a static ledger; it is a complex, dynamical system. A decision to maximize current dividends reduces surplus. Lower surplus might trigger a credit rating downgrade, which increases borrowing costs and reduces new business volume, ultimately destroying future dividend capacity.</p>
+      <p>This is where <strong>Systems Thinking</strong> enters. By creating a <strong>Digital Twin</strong>—a dynamic, interconnected simulation of the insurer's balance sheet—we can map the feedback loops (both Reinforcing and Balancing) that dictate long-term survival. Rather than just finding a mathematical optimum, we present the Board with a <strong>Pareto Frontier</strong> of choices and use <strong>Explainable AI</strong> to ensure the "black box" is transparent and trusted.</p>
+    </div>
+  </div>
+
+  <h2>4. Formal Theory</h2>
+  
+  <h3>4.1 Causal Loop Diagrams (CLDs)</h3>
+  <div class="definition">
+    <div class="box-title">Definition 47.1: Causal Loop Diagram</div>
+    <div class="box-content">
+      A Causal Loop Diagram is a causal mapping tool that visualizes how different variables in a system are interrelated. 
+      <br>Links between variables are directional:
+      <ul>
+        <li><strong>Positive Link (\(+\)):</strong> Variables move in the same direction. Example: Surplus \(\uparrow \implies\) Dividend Capacity \(\uparrow\).</li>
+        <li><strong>Negative Link (\(-\)):</strong> Variables move in opposite directions. Example: Dividends Paid \(\uparrow \implies\) Capital \(\downarrow\).</li>
+      </ul>
+      Loops are categorized as:
+      <ul>
+        <li><strong>Reinforcing (R):</strong> Contains an even number of negative links. Leads to exponential growth or collapse.</li>
+        <li><strong>Balancing (B):</strong> Contains an odd number of negative links. Leads to goal-seeking, stabilizing behavior.</li>
+      </ul>
+    </div>
+  </div>
+  
+  <p>In life insurance, the fundamental Interest Rate loop is highly complex:</p>
+  <ul>
+    <li>Rates \(\downarrow \implies\) Bond Prices \(\uparrow \implies\) Asset Values \(\uparrow \implies\) Surplus \(\uparrow\) (Positive impact)</li>
+    <li>Rates \(\downarrow \implies\) Discount Rate \(\downarrow \implies\) Liability PV \(\uparrow \implies\) Surplus \(\downarrow\) (Negative impact)</li>
+  </ul>
+  <p>The net effect requires precise duration modeling, which is why static CLDs must evolve into System Dynamics models.</p>
+
+  <h3>4.2 System Dynamics Modelling</h3>
+  <p>Pioneered by Jay Forrester, System Dynamics translates CLDs into mathematical equations using Stocks (accumulations) and Flows (rates of change).</p>
+  <div class="theorem">
+    <div class="box-title">Theorem 47.1: Fundamental Stock Equation</div>
+    <div class="box-content">
+      The state of any stock \(S(t)\) at time \(t\) is defined by its initial value and the integral of its net flows:
+      \[
+      S(t) = S(t_0) + \int_{t_0}^t \left( \sum F_{\text{in}}(\tau) - \sum F_{\text{out}}(\tau) \right) \dd\tau
+      \]
+    </div>
+  </div>
+  <p>For an insurer's Capital Surplus \(C(t)\):</p>
+  \[
+  \frac{\dd C(t)}{\dd t} = P(t) + I(t) - X(t) - E(t) - D(t) - \Delta V_L(t)
+  \]
+  <p>Where \(P\) is premiums, \(I\) is investment income, \(X\) is claims, \(E\) is expenses, \(D\) is dividends, and \(\Delta V_L\) is the change in liability reserves.</p>
+
+  <h3>4.3 Pareto Frontier of Hedging Strategies</h3>
+  <p>When selecting a hedging strategy, insurers face a multi-objective optimization problem. We aim to maximize Expected Dividend \(\E[D]\) while minimizing Dividend Volatility \(\Var(D)\) and Hedge Cost \(H_c\).</p>
+  \[
+  \max_{h \in \mathcal{H}} \left\{ \E[D(h)] - \lambda \sqrt{\Var(D(h))} - \gamma H_c(h) \right\}
+  \]
+  <p>The set of solutions where no objective can be improved without degrading another is the <strong>Pareto Frontier</strong>.</p>
+
+  <h3>4.4 Real Options in Dividend Decisions</h3>
+  <p>Dividends represent an irreversible outflow of capital. The option to delay this outflow has value, particularly when crucial information (e.g., regulatory changes, major rate announcements) is pending.</p>
+  <div class="definition">
+    <div class="box-title">Definition 47.2: Real Option to Defer</div>
+    <div class="box-content">
+      Let \(V_0\) be the utility or present value of declaring a dividend today. Let \(V_{\text{wait}}\) be the expected present value of waiting until time \(T\) to make the decision, utilizing new information \(\mathcal{F}_T\):
+      \[
+      V_{\text{wait}} = \E^\Q\left[ e^{-r T} \max(D(T, \mathcal{F}_T), 0) \right]
+      \]
+      If \(V_{\text{wait}} > V_0\), the optimal decision is to defer the dividend.
+    </div>
+  </div>
+
+  <h3>4.5 Reverse Stress Testing</h3>
+  <p>Standard stress testing asks: "What happens to capital if rates fall 200bps?" Reverse stress testing asks: "What combination of events causes capital to fall below the regulatory minimum?"</p>
+  \[
+  \min_{\omega \in \Omega} \P(\omega) \quad \text{subject to} \quad \text{SCR Ratio}(\omega) \le 100\%
+  \]
+  <p>This identifies the most probable path to ruin, highlighting vulnerabilities in the current Digital Twin.</p>
+
+  <h2>5. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 47.1: Constructing the Scottish Widows CLD</div>
+    <div class="box-content">
+      <p><strong>Scenario:</strong> Map the dynamics of increasing dividends.</p>
+      <ul>
+        <li><strong>Loop B1 (Capital Depletion):</strong> Dividend Paid \(\uparrow \implies\) Retained Capital \(\downarrow \implies\) Dividend Capacity \(\downarrow\). This is a Balancing loop.</li>
+        <li><strong>Loop R1 (Market Confidence):</strong> Dividend Paid \(\uparrow \implies\) Shareholder Confidence \(\uparrow \implies\) Share Price \(\uparrow \implies\) Cost of Capital \(\downarrow \implies\) Profitability \(\uparrow \implies\) Dividend Capacity \(\uparrow\). This is a Reinforcing loop.</li>
+        <li><strong>Loop B2 (Regulatory Intervention):</strong> Retained Capital \(\downarrow \implies\) Solvency Ratio \(\downarrow \implies\) PRA Scrutiny \(\uparrow \implies\) Mandatory Capital Buffers \(\uparrow \implies\) Dividend Capacity \(\downarrow\).</li>
+      </ul>
+      <p>The Digital Twin must quantify the strength of these loops to find the sustainable dividend level.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 47.2: Pareto Frontier of Hedging for a £10B Block</div>
+    <div class="box-content">
+      <p>A UK Life Insurer has £10B in liabilities (Duration = 12) and £11B in assets (Duration = 7). They evaluate 5 Swaption overlay strategies to close the duration gap:</p>
+      <table style="width:100%; text-align:center; border-collapse: collapse;" border="1">
+        <tr><th>Strategy</th><th>Description</th><th>Hedge Cost (£m)</th><th>E[Div] (£m)</th><th>Div Volatility (£m)</th></tr>
+        <tr><td>A</td><td>Unhedged (Gap = 5)</td><td>0</td><td>200</td><td>150</td></tr>
+        <tr><td>B</td><td>25% Overlay</td><td>10</td><td>190</td><td>110</td></tr>
+        <tr><td>C</td><td>50% Overlay</td><td>22</td><td>178</td><td>75</td></tr>
+        <tr><td>D</td><td>75% Overlay</td><td>35</td><td>165</td><td>45</td></tr>
+        <tr><td>E</td><td>100% Overlay</td><td>50</td><td>150</td><td>20</td></tr>
+      </table>
+      <p>Strategy A provides the highest expected dividend but risks massive volatility. Strategy E provides certainty but destroys £50m of value. The Board must choose a point on this Pareto Frontier based on their risk appetite.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 47.3: Real Option to Defer</div>
+    <div class="box-content">
+      <p>The CFO wants to pay a £100m dividend today (t=0). Surplus is £500m. In 1 month (t=1), a new PRA stress test result will be published. There is a 30% chance the PRA requires an extra £450m capital buffer. If surplus drops below £100m, a severe penalty is applied (costing £200m in lost business).</p>
+      <p><strong>Option 1: Pay now.</strong> Surplus drops to £400m. If the 30% shock hits, surplus becomes -£50m. Penalty triggered. Expected Cost = 30% * £200m = £60m. Net Value = 100 - 60 = £40m.</p>
+      <p><strong>Option 2: Defer.</strong> Wait 1 month. If shock hits, surplus is £50m. Penalty triggered, NO dividend paid. If shock doesn't hit (70%), pay £100m dividend. Net Value = (70% * 100) + (30% * -200) = 70 - 60 = £10m.</p>
+      <p>In this specific case, paying now actually yields higher expected utility, assuming the penalty is unavoidable in the bad state regardless of the dividend payment! This counter-intuitive result shows why formal real options modeling is essential.</p>
+    </div>
+  </div>
+
+  <h2>6. Python Code</h2>
+  <pre><code class="language-python">
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import shap
+from sklearn.ensemble import RandomForestRegressor
+
+# ==========================================
+# 1. Digital Twin: System Dynamics Simulator
+# ==========================================
+def simulate_digital_twin(initial_assets=11000, initial_liabs=10000, 
+                          asset_dur=7, liab_dur=12, periods=10, 
+                          target_solvency=1.10):
+    """
+    Simulates a simplified insurance balance sheet over time.
+    """
+    assets = [initial_assets]
+    liabs = [initial_liabs]
+    surplus = [initial_assets - initial_liabs]
+    dividends = []
+    
+    base_rate = 0.04
+    
+    for t in range(periods):
+        # Stochastic rate shock
+        rate_shock = np.random.normal(0, 0.015)
+        new_rate = base_rate + rate_shock
+        
+        # Calculate impacts using duration approximation
+        # dV/V = -D * dR
+        asset_return = 0.03 - (asset_dur * rate_shock) # base return + shock
+        liab_growth = 0.02 - (liab_dur * rate_shock)   # unwind + shock
+        
+        a_t = assets[-1] * (1 + asset_return)
+        l_t = liabs[-1] * (1 + liab_growth)
+        
+        # Dividend logic: Pay out excess above target solvency
+        required_capital = l_t * target_solvency
+        s_t_pre = a_t - l_t
+        
+        div_t = max(0, s_t_pre - (required_capital - l_t)) * 0.25 # Pay 25% of excess
+        
+        a_t -= div_t
+        s_t = a_t - l_t
+        
+        assets.append(a_t)
+        liabs.append(l_t)
+        surplus.append(s_t)
+        dividends.append(div_t)
+        
+    return pd.DataFrame({
+        'Year': range(periods + 1),
+        'Assets': assets,
+        'Liabilities': liabs,
+        'Surplus': surplus,
+        'Dividend': [0] + dividends # No div in year 0
+    })
+
+df_sim = simulate_digital_twin()
+print(df_sim.round(1))
+
+# ==========================================
+# 2. XAI / SHAP Values for Explainability
+# ==========================================
+# Generate synthetic training data for the Dividend Optimizer
+X = pd.DataFrame({
+    'Surplus': np.random.uniform(500, 1500, 1000),
+    'Interest_Rate': np.random.uniform(0.01, 0.06, 1000),
+    'Rate_Vol': np.random.uniform(0.05, 0.20, 1000),
+    'Duration_Gap': np.random.uniform(-3, 5, 1000)
+})
+
+# Target: Recommended Dividend (complex non-linear relationship)
+y = (X['Surplus'] - 800) * 0.5 * (1 - X['Rate_Vol']) - (X['Duration_Gap'] ** 2) * 10
+y = np.maximum(0, y)
+
+# Train a Black-Box model
+model = RandomForestRegressor(n_estimators=50, random_state=42)
+model.fit(X, y)
+
+# Explain with SHAP
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X)
+
+# To visualize in a notebook:
+# shap.summary_plot(shap_values, X)
+  </code></pre>
+
+  <h2>7. Excel Implementation</h2>
+  <p>To embed Systems Thinking into daily operations, we can build a Digital Twin and perform Reverse Stress Testing directly in Excel.</p>
+  
+  <h3>Part 1: The Digital Twin & Pareto Frontier</h3>
+  <ol>
+    <li><strong>Assumptions Setup:</strong> Create a block in <code>A1:B5</code>.
+      <ul>
+        <li><code>A1</code>: Initial Assets, <code>B1</code>: 11000</li>
+        <li><code>A2</code>: Initial Liabs, <code>B2</code>: 10000</li>
+        <li><code>A3</code>: Asset Duration, <code>B3</code>: 7</li>
+        <li><code>A4</code>: Liab Duration, <code>B4</code>: 12</li>
+        <li><code>A5</code>: Base Rate, <code>B5</code>: 4.0%</li>
+      </ul>
+    </li>
+    <li><strong>Simulation Table:</strong> Set headers in <code>A8:G8</code>: <em>Year, Rate Shock, Assets, Liabilities, Surplus, Solvency Ratio, Dividend</em>.</li>
+    <li><strong>Initial Values (Row 9, Year 0):</strong>
+      <ul>
+        <li><code>A9</code>: 0</li>
+        <li><code>C9</code>: <code>=B1</code></li>
+        <li><code>D9</code>: <code>=B2</code></li>
+        <li><code>E9</code>: <code>=C9-D9</code></li>
+        <li><code>F9</code>: <code>=C9/D9</code></li>
+        <li><code>G9</code>: 0</li>
+      </ul>
+    </li>
+    <li><strong>Dynamics (Row 10, Year 1):</strong>
+      <ul>
+        <li><code>A10</code>: <code>=A9+1</code></li>
+        <li><code>B10</code>: Enter a shock, e.g., <code>-0.01</code> (-100bps)</li>
+        <li><code>D10</code> (Liabs): <code>=D9*(1 + 0.02 - ($B$4*B10))</code></li>
+        <li><code>C10_pre</code> (Assets before div, mentally calculate): <code>=C9*(1 + 0.03 - ($B$3*B10))</code></li>
+        <li><code>G10</code> (Dividend): <code>=MAX(0, (C10_pre - D10) - (D10*0.1)) * 0.25</code> (Assuming 110% target solvency)</li>
+        <li><code>C10</code> (Assets after div): <code>=C9*(1 + 0.03 - ($B$3*B10)) - G10</code></li>
+      </ul>
+    </li>
+    <li>Drag Row 10 down to Row 18 for a 10-year simulation.</li>
+  </ol>
+
+  <h3>Part 2: Reverse Stress Testing via Goal Seek</h3>
+  <ol>
+    <li>We want to find the exact Rate Shock in Year 1 that causes the Solvency Ratio (<code>F10</code>) to drop to exactly 100% (1.0).</li>
+    <li>Navigate to <strong>Data &gt; What-If Analysis &gt; Goal Seek...</strong></li>
+    <li><strong>Set cell:</strong> <code>F10</code></li>
+    <li><strong>To value:</strong> <code>1.0</code></li>
+    <li><strong>By changing cell:</strong> <code>B10</code></li>
+    <li>Click OK. Excel will iteratively solve for the required rate shock (e.g., -1.58%) that breaks the balance sheet. This is the core of Reverse Stress Testing!</li>
+  </ol>
+
+  <div class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Stock and Flow:</strong> Surplus is a stock; Dividend is a flow. You cannot directly add a flow rate to a stock without integrating over time.</li>
+        <li><strong>Linear Extrapolation:</strong> Assuming that a 200bps shock is exactly twice as bad as a 100bps shock. Due to convexity and option embeddedness, systems are highly non-linear.</li>
+        <li><strong>Black-Box Trust:</strong> Deploying an AI Dividend Optimizer without XAI (like SHAP). The Board will reject any model they cannot intuitively understand, regardless of backtest performance.</li>
+        <li><strong>Siloed Thinking:</strong> Optimizing the investment portfolio independently of the liability profile, destroying the balancing loops that protect capital.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">9. Industry Application Box: Reverse Stress Testing at Lloyds Banking Group</div>
+    <div class="box-content">
+      <p>Under the UK Prudential Regulation Authority (PRA) guidelines, institutions like Scottish Widows and LBG must conduct Reverse Stress Testing (RST) annually. Unlike standard ICAAP/ORSA tests that apply predefined scenarios, RST forces management to assume the firm <em>has failed</em> (e.g., Solvency II ratio falls below 100% and liquidity is exhausted). Management must then work backwards to construct the plausible scenarios that lead to this failure.</p>
+      <p>This systems-thinking exercise often uncovers hidden correlations. For example, a severe drop in interest rates (increasing liability values) combined with a mass lapse event (forcing the sale of illiquid assets at a discount) creates a vicious Reinforcing loop. Identifying these loops allows for preemptive structural hedging.</p>
+    </div>
+  </div>
+
+  <h2>10. Summary & Formula Cheat-Sheet</h2>
+  <ul>
+    <li><strong>System Dynamics Stock Equation:</strong> \( S(t) = S(0) + \int_0^t (\text{Inflows} - \text{Outflows}) \dd \tau \)</li>
+    <li><strong>Pareto Optimization Objective:</strong> \( \max \left\{ \E[D] - \lambda \sqrt{\Var(D)} - \gamma H_c \right\} \)</li>
+    <li><strong>Real Option to Defer:</strong> \( V_{\text{wait}} = \E^\Q\left[ e^{-r T} \max(D(T), 0) \right] \)</li>
+    <li><strong>Reverse Stress Test Target:</strong> Find \( \omega \) such that \( \text{Solvency Ratio}(\omega) = 1.0 \) while maximizing probability \( \P(\omega) \).</li>
+    <li><strong>Duration Approximation for Asset/Liab Shocks:</strong> \( \frac{\Delta V}{V} \approx -D \cdot \Delta y + \frac{1}{2} C \cdot (\Delta y)^2 \)</li>
+  </ul>
+
+  <h2>11. Exercises</h2>
+  <div class="box-content">
+    <ol>
+      <li><strong>[Basic]</strong> Draw a CLD for a life insurer mapping the relationship between: Surrender Rates, Asset Liquidity, Forced Asset Sales, Asset Prices, and Solvency. Identify if the main loop is Reinforcing or Balancing.</li>
+      <li><strong>[Basic]</strong> Using the Duration Approximation formula, calculate the new Surplus if Assets (£10B, D=5) and Liabilities (£8B, D=10) experience a +150bps parallel shift in interest rates. (Ignore convexity).</li>
+      <li><strong>[Intermediate]</strong> Implement the Python System Dynamics code from Section 6. Modify the dividend logic to pay out 50% of surplus above the target. Plot the resulting dividend path over 10 years for 5 different random rate paths.</li>
+      <li><strong>[Intermediate]</strong> Recreate the Excel Digital Twin in Section 7. Use Goal Seek to determine what Initial Asset value (Cell B1) is required to survive a -200bps shock in Year 1 without dropping below a 100% solvency ratio.</li>
+      <li><strong>[Advanced]</strong> <em>Pareto Frontier Calculation:</em> You have three hedging strategies. Strategy X: Cost=0, E[Div]=100, Vol=50. Strategy Y: Cost=10, E[Div]=90, Vol=30. Strategy Z: Cost=25, E[Div]=70, Vol=10. Plot the Pareto Frontier. If your utility function is \( U = E[Div] - 0.5 \cdot Vol - Cost \), which strategy is optimal?</li>
+      <li><strong>[Advanced]</strong> <em>Real Options:</em> A dividend of £50m is proposed. If paid now, there is a 10% chance of a catastrophic capital breach next month costing £100m. If deferred for one month, the uncertainty resolves. If the bad state occurs, no dividend is paid (and no penalty is incurred). If the good state occurs, the £50m is paid. Assume a 0% discount rate. Calculate the value of the option to defer.</li>
+      <li><strong>[Discussion]</strong> Explain how you would use SHAP values to explain to the Chief Risk Officer why a complex neural network recommended a zero dividend payout despite strong current earnings.</li>
+      <li><strong>[Discussion]</strong> How does Reverse Stress Testing differ philosophically from Value at Risk (VaR)? Why is it favored by regulators for systemic risk?</li>
+    </ol>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">12. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Forrester, J. W. (1961). <em>Industrial Dynamics</em>. Pegasus Communications. (The foundational text on System Dynamics).</li>
+        <li>Sterman, J. D. (2000). <em>Business Dynamics: Systems Thinking and Modeling for a Complex World</em>. McGraw-Hill.</li>
+        <li>Lundberg, S. M., & Lee, S.-I. (2017). "A Unified Approach to Interpreting Model Predictions" (SHAP). <em>Advances in Neural Information Processing Systems 30</em>.</li>
+        <li>Trigeorgis, L. (1996). <em>Real Options: Managerial Flexibility and Strategy in Resource Allocation</em>. MIT Press.</li>
+        <li>Bank of England / PRA (2014). <em>Supervisory Statement SS5/14: Reverse Stress Testing</em>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch46_stochastic_programming.html">← Previous Chapter</a> |
+    <a href="ch48_excel_ir_workshop.html">Next Chapter →</a>
+  </nav>
+</body>
+</html>

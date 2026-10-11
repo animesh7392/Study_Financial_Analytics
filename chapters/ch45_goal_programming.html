@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 45: Goal Programming & Multi-Objective Optimization for Finance</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          Z: ['\\mathbb{Z}'],
+          Q: ['\\mathbb{Q}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  <h1>Chapter 45: Goal Programming & Multi-Objective Optimization for Finance</h1>
+
+  <!-- 1. Learning Objectives -->
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Review Linear Programming (LP) foundations, focusing on duality, shadow prices, and sensitivity analysis in financial contexts.</li>
+        <li>Master the theory and formulation of Goal Programming (Weighted, Preemptive, and Chebyshev).</li>
+        <li>Apply Goal Programming to the Dividend Optimizer problem balancing dividends, solvency, liquidity, and IFRS earnings.</li>
+        <li>Understand Multi-Objective Optimization concepts: Pareto optimality, trade-off frontiers, and constraint switching under stress scenarios.</li>
+        <li>Implement Goal Programming models using Python (PuLP, SciPy) and MS Excel Solver.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2. Prerequisites & Roadmap -->
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>Before beginning this chapter, ensure you are comfortable with:</p>
+      <ul>
+        <li><strong>Chapter 9:</strong> Optimization Fundamentals (Simplex method basics).</li>
+        <li><strong>Chapter 38:</strong> Asset-Liability Management (ALM) Constraints.</li>
+        <li><strong>Chapter 44:</strong> Interest Rate Sensitivity (understanding how ALM metrics shift with rates).</li>
+      </ul>
+      <p><strong>Roadmap:</strong> We begin with a brief review of LP duality. Then we dive deeply into Goal Programming (GP) theory and its extensions. The core of the chapter bridges this theory directly to the "Dividend Optimizer" project, exploring multi-objective optimization, Pareto frontiers, and constraint switching. Finally, we implement these models in Python and Excel.</p>
+    </div>
+  </div>
+
+  <!-- 3. Intuition & Motivation -->
+  <div class="intuition">
+    <div class="box-title">Intuition & Motivation</div>
+    <div class="box-content">
+      <p>Imagine you are a quantitative analyst at Scottish Widows within Lloyds Banking Group. It's year-end, and the Board wants to announce a record dividend of £1.0 billion to the parent company. At the same time, the Chief Risk Officer (CRO) mandates a Solvency II ratio of at least 160% to weather potential market shocks. The Treasury team insists on maintaining a Liquidity Coverage Ratio of 120%, while Investor Relations expects an IFRS operating profit of £500 million.</p>
+      <p>These objectives are inherently conflicting. Paying a massive dividend reduces available capital (harming Solvency) and drains cash (harming Liquidity). Traditional optimization asks you to "Maximize X subject to Y." But what if you can't satisfy all constraints? If you set them as hard constraints, your optimizer simply screams "Infeasible."</p>
+      <p>This is where <strong>Goal Programming</strong> shines. Instead of hard constraints, we set <em>goals</em> and minimize the deviations from these goals. It allows us to answer questions like: "If we miss the dividend target by £50m to save 5% on the solvency ratio, is that a good trade?" It transforms an impossible rigid problem into a flexible negotiation.</p>
+    </div>
+  </div>
+
+  <!-- 4. Formal Theory -->
+  <div class="theory">
+    <h2>4. Formal Theory</h2>
+    <h3>4.1 LP Foundations for Finance (Review)</h3>
+    <p>As covered in Chapter 9, a standard Linear Program (LP) can be written as:</p>
+    \[
+    \max \mathbf{c}^T \mathbf{x} \quad \text{subject to} \quad \mathbf{A}\mathbf{x} \le \mathbf{b}, \quad \mathbf{x} \ge 0
+    \]
+    <p>Every LP has a <em>Dual</em> problem. The dual variables (shadow prices) represent the marginal value of relaxing a constraint. In a dividend optimization context, the shadow price of a solvency constraint tells us exactly how much extra dividend could be paid if the regulator lowered the capital requirement by one unit.</p>
+
+    <h3>4.2 Goal Programming: Theory & Formulation</h3>
+    <div class="definition">
+      <div class="box-title">Goal Programming (GP)</div>
+      <div class="box-content">
+        <p>Goal programming is a branch of multi-objective optimization where the objective is to minimize the deviations from a set of target goals.</p>
+        <p>For each goal \(i\), we define a target \(b_i\) and a function \(g_i(\mathbf{x})\). We introduce non-negative deviational variables:</p>
+        <ul>
+          <li>\(d_i^+\): Overachievement of goal \(i\)</li>
+          <li>\(d_i^-\): Underachievement of goal \(i\)</li>
+        </ul>
+        <p>The goal constraint is formulated as:</p>
+        \[
+        g_i(\mathbf{x}) + d_i^- - d_i^+ = b_i
+        \]
+        <p>Note that \(d_i^+ \cdot d_i^- = 0\), meaning you cannot simultaneously overachieve and underachieve a single goal.</p>
+      </div>
+    </div>
+
+    <h4>Weighted Goal Programming (WGP)</h4>
+    <p>We assign weights \(w_i^+\) and \(w_i^-\) to the deviations based on their relative importance:</p>
+    \[
+    \min \sum_{i=1}^k (w_i^+ d_i^+ + w_i^- d_i^-)
+    \]
+    <p>If we only care about hitting a minimum target (e.g., Solvency $\ge$ 160%), we only penalize underachievement (\(d_i^-\)).</p>
+
+    <h4>Preemptive (Lexicographic) Goal Programming</h4>
+    <p>When certain goals are absolutely non-negotiable compared to others, we assign priority levels \(P_1, P_2, \dots, P_k\) where \(P_1 \gg P_2 \gg P_3\). The optimizer first satisfies \(P_1\). Then, without degrading \(P_1\), it optimizes \(P_2\), and so on.</p>
+
+    <h4>Chebyshev (MinMax) Goal Programming</h4>
+    <p>Instead of summing deviations, we minimize the maximum deviation to ensure a balanced outcome across all goals:</p>
+    \[
+    \min \max_i \{w_i d_i\}
+    \]
+    <p>This is often linearized by introducing a variable \(Z\) such that \(Z \ge w_i d_i\) for all \(i\), and then minimizing \(Z\).</p>
+
+    <h3>4.3 Multi-Objective Optimization & Pareto Frontiers</h3>
+    <p>In Multi-Objective Optimization (MOO), we have a vector of objectives \(\mathbf{F}(\mathbf{x}) = [f_1(\mathbf{x}), \dots, f_k(\mathbf{x})]\).</p>
+    <div class="definition">
+      <div class="box-title">Pareto Optimality</div>
+      <div class="box-content">
+        A solution \(\mathbf{x}^*\) is Pareto optimal if there exists no other feasible solution \(\mathbf{x}\) such that \(f_i(\mathbf{x}) \le f_i(\mathbf{x}^*)\) for all \(i\) and \(f_j(\mathbf{x}) < f_j(\mathbf{x}^*)\) for at least one \(j\) (assuming minimization).
+      </div>
+    </div>
+    <p>The set of all Pareto optimal solutions forms the <strong>Pareto Frontier</strong>. The Dividend Optimizer maps the Pareto frontier between Dividend Payout and Solvency Ratio.</p>
+
+    <h3>4.4 Constraint Switching Models</h3>
+    <p>Under varying interest rate scenarios, the <em>binding</em> constraint often changes. 
+    In a low-rate environment, the Solvency constraint might be binding. As rates rise, capital position improves, but liquidity might become squeezed due to collateral calls on interest rate swaps. The binding constraint "switches" from Solvency to Liquidity. GP allows us to smoothly transition between these states without breaking the model.</p>
+  </div>
+
+  <!-- 5. Worked Examples -->
+  <div class="examples">
+    <h2>5. Worked Examples</h2>
+    
+    <div class="example">
+      <div class="box-title">Example 1: Simple 2-Variable GP (Asset Allocation)</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An insurer allocates £100m between Corporate Bonds (\(x_1\)) and Equities (\(x_2\)).</p>
+        <p>Goals:</p>
+        <ul>
+          <li>G1 (Return): Achieve £6m return. (Bonds yield 4%, Equities yield 10%)</li>
+          <li>G2 (Risk): Limit equity exposure to £30m.</li>
+        </ul>
+        <p><strong>Formulation:</strong></p>
+        <p>\(x_1 + x_2 = 100\)</p>
+        <p>\(0.04x_1 + 0.10x_2 + d_1^- - d_1^+ = 6\)</p>
+        <p>\(x_2 + d_2^- - d_2^+ = 30\)</p>
+        <p>Objective: \(\min d_1^- + d_2^+\) (Penalty for missing return and exceeding risk limit).</p>
+        <p><strong>Solution:</strong> If \(x_2=30\), \(x_1=70\). Return = \(0.04(70) + 0.1(30) = 5.8m\). We miss the return goal by £0.2m (\(d_1^- = 0.2\)). If we push \(x_2\) to \(33.33\), we hit the return goal but violate risk by 3.33 (\(d_2^+ = 3.33\)). The optimal choice depends on the weights assigned to the deviations.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 2: The Dividend Optimizer GP Formulation</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Determine the optimal Dividend (£m), denoted \(D\).</p>
+        <ul>
+          <li>G1: \(D \ge 1000\)</li>
+          <li>G2: Solvency Ratio \(\ge 1.60\). (Assume Solvency Capital = 5000, Own Funds before Div = 9000. Ratio = \((9000 - D)/5000\))</li>
+          <li>G3: Liquidity Coverage \(\ge 1.20\). (Available Liquid Assets = 2500, Net Outflows = 2000. Ratio = \((2500 - D)/2000\))</li>
+          <li>G4: IFRS Earnings \(\ge 500\) (Fixed at 600 for this static example)</li>
+        </ul>
+        <p><strong>Formulation:</strong></p>
+        <p>\(D + d_1^- - d_1^+ = 1000\)</p>
+        <p>\(\frac{9000 - D}{5000} + d_2^- - d_2^+ = 1.60 \implies D + 5000 d_2^- - 5000 d_2^+ = 1000\)</p>
+        <p>\(\frac{2500 - D}{2000} + d_3^- - d_3^+ = 1.20 \implies D + 2000 d_3^- - 2000 d_3^+ = 100\)</p>
+        <p><strong>Analysis:</strong> Notice that keeping Solvency \(\ge 1.6\) means \(D \le 1000\). Keeping Liquidity \(\ge 1.2\) means \(D \le 100\). Liquidity is the binding constraint here. To pay \(D=1000\), we would severely breach liquidity (\(d_3^- = 0.45\)).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 3: Preemptive GP (Capital Safety First)</div>
+      <div class="box-content">
+        <p>Using Example 2 data, the CRO sets Solvency and Liquidity as Priority 1 (\(P_1\)), and Dividend as Priority 2 (\(P_2\)).</p>
+        <p><strong>Step 1 (P1):</strong> Minimize \(d_2^- + d_3^-\). To keep Solvency \(\ge 1.6\) and Liquidity \(\ge 1.2\), we must have \(D \le 1000\) and \(D \le 100\). So \(D\) is capped at 100. P1 objective value is 0.</p>
+        <p><strong>Step 2 (P2):</strong> Minimize \(d_1^-\) (maximize dividend) subject to P1 being met. Since \(D \le 100\), the maximum dividend is £100m. The underachievement of the dividend goal is £900m.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 4: Pareto Frontier (Dividend vs Solvency)</div>
+      <div class="box-content">
+        <p>Let's map the trade-off. If we relax the liquidity constraint (e.g., via a repo facility), we can map Solvency vs Dividend.</p>
+        <ul>
+          <li>Dividend = 0 \(\implies\) Solvency = 9000 / 5000 = 180%</li>
+          <li>Dividend = 500 \(\implies\) Solvency = 8500 / 5000 = 170%</li>
+          <li>Dividend = 1000 \(\implies\) Solvency = 8000 / 5000 = 160%</li>
+        </ul>
+        <p>This linear relationship forms the Pareto Frontier. Management can visually see that every £100m in dividend costs 2% in Solvency margin.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Python Code -->
+  <div class="python-code">
+    <h2>6. Python Code Implementation</h2>
+    <p>We use the <code>PuLP</code> library to solve the Dividend Optimizer GP (Weighted approach).</p>
+<pre><code class="language-python">import pulp
+
+# Initialize the Goal Programming Problem
+prob = pulp.LpProblem("Dividend_Optimizer_GP", pulp.LpMinimize)
+
+# Decision Variable
+D = pulp.LpVariable("Dividend", lowBound=0)
+
+# Deviational Variables (under and over achievement)
+d1_minus = pulp.LpVariable("d1_minus", lowBound=0)
+d1_plus = pulp.LpVariable("d1_plus", lowBound=0)
+d2_minus = pulp.LpVariable("d2_minus", lowBound=0)
+d2_plus = pulp.LpVariable("d2_plus", lowBound=0)
+d3_minus = pulp.LpVariable("d3_minus", lowBound=0)
+d3_plus = pulp.LpVariable("d3_plus", lowBound=0)
+
+# Goal Constraints based on Example 2
+# 1. Dividend Target = 1000
+prob += D + d1_minus - d1_plus == 1000, "Div_Goal"
+
+# 2. Solvency equivalent: D + 5000*d2_minus - 5000*d2_plus = 1000
+prob += D + 5000*d2_minus - 5000*d2_plus == 1000, "Solvency_Goal"
+
+# 3. Liquidity equivalent: D + 2000*d3_minus - 2000*d3_plus = 100
+prob += D + 2000*d3_minus - 2000*d3_plus == 100, "Liquidity_Goal"
+
+# Objective Function: Minimize weighted sum of undesirable deviations
+# We don't want to fall short of dividend (d1_minus)
+# We don't want to fall short of solvency (d2_minus)
+# We don't want to fall short of liquidity (d3_minus)
+# Weights: Solvency and Liquidity are heavily penalized (Regulatory)
+prob += 1 * d1_minus + 100 * d2_minus + 100 * d3_minus
+
+# Solve
+prob.solve()
+
+print("Status:", pulp.LpStatus[prob.status])
+print(f"Optimal Dividend: £{pulp.value(D)}m")
+print(f"Dividend Shortfall: £{pulp.value(d1_minus)}m")
+print(f"Solvency Shortfall (scaled): {pulp.value(d2_minus)}")
+print(f"Liquidity Shortfall (scaled): {pulp.value(d3_minus)}")
+</code></pre>
+  </div>
+
+  <!-- 7. Excel Implementation -->
+  <div class="excel">
+    <h2>7. Excel Implementation (CRITICAL)</h2>
+    <p>Goal programming can be effectively modeled in Excel using the Solver add-in. Here is the step-by-step setup for a Weighted Goal Program.</p>
+    <ol>
+      <li><strong>Decision Variables:</strong> 
+        <ul>
+          <li>In cell <code>B2</code>, enter <code>0</code>. Label <code>A2</code> as "Dividend (D)".</li>
+          <li>In cells <code>B5:B7</code>, enter <code>0</code>. Label <code>A5:A7</code> as <code>d1-</code>, <code>d2-</code>, <code>d3-</code>.</li>
+          <li>In cells <code>C5:C7</code>, enter <code>0</code>. Label <code>D5:D7</code> as <code>d1+</code>, <code>d2+</code>, <code>d3+</code>.</li>
+        </ul>
+      </li>
+      <li><strong>Goal Constraints (LHS):</strong>
+        <ul>
+          <li>In cell <code>E5</code> (Div Goal): enter <code>=B2 + B5 - C5</code></li>
+          <li>In cell <code>E6</code> (Solv Goal): enter <code>=B2 + 5000*B6 - 5000*C6</code></li>
+          <li>In cell <code>E7</code> (Liq Goal): enter <code>=B2 + 2000*B7 - 2000*C7</code></li>
+        </ul>
+      </li>
+      <li><strong>Targets (RHS):</strong>
+        <ul>
+          <li>In cell <code>F5</code>, enter <code>1000</code></li>
+          <li>In cell <code>F6</code>, enter <code>1000</code></li>
+          <li>In cell <code>F7</code>, enter <code>100</code></li>
+        </ul>
+      </li>
+      <li><strong>Objective Function (Penalty Weights):</strong>
+        <ul>
+          <li>In cell <code>G5:G7</code>, enter the penalty weights for underachievement (e.g., <code>1</code> for Div, <code>100</code> for Solv, <code>100</code> for Liq).</li>
+          <li>In cell <code>B10</code>, enter the objective formula: <code>=SUMPRODUCT(B5:B7, G5:G7)</code></li>
+        </ul>
+      </li>
+      <li><strong>Solver Configuration:</strong>
+        <ul>
+          <li>Go to Data &gt; Solver.</li>
+          <li><strong>Set Objective:</strong> <code>$B$10</code></li>
+          <li><strong>To:</strong> Min</li>
+          <li><strong>By Changing Variable Cells:</strong> <code>$B$2, $B$5:$C$7</code></li>
+          <li><strong>Subject to the Constraints:</strong>
+            <ul>
+              <li><code>$E$5:$E$7 = $F$5:$F$7</code></li>
+              <li>Check "Make Unconstrained Variables Non-Negative"</li>
+            </ul>
+          </li>
+          <li><strong>Select Solving Method:</strong> Simplex LP</li>
+          <li>Click <strong>Solve</strong>.</li>
+        </ul>
+      </li>
+      <li><strong>Analysis:</strong> Check the Sensitivity Report. The shadow prices on the constraints will indicate the marginal penalty of tightening a target.</li>
+    </ol>
+  </div>
+
+  <!-- 8. Common Mistakes -->
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Scaling Issues:</strong> Solvency ratios are usually around 1.6, while Dividends are in millions (e.g., 1000). If you do not scale the constraints (as done in Example 2 by multiplying out the denominator), the solver's tolerance limits may lead to numerical instability.</li>
+        <li><strong>Simultaneous Deviations:</strong> Beginners sometimes forget that \(d_i^+\) and \(d_i^-\) cannot both be strictly positive. The Simplex method naturally prevents this for linearly independent columns, but non-linear GP can struggle if not formulated correctly.</li>
+        <li><strong>Arbitrary Weights:</strong> In Weighted GP, weights are often chosen arbitrarily. A weight of 100 on Solvency implies that 1 unit of solvency deviation is exactly 100 times worse than 1 unit of dividend deviation. This must be calibrated with stakeholders.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 9. Industry Application Box -->
+  <div class="industry">
+    <div class="box-title">Industry Application: Scottish Widows & PRA</div>
+    <div class="box-content">
+      <p>At Scottish Widows, dividend upstreaming to Lloyds Banking Group is heavily scrutinized by the Prudential Regulation Authority (PRA). The PRA expects insurers to maintain capital buffers well above the 100% Solvency Capital Requirement (SCR), often internally targeted at 150-160%.</p>
+      <p>In practice, the Dividend Optimizer is not run as a static LP. It is run over 1,000+ stochastic Economic Scenario Generator (ESG) paths. Goal Programming is used to maximize the <em>expected</em> dividend while ensuring that in the 99.5th percentile worst-case scenario, the Solvency ratio does not fall below 120%. Preemptive GP is strictly used here: Regulatory Minimums (P1) > Internal Risk Buffers (P2) > Parent Company Dividend Expectations (P3).</p>
+    </div>
+  </div>
+
+  <!-- 10. Summary & Cheat Sheet -->
+  <div class="summary">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>Goal Constraint:</strong> \(g_i(\mathbf{x}) + d_i^- - d_i^+ = b_i\)</li>
+      <li><strong>Weighted Objective:</strong> \(\min \sum (w_i^+ d_i^+ + w_i^- d_i^-)\)</li>
+      <li><strong>Chebyshev Objective:</strong> \(\min Z \quad \text{s.t.} \quad Z \ge w_i d_i \quad \forall i\)</li>
+      <li><strong>Pareto Optimality:</strong> No objective can be improved without degrading another.</li>
+      <li><strong>Constraint Switching:</strong> The binding regulatory limit shifting between Capital (Solvency II) and Liquidity depending on macroeconomic variables.</li>
+    </ul>
+  </div>
+
+  <!-- 11. Exercises -->
+  <div class="exercises">
+    <h2>11. Exercises</h2>
+    <ol>
+      <li><strong>Basic:</strong> Formulate a goal constraint for a target IFRS profit of £500m, where profit is given by \(300 + 0.5x\).</li>
+      <li><strong>Basic:</strong> Why must \(d_i^+\) and \(d_i^-\) be non-negative?</li>
+      <li><strong>Intermediate:</strong> Given the Solvency constraint \(\frac{10000 - D}{6000} \ge 1.5\), rewrite this as a linear goal constraint with deviational variables.</li>
+      <li><strong>Intermediate:</strong> Setup a preemptive GP in Python using PuLP where \(P_1\) is the solvency goal from Exercise 3, and \(P_2\) is maximizing \(D\).</li>
+      <li><strong>Advanced:</strong> Prove that in a basic Simplex solution to a GP, \(d_i^+ \times d_i^- = 0\) for all \(i\).</li>
+      <li><strong>Advanced:</strong> Explain how you would model a "Constraint Switch" using indicator (binary) variables in a Mixed Integer Goal Program (MIGP).</li>
+      <li><strong>Excel:</strong> Implement Example 1 in Excel Solver. Change the return target to £8m and observe the new allocations.</li>
+      <li><strong>Discussion:</strong> Discuss the political implications between the CRO and CFO when setting the weights \(w_i\) in a Weighted GP for dividend extraction.</li>
+    </ol>
+  </div>
+
+  <!-- 12. Further Reading -->
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Jones, D. F., & Tamiz, M. (2010). <em>Practical Goal Programming</em>. Springer. (Excellent foundation for applied GP).</li>
+        <li>Charnes, A., & Cooper, W. W. (1961). <em>Management Models and Industrial Applications of Linear Programming</em>. (The originators of Goal Programming).</li>
+        <li>Lloyds Banking Group Annual Report / Solvency and Financial Condition Report (SFCR) - for real-world context on capital targets and dividend policies.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch44_ir_sensitivity.html">← Previous Chapter</a> |
+    <a href="ch46_stochastic_programming.html">Next Chapter →</a>
+  </nav>
+</body>
+</html>

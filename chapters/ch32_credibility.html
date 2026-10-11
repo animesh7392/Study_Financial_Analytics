@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 32: Credibility Theory</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 32: Credibility Theory</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the conceptual framework of credibility theory and how it balances experience rating with manual rating.</li>
+        <li>Derive and apply Classical (Limited Fluctuation) credibility for full and partial credibility standards.</li>
+        <li>Master Bühlmann's Greatest Accuracy credibility approach and understand its derivation via linear Bayes estimation.</li>
+        <li>Implement the Bühlmann-Straub model to account for unequal exposure weights across risk classes.</li>
+        <li>Perform exact Bayesian credibility updates using conjugate priors (Poisson-Gamma, Normal-Normal, Binomial-Beta).</li>
+        <li>Estimate hyperparameters empirically using non-parametric and parametric Empirical Bayes models.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>Before studying this chapter, you should be familiar with:</p>
+      <ul>
+        <li><strong>Chapter 4:</strong> Probability Distributions and Expectations.</li>
+        <li><strong>Chapter 8:</strong> Bayesian Inference and Conjugate Priors.</li>
+        <li><strong>Chapter 30:</strong> Aggregate Loss Models and Compound Distributions.</li>
+        <li><strong>Chapter 31:</strong> Ruin Theory.</li>
+      </ul>
+      <p>This chapter provides the theoretical foundation for experience rating, which we will apply practically in <strong>Chapter 33: Ratemaking</strong>.</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>
+    Imagine you are the chief actuary for an insurance company offering commercial auto insurance. A new corporate client, Logistics Inc., comes to you with 5 years of claims history. Their average annual loss has been $50,000. However, the manual rate (the industry average for similar fleets) suggests a premium of $80,000. 
+  </p>
+  <p>
+    The broker argues: "My client's experience is much better than the industry average. You should charge them $50,000."
+    The underwriter argues: "Five years of data from a 10-truck fleet is just noise. One bad accident tomorrow will blow up that average. We must charge $80,000."
+  </p>
+  <p>
+    Who is right? Neither. The correct premium lies somewhere between the client's own historical average and the overall population average. This is the central problem of <strong>Credibility Theory</strong>. We want to determine a credibility factor \(Z \in [0,1]\) such that the credibility premium is:
+  </p>
+  \[ P_C = Z \cdot (\text{Subject's Experience}) + (1 - Z) \cdot (\text{Manual Rate}) \]
+  <p>
+    Credibility theory is the mathematical framework for finding the optimal \(Z\). It is widely used in insurance ratemaking, experience rating, actuarial reserving, and anywhere that blends individual data with population data (such as predicting baseball batting averages or medical trial outcomes).
+  </p>
+
+  <h2>2. Formal Theory</h2>
+
+  <h3>2.1 Limited Fluctuation (Classical) Credibility</h3>
+  <p>
+    The Limited Fluctuation approach, also known as Classical Credibility, was developed in the early 20th century (Mowbray, 1914). It asks: "How much data do we need so that the observed experience is within \(k\%\) of the true expected value with probability \(p\)?"
+  </p>
+  <div class="definition">
+    <div class="box-title">Definition 32.1: Full Credibility Standard</div>
+    <div class="box-content">
+      Let \(X\) be the total aggregate loss (or number of claims) with mean \(\mu\) and variance \(\sigma^2\). Full credibility is attained if:
+      \[ \P\left( |X - \mu| \le k\mu \right) \ge p \]
+      where \(k\) is the maximum allowed fluctuation (e.g., 5% or 0.05) and \(p\) is the required probability (e.g., 90% or 0.90).
+    </div>
+  </div>
+  <p>
+    Assuming \(X\) is approximately normally distributed, we can standardize:
+    \[ \P\left( -k\mu \le X - \mu \le k\mu \right) = \P\left( -k\frac{\mu}{\sigma} \le Z \le k\frac{\mu}{\sigma} \right) \ge p \]
+    Let \(y_p\) be the value such that \(\Phi(y_p) = (1+p)/2\). Then we require:
+    \[ k\frac{\mu}{\sigma} \ge y_p \implies \frac{\sigma^2}{\mu^2} \le \left(\frac{k}{y_p}\right)^2 \]
+  </p>
+  <p>
+    If we consider the number of claims \(N\) and assume a Poisson distribution where \(\E[N] = \Var(N) = \lambda\), then \(\sigma^2/\mu^2 = 1/\lambda\). The standard for full credibility in terms of expected number of claims \(n_0\) is:
+    \[ n_0 = \left( \frac{y_p}{k} \right)^2 \]
+  </p>
+  
+  <div class="theorem">
+    <div class="box-title">Theorem 32.1: Partial Credibility (Square Root Rule)</div>
+    <div class="box-content">
+      If the actual expected number of claims \(n\) is less than the full credibility standard \(n_0\), the classical partial credibility factor is:
+      \[ Z = \sqrt{\frac{n}{n_0}} \]
+    </div>
+  </div>
+
+  <h3>2.2 Greatest Accuracy (Bühlmann) Credibility</h3>
+  <p>
+    Classical credibility is arbitrary in its choice of \(k\) and \(p\). In 1967, Hans Bühlmann revolutionized the field by defining credibility as a least-squares optimization problem, framing it as a linear Bayes estimator.
+  </p>
+  <p>
+    Suppose a risk has a true, unobservable risk parameter \(\theta\). We observe a sequence of random variables \(X_1, X_2, \dots, X_n\) representing losses over \(n\) periods, which are conditionally independent and identically distributed given \(\theta\). Let \(\bar{X} = \frac{1}{n} \sum X_i\).
+  </p>
+  <ul>
+    <li><strong>Hypothetical Mean:</strong> \(\mu(\theta) = \E[X_i \mid \theta]\)</li>
+    <li><strong>Process Variance:</strong> \(\sigma^2(\theta) = \Var(X_i \mid \theta)\)</li>
+    <li><strong>Expected Value of Hypothetical Mean (Overall Mean):</strong> \(\mu = \E[\mu(\theta)]\)</li>
+    <li><strong>Expected Process Variance (EPV):</strong> \(v = \E[\sigma^2(\theta)]\)</li>
+    <li><strong>Variance of Hypothetical Means (VHM):</strong> \(a = \Var(\mu(\theta))\)</li>
+  </ul>
+  <p>
+    By the Law of Total Variance, the total variance of a single observation is:
+    \[ \Var(X_i) = \E[\Var(X_i \mid \theta)] + \Var(\E[X_i \mid \theta]) = v + a \]
+  </p>
+  <p>
+    Bühlmann defined the credibility premium \(P_C\) as the best linear estimator of the hypothetical mean \(\mu(\theta)\) based on \(\bar{X}\):
+    \[ P_C = Z \bar{X} + (1-Z)\mu \]
+    Choosing \(Z\) to minimize the mean squared error \(\E[(P_C - \mu(\theta))^2]\) yields the Bühlmann credibility factor.
+  </p>
+  <div class="theorem">
+    <div class="box-title">Theorem 32.2: Bühlmann Credibility Factor</div>
+    <div class="box-content">
+      The optimal credibility factor under squared error loss is:
+      \[ Z = \frac{n}{n + k} \]
+      where \(k = \frac{v}{a} = \frac{\text{Expected Process Variance}}{\text{Variance of Hypothetical Means}}\).
+    </div>
+  </div>
+  <p>
+    Notice the beautiful intuition here: As \(n \to \infty\), \(Z \to 1\) (more data gives more credibility). As \(a\) increases (the risks are very different from each other), \(k\) decreases and \(Z\) increases (we rely more on individual experience). As \(v\) increases (high internal noise), \(k\) increases and \(Z\) decreases (we rely less on noisy individual experience).
+  </p>
+
+  <h3>2.3 Bühlmann-Straub Credibility</h3>
+  <p>
+    The standard Bühlmann model assumes each observation \(X_i\) has the same variance. In reality, exposures (e.g., number of vehicles, payroll) vary year by year or across classes. Hans Bühlmann and Erwin Straub generalized the model in 1970.
+  </p>
+  <p>
+    Let \(X_i\) be the loss per unit of exposure, and \(m_i\) be the exposure in period \(i\). We assume:
+    \[ \E[X_i \mid \theta] = \mu(\theta) \]
+    \[ \Var(X_i \mid \theta) = \frac{\sigma^2(\theta)}{m_i} \]
+  </p>
+  <p>
+    The exposure-weighted average is \(\bar{X} = \frac{\sum m_i X_i}{\sum m_i}\). Let \(m = \sum m_i\) be the total exposure. The Bühlmann-Straub credibility factor is:
+    \[ Z = \frac{m}{m + k} \quad \text{where} \quad k = \frac{v}{a} \]
+  </p>
+
+  <h3>2.4 Exact Bayesian Credibility</h3>
+  <p>
+    Greatest Accuracy credibility is a linear approximation of the exact Bayesian posterior mean. In some cases, the linear approximation exactly equals the Bayesian posterior mean. This happens when the prior and likelihood form an exponential family with a conjugate prior.
+  </p>
+  <p>
+    Notable exact credibility pairs:
+  </p>
+  <ul>
+    <li><strong>Poisson Likelihood / Gamma Prior:</strong> Used for claim frequencies.</li>
+    <li><strong>Normal Likelihood / Normal Prior:</strong> Used for claim severities or log-severities.</li>
+    <li><strong>Binomial Likelihood / Beta Prior:</strong> Used for survival probabilities or claim occurrences.</li>
+  </ul>
+
+  <h3>2.5 Empirical Bayes Credibility</h3>
+  <p>
+    In Bayesian credibility, we assume the prior distribution is known. In practice, we must estimate the structural parameters \((v, a, \mu)\) from the data itself. This is Empirical Bayes.
+  </p>
+  <p>
+    Suppose we have \(r\) risk classes (groups), and for group \(i\) we have \(n\) years of data \(X_{ij}\).
+    <ul>
+      <li>\(\bar{X}_i = \frac{1}{n}\sum_{j} X_{ij}\) (Class mean)</li>
+      <li>\(\bar{\bar{X}} = \frac{1}{r}\sum_{i} \bar{X}_i\) (Overall mean, estimates \(\mu\))</li>
+      <li>\(\hat{v} = \frac{1}{r(n-1)} \sum_{i=1}^r \sum_{j=1}^n (X_{ij} - \bar{X}_i)^2\) (Unbiased estimator for \(v\))</li>
+      <li>\(\hat{a} = \frac{1}{r-1} \sum_{i=1}^r (\bar{X}_i - \bar{\bar{X}})^2 - \frac{\hat{v}}{n}\) (Unbiased estimator for \(a\))</li>
+    </ul>
+    Since variance cannot be negative, if \(\hat{a} < 0\), we set \(\hat{a} = 0\), implying \(Z=0\).
+  </p>
+
+  <h3>2.6 Hierarchical Credibility</h3>
+  <p>
+    Sometimes risks are structured hierarchically: individual driver \(\to\) geographic region \(\to\) country. Hierarchical credibility applies the Bühlmann-Straub process iteratively up the chain, shrinking individual experience to the region, and the region to the national average.
+  </p>
+
+  <h2>3. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 32.1: Classical Credibility for Claim Frequency</div>
+    <div class="box-content">
+      <p>An insurer requires full credibility to be within 5% of the true expected number of claims with 90% probability. A fleet has observed 350 claims.</p>
+      <p><strong>Question:</strong> Calculate the full credibility standard \(n_0\) and the partial credibility factor \(Z\) for this fleet.</p>
+      <p><strong>Solution:</strong>
+      <br>1. Identify parameters: \(k = 0.05\), \(p = 0.90\).
+      <br>2. Find standard normal value: \(\Phi(y_p) = (1+0.90)/2 = 0.95 \implies y_p \approx 1.645\).
+      <br>3. Full credibility standard (assuming Poisson):
+      \[ n_0 = \left(\frac{1.645}{0.05}\right)^2 = (32.9)^2 = 1082.41 \]
+      <br>4. Since observed claims \(n = 350 < 1082.41\), partial credibility applies.
+      <br>5. Compute \(Z\):
+      \[ Z = \sqrt{\frac{350}{1082.41}} = \sqrt{0.3233} = 0.5686 \]
+      The fleet receives 56.86% credibility.
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 32.2: Bühlmann Credibility</div>
+    <div class="box-content">
+      <p>You have a portfolio where the hypothetical mean \(\mu(\theta)\) has mean \(\E[\mu(\theta)] = 100\) and variance \(\Var(\mu(\theta)) = 50\). The process variance has an expected value of \(\E[\sigma^2(\theta)] = 400\). A policyholder has 4 years of claims: 80, 110, 90, 120.</p>
+      <p><strong>Question:</strong> Calculate the credibility premium for year 5.</p>
+      <p><strong>Solution:</strong>
+      <br>1. Identify parameters: \(\mu = 100\), \(a = 50\), \(v = 400\), \(n = 4\).
+      <br>2. Calculate Bühlmann \(k\):
+      \[ k = \frac{v}{a} = \frac{400}{50} = 8 \]
+      <br>3. Calculate \(Z\):
+      \[ Z = \frac{n}{n+k} = \frac{4}{4+8} = \frac{4}{12} = 0.3333 \]
+      <br>4. Calculate policyholder mean \(\bar{X}\):
+      \[ \bar{X} = \frac{80 + 110 + 90 + 120}{4} = 100 \]
+      <br>5. Calculate Credibility Premium \(P_C\):
+      \[ P_C = 0.3333(100) + (1-0.3333)(100) = 100 \]
+      In this case, the policyholder's mean exactly equals the population mean, so the premium is 100.
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 32.3: Bühlmann-Straub with Unequal Exposures</div>
+    <div class="box-content">
+      <p>A worker's compensation class has the following payroll exposures (in millions USD) and loss ratios (losses / payroll) over 3 years:</p>
+      <ul>
+        <li>Year 1: Exposure = 10, Loss Ratio = 0.08</li>
+        <li>Year 2: Exposure = 15, Loss Ratio = 0.06</li>
+        <li>Year 3: Exposure = 25, Loss Ratio = 0.05</li>
+      </ul>
+      <p>The expected process variance is \(v = 0.5\) and variance of hypothetical means is \(a = 0.02\). The overall manual loss ratio is \(\mu = 0.07\).</p>
+      <p><strong>Question:</strong> Find the credibility loss ratio for Year 4.</p>
+      <p><strong>Solution:</strong>
+      <br>1. Calculate total exposure \(m\): \(m = 10 + 15 + 25 = 50\).
+      <br>2. Calculate exposure-weighted mean \(\bar{X}\):
+      \[ \bar{X} = \frac{10(0.08) + 15(0.06) + 25(0.05)}{50} = \frac{0.8 + 0.9 + 1.25}{50} = \frac{2.95}{50} = 0.059 \]
+      <br>3. Calculate \(k\):
+      \[ k = \frac{v}{a} = \frac{0.5}{0.02} = 25 \]
+      <br>4. Calculate \(Z\):
+      \[ Z = \frac{m}{m+k} = \frac{50}{50+25} = \frac{50}{75} = 0.6667 \]
+      <br>5. Calculate credibility loss ratio:
+      \[ P_C = 0.6667(0.059) + 0.3333(0.07) = 0.03933 + 0.02333 = 0.06266 \]
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 32.4: Exact Bayesian Poisson-Gamma</div>
+    <div class="box-content">
+      <p>The number of claims for a policyholder follows a Poisson distribution with parameter \(\lambda\). The prior distribution for \(\lambda\) is a Gamma distribution with parameters \(\alpha = 3\) and \(\theta = 0.5\). (Note: \(\E[\lambda] = \alpha\theta = 1.5\)). The policyholder is observed for 4 years and has a total of 7 claims.</p>
+      <p><strong>Question:</strong> Find the exact Bayesian posterior mean, and show it matches the Bühlmann credibility estimate.</p>
+      <p><strong>Solution:</strong>
+      <br><strong>Bayesian Approach:</strong>
+      <br>The prior is Gamma(3, 0.5). For Poisson-Gamma, the posterior is also Gamma with:
+      \[ \alpha_{post} = \alpha + \sum x_i = 3 + 7 = 10 \]
+      \[ \theta_{post} = \frac{1}{\frac{1}{\theta} + n} = \frac{1}{\frac{1}{0.5} + 4} = \frac{1}{2 + 4} = \frac{1}{6} \]
+      The posterior mean is \(\E[\lambda \mid X] = \alpha_{post} \theta_{post} = 10 / 6 = 1.667\).
+      <br><br><strong>Bühlmann Approach:</strong>
+      <br>Prior mean \(\mu = \E[\lambda] = 1.5\).
+      <br>For Poisson, \(\E[X \mid \lambda] = \lambda\) and \(\Var(X \mid \lambda) = \lambda\).
+      <br>\(v = \E[\Var(X \mid \lambda)] = \E[\lambda] = 1.5\).
+      <br>\(a = \Var(\E[X \mid \lambda]) = \Var(\lambda) = \alpha\theta^2 = 3(0.25) = 0.75\).
+      <br>\(k = v / a = 1.5 / 0.75 = 2\).
+      <br>\(Z = n / (n+k) = 4 / (4+2) = 4/6 = 2/3\).
+      <br>\(\bar{X} = 7 / 4 = 1.75\).
+      <br>Credibility mean = \(Z\bar{X} + (1-Z)\mu = (2/3)(1.75) + (1/3)(1.5) = 1.1667 + 0.5 = 1.667\).
+      <br>The Bayesian and Bühlmann estimates are identical.
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 32.5: Empirical Bayes Estimation</div>
+    <div class="box-content">
+      <p>We have data for 3 hospitals over 2 years (annual malpractice claims):
+      <br>Hospital 1: 4, 6
+      <br>Hospital 2: 1, 3
+      <br>Hospital 3: 7, 9
+      </p>
+      <p><strong>Question:</strong> Estimate \(\mu, v, a\) and find the credibility estimate for Hospital 2.</p>
+      <p><strong>Solution:</strong>
+      <br>\(n = 2\), \(r = 3\).
+      <br>Means: \(\bar{X}_1 = 5, \bar{X}_2 = 2, \bar{X}_3 = 8\).
+      <br>Overall mean \(\hat{\mu} = \bar{\bar{X}} = (5 + 2 + 8) / 3 = 5\).
+      <br>Estimate \(v\) (average of sample variances):
+      <br>\(s_1^2 = \frac{(4-5)^2 + (6-5)^2}{1} = 2\)
+      <br>\(s_2^2 = \frac{(1-2)^2 + (3-2)^2}{1} = 2\)
+      <br>\(s_3^2 = \frac{(7-8)^2 + (9-8)^2}{1} = 2\)
+      <br>\(\hat{v} = (2+2+2)/3 = 2\).
+      <br>Estimate \(a\):
+      <br>Sample variance of the means = \(\frac{(5-5)^2 + (2-5)^2 + (8-5)^2}{2} = \frac{0 + 9 + 9}{2} = 9\).
+      <br>\(\hat{a} = 9 - \frac{\hat{v}}{n} = 9 - \frac{2}{2} = 8\).
+      <br>Calculate \(Z\): \(k = 2 / 8 = 0.25\).
+      <br>\(Z = \frac{2}{2+0.25} = \frac{2}{2.25} = 0.8889\).
+      <br>Credibility estimate for Hosp 2 = \(0.8889(2) + 0.1111(5) = 1.7778 + 0.5555 = 2.333\).
+      </p>
+    </div>
+  </div>
+
+  <h2>4. Python Code: Bühlmann Credibility Calculator</h2>
+  <p>Below is a Python implementation to calculate empirical Bayes Bühlmann credibility for balanced data (same number of years for each group). We replicate Example 32.5.</p>
+  
+  <pre><code class="language-python">
+import numpy as np
+
+def empirical_bayes_buhlmann(data):
+    """
+    Calculates Empirical Bayes credibility estimates.
+    data: 2D numpy array where rows are risk groups and columns are observation years.
+    """
+    r, n = data.shape
+    
+    # Class means and overall mean
+    class_means = np.mean(data, axis=1)
+    overall_mean = np.mean(class_means)
+    
+    # Expected Process Variance (v)
+    # Variance within each class (ddof=1 for unbiased sample variance)
+    class_vars = np.var(data, axis=1, ddof=1)
+    v_hat = np.mean(class_vars)
+    
+    # Variance of Hypothetical Means (a)
+    var_of_means = np.var(class_means, ddof=1)
+    a_hat = var_of_means - (v_hat / n)
+    a_hat = max(a_hat, 0) # Constrain to non-negative
+    
+    # Credibility factor Z
+    k = v_hat / a_hat if a_hat > 0 else np.inf
+    Z = n / (n + k) if a_hat > 0 else 0
+    
+    # Credibility premiums
+    cred_premiums = Z * class_means + (1 - Z) * overall_mean
+    
+    return {
+        'overall_mean': overall_mean,
+        'v_hat': v_hat,
+        'a_hat': a_hat,
+        'Z': Z,
+        'credibility_premiums': cred_premiums
+    }
+
+# Example 32.5 Data
+hospitals_data = np.array([
+    [4, 6],
+    [1, 3],
+    [7, 9]
+])
+
+results = empirical_bayes_buhlmann(hospitals_data)
+print(f"Overall Mean (mu): {results['overall_mean']:.2f}")
+print(f"v_hat: {results['v_hat']:.2f}")
+print(f"a_hat: {results['a_hat']:.2f}")
+print(f"Z: {results['Z']:.4f}")
+print(f"Credibility Premiums: {np.round(results['credibility_premiums'], 3)}")
+  </code></pre>
+  <p><strong>Output:</strong></p>
+  <pre><code class="language-python">
+Overall Mean (mu): 5.00
+v_hat: 2.00
+a_hat: 8.00
+Z: 0.8889
+Credibility Premiums: [4.667 2.333 7.667]
+  </code></pre>
+
+  <h2>5. Diagrams Description</h2>
+  <p>
+    <strong>Figure 32.1: The Credibility Curve</strong><br>
+    <em>Description:</em> A line chart showing the Credibility Factor \(Z\) (y-axis, 0 to 1) against the number of observations/exposures \(n\) (x-axis). Two curves are plotted: Classical Credibility (a square root curve hitting \(Z=1\) at \(n_0\)) and Bühlmann Credibility (an asymptotic rational function \(n/(n+k)\) that approaches but strictly never reaches 1). This visually demonstrates how Bühlmann avoids the arbitrary "full credibility" threshold.
+  </p>
+  <p>
+    <strong>Figure 32.2: Within-Variance vs. Between-Variance</strong><br>
+    <em>Description:</em> A scatter plot with multiple vertical dot-plots. Each vertical slice represents a risk class. The spread of dots within a single vertical slice represents the Expected Process Variance \(v\) (internal noise). The spread of the centers of these vertical slices along the y-axis represents the Variance of Hypothetical Means \(a\) (true differences between classes). A high \(a\) relative to \(v\) visually justifies a high \(Z\).
+  </p>
+
+  <h2>6. Common Mistakes & Misconceptions</h2>
+  <div class="warning">
+    <div class="box-title">Warning: Pitfalls in Credibility</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Negative Variance:</strong> In Empirical Bayes, the estimator for \(a\) can mathematically be negative if the observed variance between group means is smaller than expected due to process variance alone. Always cap \(\hat{a}\) at 0. If \(\hat{a}=0\), then \(Z=0\) (no credibility to individual experience).</li>
+        <li><strong>Misinterpreting \(Z=1\):</strong> In Classical credibility, \(Z=1\) implies "full credibility." In Bühlmann, \(Z\) strictly equals 1 only at \(n = \infty\) or \(v = 0\). Actuaries sometimes artificially cap Bühlmann \(Z\) at 1.0 for very large \(n\) for administrative ease.</li>
+        <li><strong>Confusing the standard:</strong> In classical credibility, \(n\) can represent either number of claims or number of exposures, depending on how \(n_0\) is defined. Always verify units.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: NCCI Experience Rating Plan</div>
+    <div class="box-content">
+      <p>In the United States, Workers' Compensation premiums are heavily governed by the National Council on Compensation Insurance (NCCI). They use a variation of credibility theory known as the Experience Modification Rating (E-Mod). 
+      An employer's E-Mod is calculated using a formula structurally similar to Bühlmann-Straub, splitting losses into "Primary" (frequency-driven, high credibility) and "Excess" (severity-driven, low credibility) layers. An E-Mod of 1.0 is the manual average; an E-Mod of 0.80 means the employer receives a 20% credit on their premium due to good experience; 1.20 means a 20% debit.</p>
+    </div>
+  </div>
+
+  <h2>7. Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <div class="box-title">Key Formulas</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Classical Full Credibility (Poisson):</strong> \(n_0 = \left(\frac{y_p}{k}\right)^2\)</li>
+        <li><strong>Classical Partial Credibility:</strong> \(Z = \sqrt{\frac{n}{n_0}}\)</li>
+        <li><strong>Bühlmann Credibility:</strong> \(Z = \frac{n}{n+k}\), \(k = \frac{v}{a}\)</li>
+        <li><strong>Expected Process Variance:</strong> \(v = \E[\Var(X \mid \theta)]\)</li>
+        <li><strong>Variance of Hypothetical Means:</strong> \(a = \Var(\E[X \mid \theta])\)</li>
+        <li><strong>Credibility Premium:</strong> \(P_C = Z\bar{X} + (1-Z)\mu\)</li>
+        <li><strong>Bühlmann-Straub:</strong> \(Z = \frac{m}{m+k}\), where \(m\) is total exposure.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>8. Exercises</h2>
+  <div class="exercises">
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <p><strong>1.</strong> An actuary requires full credibility to be within 10% of the true expected value with 95% probability. Assuming a Poisson claim count distribution, what is the full credibility standard in terms of expected number of claims? (Use \(y_{0.95} = 1.96\)).</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 1:</strong>
+        <br>\(k = 0.10, y_p = 1.96\)
+        <br>\(n_0 = (1.96 / 0.10)^2 = 19.6^2 = 384.16\) claims.
+        </p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>2.</strong> Given the standard from Question 1, if a risk has 150 expected claims, what is its partial credibility \(Z\) under the classical square root rule?</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 2:</strong>
+        <br>\(Z = \sqrt{n / n_0} = \sqrt{150 / 384.16} = \sqrt{0.3904} = 0.6248\).
+        </p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>3.</strong> A portfolio has an expected process variance \(v = 2000\) and a variance of hypothetical means \(a = 500\). What is the Bühlmann credibility factor \(Z\) for a risk with 3 years of experience?</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 3:</strong>
+        <br>\(k = v / a = 2000 / 500 = 4\).
+        <br>\(Z = n / (n + k) = 3 / (3 + 4) = 3 / 7 \approx 0.4286\).
+        </p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>4.</strong> In Question 3, if the overall mean \(\mu = 10,000\) and the individual's average over 3 years is \(\bar{X} = 12,000\), what is the credibility premium?</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 4:</strong>
+        <br>\(P_C = Z\bar{X} + (1-Z)\mu = (3/7)(12000) + (4/7)(10000) = 5142.86 + 5714.29 = 10857.14\).
+        </p>
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <p><strong>5.</strong> A Gamma prior with \(\alpha = 2, \theta = 1\) is placed on a Poisson parameter \(\lambda\). We observe 5 claims over 2 years. Calculate the Bayesian posterior mean.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 5:</strong>
+        <br>Prior \(\alpha=2, \theta=1\). Data: \(\sum x = 5, n = 2\).
+        <br>Posterior \(\alpha' = \alpha + \sum x = 2 + 5 = 7\).
+        <br>Posterior \(\theta' = 1 / (1/\theta + n) = 1 / (1/1 + 2) = 1/3\).
+        <br>Posterior mean = \(\alpha'\theta' = 7 \times (1/3) = 2.333\).
+        </p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>6.</strong> Demonstrate that the Bühlmann credibility estimate for Question 5 yields the exact same answer as the Bayesian posterior mean.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 6:</strong>
+        <br>\(\mu = \E[\lambda] = 2(1) = 2\).
+        <br>\(v = \E[\Var(X \mid \lambda)] = \E[\lambda] = 2\).
+        <br>\(a = \Var(\E[X \mid \lambda]) = \Var(\lambda) = \alpha\theta^2 = 2(1^2) = 2\).
+        <br>\(k = v / a = 2 / 2 = 1\).
+        <br>\(Z = n / (n + k) = 2 / (2 + 1) = 2/3\).
+        <br>\(\bar{X} = 5 / 2 = 2.5\).
+        <br>\(P_C = Z\bar{X} + (1-Z)\mu = (2/3)(2.5) + (1/3)(2) = 5/3 + 2/3 = 7/3 = 2.333\).
+        <br>Both yield 2.333.
+        </p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>7.</strong> A risk has 2 years of data with unequal exposures. Year 1: exposure 10, claim rate 0.05. Year 2: exposure 20, claim rate 0.08. Overall mean is 0.06. \(v=1.5, a=0.1\). Calculate the Bühlmann-Straub credibility premium.</p>
+      </div>
+      
+      <div class="exercise-item">
+        <p><strong>8.</strong> In an Empirical Bayes setup, you observe 4 groups over 3 years. The class means are 10, 15, 12, 18. The average sample variance within groups is \(\hat{v} = 40\). Calculate the empirical estimate of \(a\).</p>
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <p><strong>9.</strong> Derive the Bühlmann \(Z = n/(n+k)\) factor by minimizing the Mean Squared Error \(\E[(c_1\bar{X} + c_2 - \mu(\theta))^2]\) subject to the unbiasedness constraint \(\E[c_1\bar{X} + c_2] = \mu\).</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>10.</strong> What happens to the Empirical Bayes estimate of \(a\) if the variance of the class means is strictly less than \(\hat{v}/n\)? Why is this logically sound in terms of the credibility premium?</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>11.</strong> Prove that for the Normal-Normal conjugate pair, the Bayesian posterior mean is a strict linear combination of the prior mean and the sample mean, validating Greatest Accuracy credibility.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>12.</strong> A group of 5 independent risks has hierarchical structure. Develop the two-stage credibility formula to update the individual premium toward the regional average, and the regional average toward the national average.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>9. Further Reading</h2>
+  <div class="further-reading">
+    <ul>
+      <li>Klugman, S. A., Panjer, H. H., & Willmot, G. E. (2012). <em>Loss Models: From Data to Decisions</em> (4th ed.). Wiley. (Chapters 17-19).</li>
+      <li>Bühlmann, H., & Gisler, A. (2005). <em>A Course in Credibility Theory and its Applications</em>. Springer.</li>
+      <li>Herzog, T. N. (1999). <em>Introduction to Credibility Theory</em>. ACTEX Publications.</li>
+      <li>Mowbray, A. H. (1914). "How Extensive a Payroll is Necessary to Give a Dependable Pure Premium." <em>Proceedings of the Casualty Actuarial Society</em>.</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch31_ruin_theory.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch33_ratemaking.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

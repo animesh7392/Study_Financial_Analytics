@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 14: Forwards, Futures and Swaps</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 14: Forwards, Futures and Swaps</h1>
+
+  <div class="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul>
+      <li>Understand the definitions, mechanics, and payoff structures of forward and futures contracts, and distinguish between them.</li>
+      <li>Apply the cost-of-carry model to price forwards on equities, currencies, and commodities by appealing to the no-arbitrage principle.</li>
+      <li>Design and evaluate hedging strategies using futures, calculating optimal hedge ratios and managing basis risk.</li>
+      <li>Structure, value, and analyze interest rate, currency, and credit default swaps using equivalent bond or forward rate agreement portfolios.</li>
+      <li>Interpret the nuances of commodity and equity index futures, including contango, backwardation, roll yield, and index arbitrage.</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <p>This chapter builds directly on <strong>Chapter 10 (Time Value of Money)</strong> and <strong>Chapter 11 (Fixed Income)</strong>, leveraging spot rates, discount factors, and basic arbitrage concepts. It also assumes familiarity with the risk-return concepts developed in <strong>Chapter 13 (Portfolio Theory)</strong> to understand minimum variance hedging. In this chapter, we introduce linear derivatives—instruments whose payoffs are symmetric and linear functions of the underlying asset's price. This establishes the foundation for <strong>Chapter 15 (Options)</strong>, where we explore non-linear derivatives.</p>
+  </div>
+
+  <h2>3. Intuition & Motivation</h2>
+  <p>Imagine you are the Chief Financial Officer of an Indian airline, "SkyWings". Fuel costs represent roughly 40% of your operating expenses. Today, aviation turbine fuel (ATF) is priced at INR 100,000 per kiloliter. If the price spikes to INR 130,000 in six months, your airline's profit margin will be completely wiped out. Conversely, if it drops, you would enjoy a windfall.</p>
+  
+  <p>As a CFO, your job is to run an airline, not to speculate on crude oil prices. You want certainty. If you could lock in a purchase price of, say, INR 102,000 per kiloliter for delivery in six months, you could confidently price your tickets, plan your budget, and shield your company from volatile commodity markets.</p>
+
+  <p>This simple need for risk transfer is the bedrock of the derivatives market. By entering into a <strong>forward contract</strong> or a <strong>futures contract</strong>, SkyWings can lock in its fuel costs today. The counterparty—perhaps a hedge fund or an oil producer—takes on the price risk. Swaps extend this concept, allowing corporations to lock in interest rates on floating-rate debt or exchange currency exposures for long-term projects. In all these cases, derivatives do not create or destroy wealth in aggregate; they merely redistribute risk from those who wish to avoid it to those willing to bear it for a premium.</p>
+
+  <h2>4. Formal Theory</h2>
+  
+  <h3>4.1 Forward Contracts</h3>
+  <p>A forward contract is a customized, over-the-counter (OTC) agreement between two parties to buy or sell an asset at a specified future time \(T\) for a price \(F\) agreed upon today (\(t=0\)).</p>
+  
+  <div class="definition">
+    <div class="box-title">Definition: Long and Short Positions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Long Position:</strong> The party agreeing to <em>buy</em> the underlying asset at maturity \(T\) for the forward price \(F\).</li>
+        <li><strong>Short Position:</strong> The party agreeing to <em>sell</em> the underlying asset at maturity \(T\) for the forward price \(F\).</li>
+      </ul>
+      The payoff at maturity \(T\) for a long position is \(S_T - F\), and for a short position is \(F - S_T\), where \(S_T\) is the spot price of the asset at maturity.
+    </div>
+  </div>
+
+  <h4>Pricing Forwards: The Cost-of-Carry Model</h4>
+  <p>The forward price must preclude arbitrage opportunities. Consider a non-dividend-paying stock with current spot price \(S_0\). A continuously compounded risk-free rate \(r\) applies.</p>
+  
+  <div class="theorem">
+    <div class="box-title">Theorem: Forward Price of a Non-Dividend Paying Asset</div>
+    <div class="box-content">
+      \[ F_0 = S_0 e^{rT} \]
+      <div class="proof">
+        <strong>Proof (No-Arbitrage):</strong><br>
+        Suppose \(F_0 > S_0 e^{rT}\). An arbitrageur can:
+        <ol>
+          <li>Borrow \(S_0\) at rate \(r\) for time \(T\).</li>
+          <li>Buy the asset spot for \(S_0\).</li>
+          <li>Short the forward contract at \(F_0\).</li>
+        </ol>
+        At time \(T\), the arbitrageur delivers the asset, receives \(F_0\), and repays the loan \(S_0 e^{rT}\). The riskless profit is \(F_0 - S_0 e^{rT} > 0\).<br>
+        Suppose \(F_0 < S_0 e^{rT}\). The arbitrageur reverses the trades (short spot, invest proceeds, long forward) to lock in \(S_0 e^{rT} - F_0 > 0\).<br>
+        To preclude arbitrage, \(F_0 = S_0 e^{rT}\).
+      </div>
+    </div>
+  </div>
+
+  <h4>Extensions of the Cost-of-Carry Model</h4>
+  <ul>
+    <li><strong>Assets providing a continuous dividend yield (\(q\)):</strong> \( F_0 = S_0 e^{(r-q)T} \)</li>
+    <li><strong>Assets with discrete dividends (\(D_i\) at time \(t_i\)):</strong> \( F_0 = \left(S_0 - \sum_{i=1}^n D_i e^{-r t_i}\right) e^{rT} \)</li>
+    <li><strong>Currencies (Covered Interest Rate Parity):</strong> For domestic rate \(r_d\) and foreign rate \(r_f\), the forward exchange rate \(F_0\) (domestic per foreign) is: \( F_0 = S_0 e^{(r_d - r_f)T} \)</li>
+    <li><strong>Commodities:</strong> Let \(U\) be the present value of storage costs, and \(y\) be the convenience yield (the benefit of holding the physical commodity). Then \( F_0 = (S_0 + U) e^{(r-y)T} \).</li>
+  </ul>
+
+  <h3>4.2 Futures Contracts</h3>
+  <p>While forwards are bespoke OTC contracts, futures are highly standardized contracts traded on an exchange. Key differences include:</p>
+  <ul>
+    <li><strong>Standardization:</strong> Size, maturity, and quality are standardized.</li>
+    <li><strong>Margin Requirements:</strong> Traders must post <em>initial margin</em>. If the account falls below the <em>maintenance margin</em>, a margin call occurs.</li>
+    <li><strong>Marking-to-Market:</strong> Profits and losses are settled daily (variation margin).</li>
+  </ul>
+  
+  <div class="remark">
+    <div class="box-title">Remark: Futures vs. Forward Prices (Convexity Adjustment)</div>
+    <div class="box-content">
+      If interest rates are constant, the theoretical forward and futures prices are identical. However, if interest rates are stochastic and correlated with the asset price, futures prices will differ from forward prices. A positive correlation means futures are settled (marked-to-market) favorably when interest rates are high (allowing reinvestment at higher rates), making futures theoretically more valuable than forwards. This difference is known as the convexity adjustment.
+    </div>
+  </div>
+
+  <p><strong>Convergence Property:</strong> As time approaches maturity (\(t \to T\)), the futures price \(f_t\) must converge to the spot price \(S_t\). If \(f_T > S_T\), one could buy spot, short the expiring futures, and deliver for immediate riskless profit.</p>
+
+  <h3>4.3 Hedging with Futures</h3>
+  <p>Hedgers use futures to manage price risk. However, they face <strong>basis risk</strong>, the risk that the spot price of the hedged asset and the futures price do not move perfectly together. Basis is defined as \(b_t = S_t - f_t\).</p>
+  
+  <p>The <strong>minimum variance hedge ratio</strong> (\(h^*\)) minimizes the variance of the hedged portfolio. Let \(\Delta S\) and \(\Delta f\) be the changes in spot and futures prices.</p>
+  \[ h^* = \rho \frac{\sigma_S}{\sigma_f} \]
+  <p>where \(\rho\) is the correlation between \(\Delta S\) and \(\Delta f\), and \(\sigma\) represents volatility. The optimal number of contracts is \(N^* = h^* \frac{V_A}{V_f}\), where \(V_A\) is the portfolio value and \(V_f\) is the futures contract size.</p>
+
+  <h3>4.4 Interest Rate Swaps (IRS)</h3>
+  <p>A plain vanilla IRS involves exchanging fixed interest payments for floating interest payments (typically tied to SOFR or LIBOR) on a notional principal \(N\). It can be valued in two ways:</p>
+  <ol>
+    <li><strong>As a Portfolio of Bonds:</strong> \( V_{swap} = V_{fix} - V_{flt} \) (for a receive-fixed swap).</li>
+    <li><strong>As a Portfolio of FRAs:</strong> The swap is a series of Forward Rate Agreements, where each floating payment is projected using the forward curve and discounted back.</li>
+  </ol>
+  <p>The <strong>Swap Rate</strong> (\(c\)) makes the present value of the swap zero at inception. Let \(P(0, t_i)\) be the discount factor for time \(t_i\).</p>
+  \[ c = \frac{1 - P(0, T)}{\sum_{i=1}^n \Delta t_i P(0, t_i)} \]
+
+  <h3>4.5 Currency and Credit Default Swaps</h3>
+  <p><strong>Currency Swaps</strong> involve exchanging principal and interest payments in one currency for those in another. Unlike IRS, principal is typically exchanged at the beginning and end, making it useful for transforming foreign debt.</p>
+  
+  <p><strong>Credit Default Swaps (CDS)</strong> function like insurance against the default of a reference entity. The protection buyer pays a periodic premium (CDS spread). If a credit event (e.g., bankruptcy, restructuring) occurs, the protection seller makes the buyer whole. Standardized through ISDA protocols, the spread reflects the risk-neutral probability of default.</p>
+
+  <h3>4.6 Commodity and Equity Index Futures</h3>
+  <p><strong>Contango vs Backwardation:</strong> A futures market is in <em>contango</em> when the futures curve is upward sloping (\(F > S_0\)), often driven by storage costs. It is in <em>backwardation</em> when downward sloping (\(F < S_0\)), driven by a high convenience yield.</p>
+  <p><strong>Roll Yield:</strong> The profit or loss from rolling a short-term futures contract into a longer-term one. In backwardation, roll yield is positive.</p>
+  <p><strong>Index Arbitrage:</strong> If the S&P 500 futures price deviates from the theoretical cost-of-carry price, program trading algorithms automatically buy the index constituents and sell the futures (or vice versa).</p>
+
+  <h2>5. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 14.1: Forward price of a stock paying discrete dividends</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Reliance Industries spot price is INR 2,500. The continuously compounded risk-free rate is 5% p.a. A dividend of INR 50 is expected in 3 months. Calculate the 6-month forward price.</p>
+      <p><strong>Solution:</strong><br>
+      Spot price \(S_0 = 2500\)<br>
+      Risk-free rate \(r = 0.05\)<br>
+      Time to dividend \(t_1 = 3/12 = 0.25\) years<br>
+      Maturity \(T = 6/12 = 0.5\) years<br>
+      PV of Dividend = \(50 \times e^{-0.05 \times 0.25} = 50 \times 0.98757 = 49.378\) INR.<br>
+      Adjusted Spot = \(S_0 - PV(D) = 2500 - 49.378 = 2450.622\) INR.<br>
+      Forward Price \(F_0 = 2450.622 \times e^{0.05 \times 0.5} = 2450.622 \times 1.02531 = 2512.65\) INR.
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 14.2: Minimum Variance Hedge Ratio</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> An airline wants to hedge 1,000,000 gallons of jet fuel. They use heating oil futures (contract size 42,000 gallons). The standard deviation of jet fuel price changes is 0.032, for heating oil futures is 0.040, and their correlation is 0.85.</p>
+      <p><strong>Solution:</strong><br>
+      Hedge Ratio \(h^* = 0.85 \times \frac{0.032}{0.040} = 0.68\)<br>
+      Optimal number of contracts: \(N^* = h^* \frac{1,000,000}{42,000} = 0.68 \times 23.81 \approx 16.19\)<br>
+      The airline should short 16 heating oil futures contracts (rounding to nearest whole contract).
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 14.3: Value an existing Interest Rate Swap</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A bank holds a receive-fixed, pay-floating swap with USD 100M notional and 2 years remaining. The fixed rate is 3% (annual compounding). The current term structure implies discount factors: 1-yr \(P_1 = 0.96\), 2-yr \(P_2 = 0.91\). Value the swap.</p>
+      <p><strong>Solution:</strong><br>
+      Value of fixed leg = \(100,000,000 \times [0.03 \times 0.96 + (1 + 0.03) \times 0.91] = 100M \times [0.0288 + 0.9373] = 96.61\)M USD.<br>
+      Assuming the swap has just reset, the floating leg is worth par: \(100\)M USD.<br>
+      Value of Swap (receive-fixed) = Fixed Leg - Floating Leg = \(96.61 - 100 = -3.39\)M USD.<br>
+      The bank has a mark-to-market loss of USD 3.39 million.
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 14.4: Currency Forward Pricing (Covered Interest Parity)</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Spot USD/INR is 83.00. US 1-year risk-free rate is 4%, Indian 1-year risk-free rate is 7% (continuously compounded). Find the 1-year forward exchange rate.</p>
+      <p><strong>Solution:</strong><br>
+      Domestic (INR) rate \(r_d = 0.07\). Foreign (USD) rate \(r_f = 0.04\).<br>
+      \(F_0 = S_0 e^{(r_d - r_f)T} = 83.00 \times e^{(0.07 - 0.04) \times 1} = 83.00 \times e^{0.03} = 83.00 \times 1.03045 = 85.53\) INR/USD.
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 14.5: Commodity Futures (Cost of Carry)</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Spot gold is USD 2,000/oz. 1-year interest rate is 5%. Storage cost is USD 10/oz per year payable in advance. Convenience yield is zero. Find the 1-year futures price.</p>
+      <p><strong>Solution:</strong><br>
+      \(S_0 = 2000\), \(U = 10\), \(r = 0.05\).<br>
+      \(F_0 = (S_0 + U) e^{rT} = (2000 + 10) e^{0.05} = 2010 \times 1.05127 = 2113.05\) USD/oz.
+      </p>
+    </div>
+  </div>
+
+  <h2>6. Python Code</h2>
+  <p>The following Python snippet demonstrates how to price an existing interest rate swap using discount factors, solving Example 14.3 computationally.</p>
+  
+  <pre><code class="language-python">
+import numpy as np
+
+def value_irs(notional, fixed_rate, discount_factors, is_receive_fixed=True):
+    """
+    Values an Interest Rate Swap (annual compounding assumption).
+    discount_factors: list of discount factors for years 1 to N
+    """
+    fixed_leg_pv = 0
+    for i, df in enumerate(discount_factors):
+        is_last_period = (i == len(discount_factors) - 1)
+        cash_flow = fixed_rate * notional
+        if is_last_period:
+            cash_flow += notional # Return of principal equivalent
+        fixed_leg_pv += cash_flow * df
+        
+    # Floating leg is worth notional at a reset date
+    floating_leg_pv = notional
+    
+    if is_receive_fixed:
+        return fixed_leg_pv - floating_leg_pv
+    else:
+        return floating_leg_pv - fixed_leg_pv
+
+# Example 14.3 Data
+notional = 100_000_000
+fixed_rate = 0.03
+dfs = [0.96, 0.91]
+
+swap_value = value_irs(notional, fixed_rate, dfs, is_receive_fixed=True)
+print(f"Swap Value: USD {swap_value:,.2f}")
+# Output: Swap Value: USD -3,390,000.00
+  </code></pre>
+
+  <h2>7. Diagrams Description</h2>
+  <ul>
+    <li><strong>Figure 14.1: Forward Payoff Diagrams.</strong> A line chart showing asset price at maturity on the x-axis and profit/loss on the y-axis. The long forward is an upward sloping straight line crossing the x-axis at \(F\). The short forward is a downward sloping straight line crossing at \(F\).</li>
+    <li><strong>Figure 14.2: Swap as a series of FRAs.</strong> A timeline showing periodic fixed outflows arrows and variable floating inflow arrows over a 5-year span.</li>
+    <li><strong>Figure 14.3: Contango vs Backwardation.</strong> Two curves plotting Futures Price against Time to Maturity. The Contango curve slopes upwards to the right. The Backwardation curve slopes downwards to the right. Both converge to the spot price at maturity \(T=0\).</li>
+  </ul>
+
+  <div class="warning">
+    <h2>8. Common Mistakes & Misconceptions</h2>
+    <ul>
+      <li><strong>Confusing Forward Price with Expected Spot Price:</strong> The forward price \(F_0\) is <em>not</em> the market's expectation of the future spot price \(E[S_T]\). It is strictly a function of the current spot price and the cost of carry dictated by no-arbitrage bounds.</li>
+      <li><strong>Ignoring Variation Margin:</strong> Assuming futures and forwards are identical in practice. Daily MTM in futures requires active cash flow management, failing which a trader faces liquidation due to margin calls (as famously occurred with Metallgesellschaft).</li>
+      <li><strong>Assuming Swap Value is Notional:</strong> At inception, the PV of a swap is zero. Over time, its MTM value changes based on interest rate shifts, but it represents the present value of the <em>net difference</em> in cash flows, not the total notional.</li>
+    </ul>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">9. Industry Application: Corporate Liability Management</div>
+    <div class="box-content">
+      At a major global bank like J.P. Morgan, the corporate derivatives desk frequently structures cross-currency interest rate swaps for multinational clients. Suppose an Indian auto-manufacturer issues USD-denominated bonds to benefit from lower base rates and deeper liquidity in US markets. However, its revenues are in INR. To eliminate the severe FX risk and switch to fixed INR payments, the desk executes a swap: the bank receives fixed INR from the corporate and pays floating USD, effectively transforming the corporate's liability from USD to INR synthetically. This requires robust ISDA documentation and management of Counterparty Credit Risk (CVA).
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>Forward Price (no dividends):</strong> \( F_0 = S_0 e^{rT} \)</li>
+      <li><strong>Forward Price (continuous dividend \(q\)):</strong> \( F_0 = S_0 e^{(r-q)T} \)</li>
+      <li><strong>Currency Forward (CIP):</strong> \( F_0 = S_0 e^{(r_d - r_f)T} \)</li>
+      <li><strong>Commodity Forward:</strong> \( F_0 = (S_0 + U) e^{(r-y)T} \)</li>
+      <li><strong>Minimum Variance Hedge Ratio:</strong> \( h^* = \rho \frac{\sigma_S}{\sigma_f} \)</li>
+      <li><strong>Swap Rate:</strong> \( c = \frac{1 - P(0, T)}{\sum_{i=1}^n \Delta t_i P(0, t_i)} \)</li>
+    </ul>
+  </div>
+
+  <div class="exercises">
+    <h2>11. Exercises</h2>
+    
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> The spot price of an asset is 100. The risk-free rate is 4%. What is the 9-month forward price?
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> Explain the difference between initial margin and maintenance margin.
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> A stock index is currently at 4000. Dividend yield is 2%, risk-free rate is 5%. Find the 1-year futures price.
+      </div>
+      <div class="exercise-item">
+        <strong>4.</strong> Define a swap spread.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>5.</strong> Calculate the optimal number of contracts to hedge a $50M portfolio. The portfolio beta to the S&P 500 is 1.2. The S&P futures contract multiplier is 250, and the index is at 4500.
+      </div>
+      <div class="exercise-item">
+        <strong>6.</strong> A 3-year interest rate swap has annual payments. Discount factors are 0.95, 0.90, and 0.85. Calculate the par swap rate.
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> Explain how backwardation impacts the roll yield for a long-only commodity fund.
+      </div>
+      <div class="exercise-item">
+        <strong>8.</strong> Suppose USD/GBP is 1.25. US rate is 5%, UK rate is 4%. Does the GBP trade at a forward premium or discount? Prove it.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>9.</strong> Demonstrate the arbitrage opportunity if a 1-year gold forward is priced at $1950, when spot is $1900, \(r=3\%\), and storage is $20 (paid upfront).
+      </div>
+      <div class="exercise-item">
+        <strong>10.</strong> Explain the convexity adjustment. Why are Eurodollar futures rates higher than equivalent Forward Rate Agreement (FRA) rates?
+      </div>
+      <div class="exercise-item">
+        <strong>11.</strong> Value an off-market currency swap midway through its life given a shift in both domestic and foreign yield curves and a spot FX shock.
+      </div>
+      <div class="exercise-item">
+        <strong>12.</strong> What is the ISDA Big Bang protocol, and how did it standardize the CDS market?
+      </div>
+    </div>
+
+    <h3>Selected Solutions</h3>
+    <div class="solution-item">
+      <strong>Solution to 1:</strong> \(F_0 = 100 \times e^{0.04 \times 0.75} = 100 \times e^{0.03} = 103.045\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 3:</strong> \(F_0 = 4000 \times e^{(0.05 - 0.02) \times 1} = 4000 \times e^{0.03} = 4121.82\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 5:</strong> Index Value = \(4500 \times 250 = \$1,125,000\). Optimal Contracts = \( \beta \times (V_P / V_F) = 1.2 \times (50,000,000 / 1,125,000) = 53.33 \approx 53\) contracts.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 6:</strong> \(c = \frac{1 - 0.85}{0.95 + 0.90 + 0.85} = \frac{0.15}{2.70} = 5.55\%\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 8:</strong> \(F_0 = 1.25 \times e^{(0.05 - 0.04) \times 1} = 1.25 \times e^{0.01} = 1.262\). Since \(F_0 > S_0\), the GBP is at a forward premium.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 9:</strong> Theoretical \(F_0 = (1900 + 20) \times e^{0.03} = 1920 \times 1.03045 = 1978.47\). Actual forward is 1950. The forward is underpriced. Arbitrageur should: buy the forward at 1950. Short spot gold at 1900. Invest the 1900 at 3%. Pay 20 for storage (leaving 1880 invested). At T=1, receive \(1880 \times 1.03045 = 1937.25\). No, wait—if shorting spot, you don't pay storage. You borrow gold, sell it, invest proceeds. You receive convenience/storage benefits? Actually, the arbitrageur borrows gold, sells it at 1900, invests at 3%, and longs the forward. At maturity, they use cash to settle forward, return gold.
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <h2>12. Further Reading</h2>
+    <ul>
+      <li>Hull, J. C. (2021). <em>Options, Futures, and Other Derivatives</em> (11th ed.). Pearson. (Chapters 2-7).</li>
+      <li>Tuckman, B., & Serrat, A. (2011). <em>Fixed Income Securities: Tools for Today's Markets</em>. Wiley.</li>
+      <li>McDonald, R. L. (2013). <em>Derivatives Markets</em> (3rd ed.). Pearson.</li>
+      <li>Duffie, D. (1989). <em>Futures Markets</em>. Prentice Hall.</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch13_portfolio_theory.html">← Previous Chapter (13)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch15_options.html">Next Chapter (15) →</a>
+  </nav>
+</body>
+</html>

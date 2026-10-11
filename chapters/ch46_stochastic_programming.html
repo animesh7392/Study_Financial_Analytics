@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 46: Stochastic Programming & Robust Optimization Under Uncertainty</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          Z: ['\\mathbb{Z}'],
+          Q: ['\\mathbb{Q}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  <h1>Chapter 46: Stochastic Programming & Robust Optimization Under Uncertainty</h1>
+  
+  <div class="learning-objectives">
+    <div class="box-title">1. Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Formulate and solve two-stage and multi-stage stochastic programming models for dividend and hedging decisions.</li>
+        <li>Understand and construct scenario trees for uncertain parameters like interest rates.</li>
+        <li>Apply Robust Optimization (RO) and Distributionally Robust Optimization (DRO) techniques to account for worst-case and ambiguous scenarios.</li>
+        <li>Implement chance constraints to enforce regulatory solvency requirements (e.g., Solvency II) with high probability.</li>
+        <li>Integrate Utility Theory to align optimization models with corporate risk appetite.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">2. Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p><strong>Prerequisites:</strong> Linear Programming (Chapter 15), Monte Carlo Simulation (Chapter 22), Solvency II Capital Requirements (Chapter 34), Goal Programming (Chapter 45).</p>
+      <p><strong>Roadmap:</strong> We begin by introducing uncertainty directly into our optimization framework using two-stage stochastic programming, moving away from deterministic assumptions. We then explore robust optimization paradigms to handle situations where distributions are unknown or unreliable. Next, we look at chance constraints and utility theory, grounding the mathematics in practical UK life insurance use cases. Finally, we provide computational tools in Python and Excel for deploying these models.</p>
+    </div>
+  </div>
+
+  <div class="intuition">
+    <div class="box-title">3. Intuition & Motivation</div>
+    <div class="box-content">
+      <p>Imagine you are the Chief Actuary at Scottish Widows, determining the annual dividend to be paid to the parent company, Lloyds Banking Group. If you assume interest rates will remain stable (a deterministic approach), you might authorize a £500m dividend. However, if rates suddenly drop, the value of your long-term liabilities spikes, and you might breach your Solvency Capital Requirement (SCR) in the subsequent year.</p>
+      <p>Stochastic programming allows us to make a "here-and-now" decision (the £500m dividend) while explicitly accounting for future "wait-and-see" recourse actions (e.g., dynamically adjusting the hedging portfolio or injecting capital) under hundreds of possible interest rate scenarios. Robust optimization goes a step further: it asks, "What is the optimal dividend if we want to ensure solvency against the <em>worst possible</em> interest rate movement within a defined uncertainty set?" These frameworks are non-negotiable for modern life insurers navigating volatile macroeconomic environments.</p>
+    </div>
+  </div>
+
+  <div class="theory">
+    <div class="box-title">4. Formal Theory</div>
+    <div class="box-content">
+      <h3>4.1 Two-Stage Stochastic Programming</h3>
+      <p>In two-stage stochastic programming, decision variables are partitioned into two sets: first-stage variables \(x\) (decided before uncertainty is realized) and second-stage recourse variables \(y\) (decided after observing the random vector \(\xi\)).</p>
+      <div class="definition">
+        <div class="box-title">Two-Stage Stochastic Program</div>
+        <div class="box-content">
+          \[ \min_{x} \left\{ c^T x + \E[Q(x, \xi)] \right\} \]
+          subject to:
+          \[ Ax = b, \quad x \ge 0 \]
+          where \(Q(x, \xi)\) is the optimal value of the second-stage problem:
+          \[ Q(x, \xi) = \min_{y} \left\{ q(\xi)^T y \right\} \]
+          subject to:
+          \[ W(\xi) y = h(\xi) - T(\xi) x, \quad y \ge 0 \]
+        </div>
+      </div>
+      <p>Here, \(W\) is the recourse matrix, and \(T\) is the technology matrix that couples the two stages.</p>
+
+      <h3>4.2 Scenario Trees and Deterministic Equivalent</h3>
+      <p>If \(\xi\) takes discrete values \(\xi_s\) with probabilities \(p_s\) (\(s = 1, \dots, S\)), we can write the <em>deterministic equivalent</em>:</p>
+      \[ \min_{x, y_1, \dots, y_S} \left\{ c^T x + \sum_{s=1}^S p_s q_s^T y_s \right\} \]
+      \[ \text{s.t.} \quad Ax = b \]
+      \[ T_s x + W_s y_s = h_s, \quad \forall s=1,\dots,S \]
+      \[ x \ge 0, \quad y_s \ge 0 \quad \forall s \]
+
+      <h3>4.3 Robust Optimization (RO)</h3>
+      <p>When the probability distribution is unknown, we optimize for the worst-case realization within a given uncertainty set \(\mathcal{U}\).</p>
+      <div class="definition">
+        <div class="box-title">Robust Counterpart</div>
+        <div class="box-content">
+          \[ \min_{x} c^T x \]
+          subject to:
+          \[ A x \le b \quad \forall (A,b) \in \mathcal{U} \]
+        </div>
+      </div>
+      <p>For example, in a box uncertainty set \( \mathcal{U} = \{a \mid \bar{a} - \hat{a} \le a \le \bar{a} + \hat{a}\} \), the robust counterpart remains a linear program. If \(\mathcal{U}\) is an ellipsoid, the problem becomes a Second-Order Cone Program (SOCP).</p>
+
+      <h3>4.4 Distributionally Robust Optimization (DRO)</h3>
+      <p>DRO bridges stochastic programming and RO by defining an ambiguity set \(\mathcal{P}\) of possible probability distributions. The objective is to minimize the expected cost under the worst-case distribution in \(\mathcal{P}\):</p>
+      \[ \min_{x} \max_{P \in \mathcal{P}} \E_P [f(x, \xi)] \]
+
+      <h3>4.5 Chance-Constrained Programming</h3>
+      <p>Chance constraints ensure a constraint holds with a specified probability \(1 - \alpha\):</p>
+      \[ \P(A(\xi) x \le b(\xi)) \ge 1 - \alpha \]
+      <p>For instance, an insurer might require: \(\P(\text{Solvency Ratio} \ge 1.30) \ge 0.995\).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">5. Worked Examples</div>
+    <div class="box-content">
+      <h3>Example 1: Two-Stage Dividend Optimization</h3>
+      <p>A UK life insurer has £1,000m in Free Surplus. They want to pay a dividend \(D\) (Stage 1). Next year, the remaining capital will grow/shrink depending on interest rates (Stage 2). If the Solvency Ratio drops below 140%, they incur a severe recourse penalty (cost of raising emergency capital) of £3 per £1 shortfall.</p>
+      <ul>
+        <li>Scenario 1 (Rates Up, \(p=0.25\)): Capital grows by 10%. Threshold is £800m.</li>
+        <li>Scenario 2 (Rates Flat, \(p=0.50\)): Capital grows by 2%. Threshold is £850m.</li>
+        <li>Scenario 3 (Rates Down, \(p=0.25\)): Capital drops by 5%. Threshold is £900m.</li>
+      </ul>
+      <p>Stage 1 decision: \(D \ge 0\). Remaining capital \(C_0 = 1000 - D\).</p>
+      <p>Stage 2 Capital: \(C_1 = 1.1 C_0\), \(C_2 = 1.02 C_0\), \(C_3 = 0.95 C_0\).</p>
+      <p>Shortfalls: \(y_s \ge \text{Threshold}_s - C_s\), \(y_s \ge 0\).</p>
+      <p>Objective: Maximize \(D - \sum p_s (3 y_s)\).</p>
+      <p>If \(D = 100\), \(C_0 = 900\).
+      <br>\(C_1 = 990 > 800 \implies y_1 = 0\)
+      <br>\(C_2 = 918 > 850 \implies y_2 = 0\)
+      <br>\(C_3 = 855 < 900 \implies y_3 = 45\)
+      <br>Expected penalty = \(0.25 \times 3 \times 45 = 33.75\). Net value = \(100 - 33.75 = 66.25\).</p>
+
+      <h3>Example 2: Robust Optimization with Box Uncertainty</h3>
+      <p>Suppose the interest rate return \(R\) is bounded in \([-0.08, 0.12]\) (i.e., nominal 0.02, deviation 0.10). We must guarantee terminal capital \(C_T = (1000 - D)(1+R) \ge 850\) under ALL realizations in the box. The worst-case is \(R = -0.08\).</p>
+      <p>Constraint: \((1000 - D)(1 - 0.08) \ge 850 \implies (1000 - D)(0.92) \ge 850 \implies 1000 - D \ge 923.91 \implies D \le 76.09\).</p>
+      <p>The maximum robust dividend is £76.09m.</p>
+
+      <h3>Example 3: Utility-Based Optimization</h3>
+      <p>Using a CRRA utility function \(U(D) = \frac{D^{1-\gamma}}{1-\gamma}\) with \(\gamma=2\). The board exhibits high risk aversion. Instead of raw expectation, we maximize the expected utility of the post-dividend capital state, shifting the optimal policy heavily towards capital retention.</p>
+    </div>
+  </div>
+
+  <div class="python">
+    <div class="box-title">6. Python Code Implementation</div>
+    <div class="box-content">
+      <p>We use PuLP to solve the deterministic equivalent of the two-stage stochastic program from Example 1.</p>
+<pre><code class="language-python">
+import pulp
+
+# Problem setup
+prob = pulp.LpProblem("TwoStageDividend", pulp.LpMaximize)
+
+# First stage variable
+D = pulp.LpVariable('Dividend', lowBound=0)
+
+# Second stage variables (shortfalls)
+y1 = pulp.LpVariable('Shortfall_Up', lowBound=0)
+y2 = pulp.LpVariable('Shortfall_Flat', lowBound=0)
+y3 = pulp.LpVariable('Shortfall_Down', lowBound=0)
+
+# Constants
+C0 = 1000
+Penalty = 3
+
+# Objective Function: Maximize D - Expected Penalty
+prob += D - (0.25 * Penalty * y1 + 0.50 * Penalty * y2 + 0.25 * Penalty * y3)
+
+# Constraints: y_s >= Threshold - C_s
+prob += y1 >= 800 - 1.10 * (C0 - D)
+prob += y2 >= 850 - 1.02 * (C0 - D)
+prob += y3 >= 900 - 0.95 * (C0 - D)
+
+# Solve
+prob.solve()
+
+print(f"Status: {pulp.LpStatus[prob.status]}")
+print(f"Optimal Dividend: £{D.varValue:.2f}m")
+print(f"Shortfall Up: £{y1.varValue:.2f}m")
+print(f"Shortfall Flat: £{y2.varValue:.2f}m")
+print(f"Shortfall Down: £{y3.varValue:.2f}m")
+</code></pre>
+    </div>
+  </div>
+
+  <div class="excel">
+    <div class="box-title">7. Excel Implementation</div>
+    <div class="box-content">
+      <p>To set up the deterministic equivalent in Excel (from Example 1):</p>
+      <ol>
+        <li><strong>Inputs:</strong> In A1:A3 type "Initial Capital", "Penalty Rate", "Max Dividend". In B1:B3 enter `1000`, `3`, `=B1`.</li>
+        <li><strong>Scenarios:</strong> In A6:D6, enter "Scenario", "Prob", "Return", "Threshold".
+          <br>Row 7 (Up): "Up", `0.25`, `1.10`, `800`
+          <br>Row 8 (Flat): "Flat", `0.50`, `1.02`, `850`
+          <br>Row 9 (Down): "Down", `0.25`, `0.95`, `900`
+        </li>
+        <li><strong>Decision Variables:</strong>
+          <br>B12: `0` (This is \(D\), shade yellow)
+          <br>E7:E9: `0` (These are \(y_1, y_2, y_3\), shade yellow)
+        </li>
+        <li><strong>Calculations:</strong>
+          <br>C12 (Remaining Capital): `=B1 - B12`
+          <br>In F7 (Ending Capital for Scen 1): `=$C$12 * C7`. Copy to F8:F9.
+          <br>In G7 (Constraint LHS): `=F7 + E7`. Copy down.
+          <br>In H7 (Constraint RHS): `=D7`. Copy down.
+        </li>
+        <li><strong>Objective:</strong>
+          <br>In B14 (Expected Penalty): `=SUMPRODUCT(B7:B9, E7:E9) * $B$2`
+          <br>In B15 (Net Value): `=B12 - B14` (Shade green).
+        </li>
+        <li><strong>Solver Setup:</strong>
+          <br>Set Objective: `B15` to Max.
+          <br>Changing Cells: `B12, E7:E9`.
+          <br>Constraints: `G7:G9 >= H7:H9`, and check "Make Unconstrained Variables Non-Negative".
+          <br>Solving Method: Simplex LP. Click Solve.
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Anticipativity:</strong> A common mistake in multi-stage programming is allowing the model to "see the future". First-stage decisions must be identical across all scenarios (non-anticipativity constraints).</li>
+        <li><strong>Scenario Generation Bias:</strong> Using only historical scenarios can underestimate tail risks. Insurers must use risk-neutral economic scenario generators (ESGs) blended with real-world stress tests.</li>
+        <li><strong>Ignoring Recourse Feasibility:</strong> Assuming you can infinitely borrow emergency capital at a linear penalty rate. In reality, credit markets freeze during systemic shocks (e.g., 2008).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">9. Industry Application Box: Scottish Widows & PRA Stress Testing</div>
+    <div class="box-content">
+      <p>In the UK, the Prudential Regulation Authority (PRA) requires insurers like Scottish Widows to perform stress testing and scenario analysis. Stochastic programming perfectly maps to this regulatory requirement.</p>
+      <p>When Scottish Widows considers an upstream dividend to Lloyds Banking Group, they construct an Economic Scenario Generator (ESG) with 1,000+ Monte Carlo paths for interest rates, equity returns, and inflation. Using a chance-constrained DRO model, they ensure that the probability of the Solvency II ratio falling below 135% is less than 0.5%, even under ambiguous inflation distributions. The recourse variables explicitly model management actions defined in their Recovery and Resolution Plan (e.g., stopping bonuses on With-Profits funds, engaging reinsurance treaties).</p>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="box-title">10. Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <p><strong>Two-Stage Stochastic Program:</strong> \(\min_x c^T x + \E[\min_y q^Ty \mid Wy = h - Tx]\)</p>
+      <p><strong>Deterministic Equivalent:</strong> A massive linear/convex program combining all scenarios weighted by their probabilities.</p>
+      <p><strong>Robust Counterpart:</strong> \(\min_x c^T x \text{ s.t. } Ax \le b \;\forall(A,b)\in\mathcal{U}\)</p>
+      <p><strong>Chance Constraint:</strong> \(\P(A(\xi)x \le b(\xi)) \ge 1-\alpha\)</p>
+      <p>Stochastic programming maximizes average performance, while Robust optimization guarantees feasibility under worst-case bounded uncertainty.</p>
+    </div>
+  </div>
+
+  <div class="exercises">
+    <div class="box-title">11. Exercises</div>
+    <div class="box-content">
+      <p><strong>Basic:</strong></p>
+      <ol>
+        <li>Formulate a two-stage stochastic program where the first stage is selecting an asset allocation and the second stage is portfolio rebalancing costs.</li>
+        <li>In Example 1, recalculate the expected penalty if the probability of the 'Down' scenario increases to 40% and 'Up' decreases to 10%.</li>
+        <li>Explain the difference between a box uncertainty set and an ellipsoidal uncertainty set in the context of bond yields.</li>
+      </ol>
+      <p><strong>Intermediate:</strong></p>
+      <ol start="4">
+        <li>Set up the Excel model for Example 1 and find the optimal dividend. What happens if the Penalty increases from 3 to 10?</li>
+        <li>Modify the Python code to include a chance constraint: the shortfall cannot exceed 0 in more than 20% of scenarios. Note: this requires binary variables (MIP).</li>
+        <li>Derive the robust counterpart for the linear constraint \(a^T x \le b\) where \(a\) resides in a box uncertainty set \(\mathcal{U} = \{a \mid \bar{a}_i - \hat{a}_i \le a_i \le \bar{a}_i + \hat{a}_i \}\).</li>
+      </ol>
+      <p><strong>Advanced:</strong></p>
+      <ol start="7">
+        <li>Write out the mathematical formulation for a 3-stage stochastic program for dividend optimization, explicitly writing the non-anticipativity constraints.</li>
+        <li>Implement a Distributionally Robust Optimization (DRO) model using an ambiguity set based on the Wasserstein metric for a simplified 1D continuous interest rate distribution.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">12. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Birge, J. R., & Louveaux, F. (2011). <em>Introduction to Stochastic Programming</em>. Springer.</li>
+        <li>Ben-Tal, A., El Ghaoui, L., & Nemirovski, A. (2009). <em>Robust Optimization</em>. Princeton University Press.</li>
+        <li>Kuhn, D., Esfahani, P. M., Nguyen, V. A., & Shafieezadeh-Abadeh, S. (2019). "Wasserstein Distributionally Robust Optimization: Theory and Applications in Machine Learning".</li>
+        <li>Prudential Regulation Authority (PRA). (2023). <em>Life Insurance Stress Testing Frameworks</em>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch45_goal_programming.html">← Previous Chapter</a> |
+    <a href="ch47_systems_thinking.html">Next Chapter →</a>
+  </nav>
+</body>
+</html>

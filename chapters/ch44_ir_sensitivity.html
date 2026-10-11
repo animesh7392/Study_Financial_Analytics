@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 44: Interest Rate Sensitivity Analysis for Insurance</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          Z: ['\\mathbb{Z}'],
+          Q: ['\\mathbb{Q}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  <h1>Chapter 44: Interest Rate Sensitivity Analysis for Insurance</h1>
+
+  <!-- 1. Learning Objectives -->
+  <div class="learning-objectives">
+    <div class="box-title">1. Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand and calculate various measures of interest rate sensitivity: Macaulay, Modified, Effective, and Key-Rate Duration.</li>
+        <li>Incorporate convexity and higher-order terms to approximate price changes (Taylor series expansion).</li>
+        <li>Build a comprehensive Interest Rate Sensitivity Dashboard in Excel to assess the impact of shifts on Asset values, Liability values, Own Funds, Solvency Ratio, IFRS Earnings, and Dividend Capacity.</li>
+        <li>Design and implement realistic scenario analyses, including parallel shifts, twists, steepening/flattening, and historic replays (e.g., the 2022 UK LDI crisis).</li>
+        <li>Execute stress testing frameworks such as PRA (ACS) stress tests, ORSA, and reverse stress testing.</li>
+        <li>Deconstruct Solvency II (SCR) changes and estimate "Greeks" (Rho, Vega, Theta) for complex fixed-income portfolios.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2. Prerequisites & Roadmap -->
+  <div class="prerequisites">
+    <div class="box-title">2. Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>Before proceeding, you should be familiar with basic fixed-income valuation from Chapter 22, Solvency II fundamentals from Chapter 35, and dividend policy from <a href="ch43_dividend_policy.html">Chapter 43</a>.</p>
+      <p><strong>Roadmap:</strong> We start by reviewing the mathematical foundations of duration and convexity, then move quickly to multidimensional risk via Key-Rate Duration. From there, we scale up to balance sheet sensitivity analysis. The core of this chapter will guide you through constructing these models in Python and Excel, followed by scenario testing frameworks used by top UK insurers like Scottish Widows and Lloyds Banking Group.</p>
+    </div>
+  </div>
+
+  <!-- 3. Intuition & Motivation -->
+  <div class="intuition">
+    <div class="box-title">3. Intuition & Motivation</div>
+    <div class="box-content">
+      <p>Imagine you are a balance sheet manager at Scottish Widows. You are staring at a £50 billion annuity portfolio. The liabilities are essentially a massive stream of fixed future cash outflows, stretching out over 50 years. To back these liabilities, you hold a mix of UK Gilts, corporate bonds, and interest rate swaps.</p>
+      <p>In September 2022, following the UK "mini-budget", Gilt yields spiked unprecedentedly. A 100-basis-point (1%) move in long-term yields used to take months; it happened in days. When yields rise, the present value of your liabilities plummets—which sounds great! However, the value of your fixed-rate assets plummets too. If your assets fall in value faster than your liabilities, your Own Funds (capital) shrinks, your Solvency II ratio drops, and suddenly, the PRA is on the phone asking if you need to suspend dividends.</p>
+      <p>Interest rate sensitivity analysis is the art and science of ensuring that when rates move—up, down, parallel, or twisted—the net impact on your capital remains manageable. We don't just ask "what if rates move 50 bps?" We ask, "what if the 10-year rate goes up by 100 bps, but the 30-year rate goes down by 50 bps?" Key Rate Duration (KRD) and sophisticated sensitivity matrices are our radar in the turbulent weather of financial markets.</p>
+    </div>
+  </div>
+
+  <!-- 4. Formal Theory -->
+  <div class="theory">
+    <div class="box-title">4. Formal Theory</div>
+    <div class="box-content">
+      <h3>4.1 Duration Measures</h3>
+      <div class="definition">
+        <div class="box-title">Macaulay and Modified Duration</div>
+        <div class="box-content">
+          <p>The <strong>Macaulay Duration</strong> (\(D_{Mac}\)) is the weighted average time to receive cash flows, weighted by their present value:</p>
+          \[ D_{Mac} = \frac{1}{P} \sum_{t=1}^{T} t \times \frac{CF_t}{(1+y)^t} \]
+          <p>Where \(P\) is the bond price, \(CF_t\) is the cash flow at time \(t\), and \(y\) is the yield to maturity.</p>
+          <p>The <strong>Modified Duration</strong> (\(D_{Mod}\)) measures the percentage price sensitivity to a change in yield:</p>
+          \[ D_{Mod} = \frac{D_{Mac}}{1 + y/m} \]
+          <p>Where \(m\) is the compounding frequency.</p>
+        </div>
+      </div>
+      
+      <p>For bonds with embedded options (e.g., callable bonds), yield-to-maturity is not well-defined for shocks. We use <strong>Effective Duration</strong> (\(D_{Eff}\)):</p>
+      \[ D_{Eff} = \frac{P_{-\Delta y} - P_{+\Delta y}}{2 \times P_0 \times \Delta y} \]
+      
+      <h3>4.2 Convexity & Taylor Series Expansion</h3>
+      <div class="theorem">
+        <div class="box-title">Duration-Convexity Approximation</div>
+        <div class="box-content">
+          <p>Since the price-yield relationship is non-linear, Duration is only a linear approximation. To improve accuracy for larger rate shocks, we use the second derivative, <strong>Convexity</strong> (\(C\)):</p>
+          \[ C = \frac{1}{P} \frac{\partial^2 P}{\partial y^2} = \frac{1}{P} \sum_{t=1}^{T} \frac{t(t+1)CF_t}{(1+y)^{t+2}} \]
+          <p>The percentage change in price is given by the Taylor series expansion:</p>
+          \[ \frac{\Delta P}{P} \approx -D_{Mod}\Delta y + \frac{1}{2} C (\Delta y)^2 \]
+        </div>
+      </div>
+      
+      <h3>4.3 Dollar Duration (DV01)</h3>
+      <p>The Dollar Value of a 1 basis point (0.01%) move is called DV01 (or PV01).</p>
+      \[ DV01 = P \times D_{Mod} \times 0.0001 \]
+      
+      <h3>4.4 Key Rate Duration (KRD)</h3>
+      <p>Parallel shifts are rare. The yield curve often twists or steepens. KRD measures sensitivity to a 1 bps shift at a specific tenor (e.g., 5-year, 10-year), holding other tenors constant.</p>
+      \[ KRD_i = \frac{P(y_i - \Delta y_i) - P(y_i + \Delta y_i)}{2 \times P_0 \times \Delta y_i} \]
+      <p>The total Effective Duration is the sum of the Key Rate Durations: \( D_{Eff} \approx \sum KRD_i \).</p>
+      
+      <h3>4.5 Balance Sheet Sensitivities (Solvency II)</h3>
+      <p>For an insurer, Own Funds (\(OF\)) = Market Value of Assets (\(A\)) - Best Estimate Liabilities (\(L\)) - Risk Margin (\(RM\)).</p>
+      <p>The Solvency Ratio is \(SR = \frac{OF}{SCR}\).</p>
+      \[ \Delta OF \approx (\Delta A) - (\Delta L) - (\Delta RM) \]
+      \[ \Delta OF \approx - (A \cdot D_A - L \cdot D_L)\Delta y + \frac{1}{2}(A \cdot C_A - L \cdot C_L)(\Delta y)^2 \]
+    </div>
+  </div>
+
+  <!-- 5. Worked Examples -->
+  <div class="examples">
+    <div class="box-title">5. Worked Examples</div>
+    <div class="box-content">
+      <div class="example">
+        <div class="box-title">Example 1: Balance Sheet ±100bp Sensitivity</div>
+        <div class="box-content">
+          <p><strong>Context:</strong> Scottish Widows has an asset portfolio worth £50,000m with \(D_A = 12.0\) and \(C_A = 200\). The corresponding liabilities are £46,000m with \(D_L = 13.5\) and \(C_L = 250\). SCR is £2,500m (assume invariant for this simple step). Base Own Funds = £4,000m. Base Solvency Ratio = 160%.</p>
+          <p><strong>Shock: +100 bps (+1.00%) shift</strong></p>
+          <ul>
+            <li>\(\Delta A = -50000 \times 12 \times 0.01 + 0.5 \times 50000 \times 200 \times (0.01)^2 = -6000 + 500 = -£5,500m\)</li>
+            <li>New Asset Value = £44,500m</li>
+            <li>\(\Delta L = -46000 \times 13.5 \times 0.01 + 0.5 \times 46000 \times 250 \times (0.01)^2 = -6210 + 575 = -£5,635m\)</li>
+            <li>New Liability Value = £40,365m</li>
+            <li>New Own Funds = 44500 - 40365 = £4,135m</li>
+            <li>New Solvency Ratio = 4135 / 2500 = 165.4%</li>
+          </ul>
+          <p><em>Insight:</em> The duration gap (\(12.0\) vs \(13.5\)) means liabilities fall faster than assets when rates rise, increasing Own Funds.</p>
+        </div>
+      </div>
+
+      <div class="example">
+        <div class="box-title">Example 2: Reverse Stress Testing the Solvency Ratio</div>
+        <div class="box-content">
+          <p><strong>Context:</strong> Using the data above, the Board's risk appetite sets a red threshold if the Solvency Ratio breaches 130%. SCR is £2,500m. Thus, breach happens if Own Funds fall to \(1.30 \times 2500 = £3,250m\).</p>
+          <p>We need \(\Delta OF = 3250 - 4000 = -£750m\).</p>
+          <p>Ignoring convexity for a moment to solve for \(\Delta y\):</p>
+          <p>\(\Delta OF \approx -(A \cdot D_A - L \cdot D_L) \Delta y\)</p>
+          <p>\(-750 = - (50000 \times 12 - 46000 \times 13.5) \Delta y\)</p>
+          <p>\(-750 = - (600000 - 621000) \Delta y = 21000 \Delta y\)</p>
+          <p>\(\Delta y = -750 / 21000 = -0.0357\) or -357 basis points.</p>
+          <p><em>Conclusion:</em> A massive yield drop of 357 bps is required to breach the 130% threshold. The balance sheet is well protected against falling rates.</p>
+        </div>
+      </div>
+      
+      <div class="example">
+        <div class="box-title">Example 3: KRD Profile for a Gilt Portfolio</div>
+        <div class="box-content">
+          <p>Consider a simplified portfolio of three Gilts: 5Y, 10Y, and 20Y. We measure sensitivities to specific tenor shocks.</p>
+          <table border="1" cellpadding="5" style="border-collapse:collapse; text-align:center;">
+            <tr><th>Tenor</th><th>Market Value (£m)</th><th>5Y KRD</th><th>10Y KRD</th><th>20Y KRD</th><th>Total Eff Dur</th></tr>
+            <tr><td>5Y Gilt</td><td>100</td><td>4.5</td><td>0.0</td><td>0.0</td><td>4.5</td></tr>
+            <tr><td>10Y Gilt</td><td>200</td><td>0.8</td><td>8.2</td><td>0.0</td><td>9.0</td></tr>
+            <tr><td>20Y Gilt</td><td>150</td><td>0.5</td><td>2.0</td><td>13.5</td><td>16.0</td></tr>
+          </table>
+          <p><em>Portfolio KRD Calculation:</em></p>
+          <ul>
+            <li>Total Value = £450m</li>
+            <li>Port 5Y KRD = \([100(4.5) + 200(0.8) + 150(0.5)] / 450 = 685 / 450 = 1.52\)</li>
+            <li>Port 10Y KRD = \([100(0) + 200(8.2) + 150(2.0)] / 450 = 1940 / 450 = 4.31\)</li>
+            <li>Port 20Y KRD = \([100(0) + 200(0) + 150(13.5)] / 450 = 2025 / 450 = 4.50\)</li>
+          </ul>
+          <p>If the yield curve steepens (5Y rate -50bps, 20Y rate +50bps), the portfolio price change is:</p>
+          <p>\(\Delta P / P \approx -(1.52 \times -0.0050) - (4.31 \times 0) - (4.50 \times +0.0050) = 0.0076 - 0.0225 = -0.0149\) (-1.49%).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Python Code -->
+  <div class="python">
+    <div class="box-title">6. Python Code: KRD and Sensitivities</div>
+    <div class="box-content">
+      <p>This script computes bond price, duration, convexity, and evaluates price changes using the Taylor approximation.</p>
+<pre><code class="language-python">
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def bond_pricer(fv, coupon_rate, ytm, periods, freq=1):
+    """Calculates bond price, modified duration, and convexity"""
+    c = fv * coupon_rate / freq
+    y = ytm / freq
+    n = periods * freq
+    
+    t = np.arange(1, n + 1)
+    cash_flows = np.full(n, c)
+    cash_flows[-1] += fv
+    
+    discount_factors = 1 / (1 + y)**t
+    pv_cf = cash_flows * discount_factors
+    price = np.sum(pv_cf)
+    
+    # Macaulay Duration
+    mac_dur = np.sum(t * pv_cf) / price / freq
+    mod_dur = mac_dur / (1 + y)
+    
+    # Convexity
+    convexity = np.sum(t * (t + 1) * pv_cf) / (price * (1 + y)**2 * freq**2)
+    
+    return price, mod_dur, convexity
+
+# Scenario Analysis
+shocks = np.arange(-0.02, 0.025, 0.005) # -200bps to +200bps
+results = []
+
+fv = 100
+coupon = 0.04
+ytm_base = 0.05
+years = 20
+
+p0, d_mod, conv = bond_pricer(fv, coupon, ytm_base, years)
+
+for shift in shocks:
+    ytm_new = ytm_base + shift
+    p_exact, _, _ = bond_pricer(fv, coupon, ytm_new, years)
+    
+    # Taylor Approximation
+    dp_linear = -d_mod * shift
+    dp_convex = 0.5 * conv * shift**2
+    p_approx = p0 * (1 + dp_linear + dp_convex)
+    
+    results.append({
+        'Shift (bps)': shift * 10000,
+        'Exact Price': p_exact,
+        'Approx Price': p_approx,
+        'Linear Only': p0 * (1 + dp_linear)
+    })
+
+df = pd.DataFrame(results)
+print(df.loc[df['Shift (bps)'].isin([-100, 0, 100])])
+
+# Expected Output (subset):
+#    Shift (bps)  Exact Price  Approx Price  Linear Only
+#         -100.0    99.999997     99.882103    98.710776
+#            0.0    87.537790     87.537790    87.537790
+#          100.0    77.060136     77.200115    76.364803
+</code></pre>
+    </div>
+  </div>
+
+  <!-- 7. Excel Implementation -->
+  <div class="excel">
+    <div class="box-title">7. Excel Implementation: Building the Sensitivity Dashboard</div>
+    <div class="box-content">
+      <p>Building a robust IR sensitivity dashboard in Excel is a core competency for actuaries. Here is the step-by-step setup.</p>
+      
+      <h3>Step 1: The Input & Base Case Setup</h3>
+      <p>Create a block in range <code>A1:B6</code>:</p>
+      <ul>
+        <li><code>A1: Base Asset Value (£m)</code> | <code>B1: 50000</code></li>
+        <li><code>A2: Asset Mod Duration</code> | <code>B2: 12.0</code></li>
+        <li><code>A3: Asset Convexity</code> | <code>B3: 200</code></li>
+        <li><code>A4: Base Liab Value (£m)</code> | <code>B4: 46000</code></li>
+        <li><code>A5: Liab Mod Duration</code> | <code>B5: 13.5</code></li>
+        <li><code>A6: Liab Convexity</code> | <code>B6: 250</code></li>
+      </ul>
+      
+      <h3>Step 2: Base Balance Sheet Metrics</h3>
+      <p>Calculate base outputs in <code>A8:B10</code>:</p>
+      <ul>
+        <li><code>A8: SCR (£m)</code> | <code>B8: 2500</code> (Hardcoded for this example)</li>
+        <li><code>A9: Base Own Funds (£m)</code> | <code>B9: =B1-B4</code> <em>(Yields 4000)</em></li>
+        <li><code>A10: Base Solvency Ratio</code> | <code>B10: =B9/B8</code> <em>(Yields 160%, format as %)</em></li>
+      </ul>
+
+      <h3>Step 3: Building the Sensitivities using a Data Table</h3>
+      <p>We want a table showing impacts from -100 bps to +100 bps.</p>
+      <p>1. In cell <code>D1</code>, input a placeholder shock: <code>0.00</code> (This is our dummy cell for the Data Table).</p>
+      <p>2. In <code>D3:I3</code>, setup the headers for the calculation formulas:</p>
+      <ul>
+        <li><code>D3: Shift (bps)</code> (Leave blank, will be row headers)</li>
+        <li><code>E3: Asset Value</code> | Formula: <code>=B1*(1 + (-B2*$D$1) + (0.5*B3*($D$1^2)))</code></li>
+        <li><code>F3: Liability Value</code> | Formula: <code>=B4*(1 + (-B5*$D$1) + (0.5*B6*($D$1^2)))</code></li>
+        <li><code>G3: Own Funds</code> | Formula: <code>=E3-F3</code></li>
+        <li><code>H3: Solvency Ratio</code> | Formula: <code>=G3/B8</code></li>
+        <li><code>I3: Dividend Capacity</code> | Formula: <code>=IF(H3>1.5, (H3-1.5)*B8, 0)</code> <em>(Assumes target SR is 150%)</em></li>
+      </ul>
+      
+      <p>3. In <code>D4:D12</code>, input the shocks: <code>-0.0100, -0.0075, -0.0050, -0.0025, 0.0000, 0.0025, 0.0050, 0.0075, 0.0100</code>.</p>
+      
+      <p>4. <strong>Creating the Data Table:</strong></p>
+      <ul>
+        <li>Highlight the range <code>D3:I12</code>.</li>
+        <li>Go to Data -> What-If Analysis -> Data Table.</li>
+        <li>Row input cell: Leave blank.</li>
+        <li>Column input cell: Select <code>$D$1</code>.</li>
+        <li>Click OK. Excel calculates the entire sensitivity matrix instantly.</li>
+      </ul>
+
+      <h3>Step 4: Conditional Formatting (Traffic Lights)</h3>
+      <p>Select the Solvency Ratio outputs in <code>H4:H12</code>.</p>
+      <ul>
+        <li>Go to Home -> Conditional Formatting -> New Rule.</li>
+        <li>Format style: 3-Color Scale.</li>
+        <li>Type: Number for all.</li>
+        <li>Minimum: Value <code>1.30</code> (Color Red)</li>
+        <li>Midpoint: Value <code>1.40</code> (Color Yellow/Amber)</li>
+        <li>Maximum: Value <code>1.50</code> (Color Green)</li>
+      </ul>
+      <p>This provides an immediate visual risk dashboard for the ALM committee.</p>
+    </div>
+  </div>
+
+  <!-- 8. Common Mistakes & Misconceptions -->
+  <div class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Ignoring Convexity for Large Shocks:</strong> Duration is a linear tangent. For a 10 bps move, duration is fine. For a 100 bps move, ignoring convexity can misstate the balance sheet by hundreds of millions of pounds.</li>
+        <li><strong>Assuming Parallel Shifts:</strong> Yield curves rarely move in perfect parallel. Relying solely on Effective Duration while ignoring Key Rate Durations masks curve twist risks.</li>
+        <li><strong>Confusing Macaulay and Modified Duration:</strong> Macaulay is in units of years; Modified is a percentage sensitivity. Using Macaulay where Modified is required in the Taylor formula will give disastrously wrong risk metrics.</li>
+        <li><strong>Static SCR Assumption:</strong> In reality, as rates move, the Solvency Capital Requirement (SCR) also changes (due to changes in spread risk, market risk modules, and risk margin). Our examples hold SCR constant for simplicity, but a full internal model must recalculate SCR dynamically.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 9. Industry Application Box -->
+  <div class="industry">
+    <div class="box-title">9. Industry Application: The 2022 UK LDI Crisis</div>
+    <div class="box-content">
+      <p>In late September 2022, following the UK government's "mini-budget", 30-year Gilt yields spiked by over 100 basis points in a matter of days. This triggered collateral calls in Liability Driven Investment (LDI) funds used by UK pension schemes.</p>
+      <p>For life insurers like Scottish Widows and Lloyds Banking Group, the impact was profound. While the Solvency II capital position often <em>improves</em> when rates rise (because the duration of liabilities usually exceeds the duration of assets), the <em>liquidity</em> strain from margin calls on interest rate swaps was extreme.</p>
+      <p>This event fundamentally shifted PRA stress testing (such as the ACS - Annual Cyclical Scenario). Insurers must now run severe reverse stress tests specifically focusing on liquidity exhaustion during violent curve steepening and parallel upward shifts. Key Rate Duration at the 20Y and 30Y tenors became the most critical metric on the ALM dashboard.</p>
+    </div>
+  </div>
+
+  <!-- 10. Summary & Formula Cheat-Sheet -->
+  <div class="summary">
+    <div class="box-title">10. Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <p><strong>Core Formulas:</strong></p>
+      <ul>
+        <li><strong>Modified Duration:</strong> \( D_{Mod} = \frac{D_{Mac}}{1+y} \)</li>
+        <li><strong>Effective Duration:</strong> \( D_{Eff} = \frac{P_{-\Delta y} - P_{+\Delta y}}{2 P_0 \Delta y} \)</li>
+        <li><strong>Price Approximation:</strong> \( \Delta P \approx P_0 \times [ -D_{Mod}\Delta y + \frac{1}{2} C (\Delta y)^2 ] \)</li>
+        <li><strong>Dollar Duration (DV01):</strong> \( DV01 = P_0 \times D_{Mod} \times 0.0001 \)</li>
+        <li><strong>Own Funds Impact:</strong> \( \Delta OF \approx -(A \cdot D_A - L \cdot D_L)\Delta y \) (ignoring convexity)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 11. Exercises -->
+  <div class="exercises">
+    <div class="box-title">11. Exercises</div>
+    <div class="box-content">
+      <ol>
+        <li><strong>Basic:</strong> A bond is priced at £105. Its Modified Duration is 7.5 and Convexity is 60. Calculate the estimated new price if yields drop by 50 bps.</li>
+        <li><strong>Basic:</strong> Define DV01. Calculate the DV01 for a £10m portfolio with a Modified Duration of 5.0.</li>
+        <li><strong>Intermediate:</strong> An insurer has £20bn in assets (Dur = 10, Conv = 150) and £18bn in liabilities (Dur = 12, Conv = 200). Calculate the change in Own Funds for a +75 bps parallel shift.</li>
+        <li><strong>Intermediate:</strong> Setup the Exact Pricing vs Taylor Approximation comparison in Excel for a 10-year 5% annual coupon bond yielding 5%. Shock yields by +200 bps. What is the pricing error of the linear approximation?</li>
+        <li><strong>Advanced:</strong> Using the data from Exercise 3, calculate the exact yield shift required to wipe out all Base Own Funds (i.e., Own Funds = 0). Use the quadratic formula to solve for \(\Delta y\).</li>
+        <li><strong>Advanced:</strong> A portfolio consists of £50m 5Y bonds (KRD=4.5), £30m 10Y bonds (KRD=8.2), and £20m 20Y bonds (KRD=14.0). Calculate the total portfolio Effective Duration.</li>
+        <li><strong>Advanced:</strong> In Excel, construct a 2-way Data Table showing Solvency Ratio where Rows are Yield Shifts (-100 to +100 bps) and Columns are Credit Spread Shifts (0 to +200 bps). Assume spread duration for assets is 8.0, and liabilities are immune to spreads.</li>
+        <li><strong>Advanced:</strong> Write a Python function that takes a list of cash flows and a yield curve (as a dictionary mapping years to spot rates) and calculates the Key Rate Durations for the 2Y, 5Y, and 10Y pillars.</li>
+      </ol>
+      <p><em>Selected Solution to Ex 1:</em> \(\Delta y = -0.0050\). Linear: \(-7.5 \times -0.0050 = 0.0375\). Convex: \(0.5 \times 60 \times (-0.0050)^2 = 0.00075\). Total return = 3.825%. New Price = 105 * 1.03825 = £109.016.</p>
+    </div>
+  </div>
+
+  <!-- 12. Further Reading -->
+  <div class="further-reading">
+    <div class="box-title">12. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Tuckman, B., & Serrat, A. (2011). <em>Fixed Income Securities: Tools for Today's Markets</em>. Wiley Finance. (Chapters 4-6 for deep dive on KRD).</li>
+        <li>Bank of England / PRA. (2023). <em>Stress testing the UK banking and insurance system: The Annual Cyclical Scenario</em>.</li>
+        <li>Wüthrich, M. V., & Merz, M. (2013). <em>Financial Modeling, Actuarial Valuation and Solvency in Insurance</em>. Springer.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch43_dividend_policy.html">← Previous Chapter</a> |
+    <a href="ch45_goal_programming.html">Next Chapter →</a>
+  </nav>
+</body>
+</html>

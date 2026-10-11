@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantitative Finance, Financial Engineering, Actuarial Science and Insurance: From First Principles to Practice</title>
+  <meta name="description" content="A comprehensive textbook covering quantitative finance, financial engineering, actuarial science and insurance from first principles to professional-level mastery.">
+  <link rel="stylesheet" href="css/textbook.css">
+
+  <!-- MathJax 3 for LaTeX rendering -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath:  [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        tagSide: 'right',
+        tagIndent: '0.8em',
+        packages: {'[+]': ['ams', 'newcommand', 'configmacros']},
+        macros: {
+          /* Probability & Expectation */
+          E:   ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P:   ['\\mathbb{P}'],
+          /* Common sets */
+          R:   ['\\mathbb{R}'],
+          N:   ['\\mathbb{N}'],
+          Z:   ['\\mathbb{Z}'],
+          Q:   ['\\mathbb{Q}'],
+          /* Finance */
+          PV:  ['\\operatorname{PV}'],
+          FV:  ['\\operatorname{FV}'],
+          NPV: ['\\operatorname{NPV}'],
+          IRR: ['\\operatorname{IRR}'],
+          /* Actuarial */
+          ax:  ['\\ddot{a}_{#1}', 1],
+          Ax:  ['A_{#1}', 1],
+          px:  ['{}_#1p_{#2}', 2],
+          qx:  ['{}_#1q_{#2}', 2],
+          /* Linear Algebra */
+          tr:  ['\\operatorname{tr}'],
+          diag:['\\operatorname{diag}'],
+          /* Statistics */
+          iid: ['\\overset{\\text{iid}}{\\sim}'],
+          se:  ['\\operatorname{se}'],
+          MSE: ['\\operatorname{MSE}'],
+          /* Calculus */
+          dd:  ['\\,\\mathrm{d}'],
+          dv:  ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: {
+        fontCache: 'global'
+      },
+      startup: {
+        pageReady: () => {
+          return MathJax.startup.defaultPageReady();
+        }
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <!-- Prism.js for code highlighting -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-r.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+
+  <style>
+    /* Title page specific styles */
+    .title-page {
+      text-align: center;
+      padding: 12vh 0 6vh 0;
+      page-break-after: always;
+    }
+    .title-page h1 {
+      font-size: 2.4rem;
+      border: none;
+      line-height: 1.4;
+      max-width: 80%;
+      margin: 0 auto 1em auto;
+    }
+    .title-page .subtitle {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      margin-bottom: 3em;
+    }
+    .title-page .authors {
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin-bottom: 0.5em;
+    }
+    .title-page .edition {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+    .title-page .ornament {
+      font-size: 2rem;
+      color: var(--accent);
+      margin: 2em 0;
+    }
+    nav.main-toc {
+      page-break-after: always;
+    }
+    nav.main-toc h1 {
+      text-align: center;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================== -->
+<!--                         TITLE PAGE                              -->
+<!-- ============================================================== -->
+<div class="title-page">
+  <div class="ornament">◆ ◇ ◆</div>
+  <h1>Quantitative Finance, Financial Engineering, Actuarial Science and Insurance</h1>
+  <div class="subtitle">From First Principles to Practice</div>
+  <div class="ornament">— ◈ —</div>
+  <p class="authors">A Comprehensive Textbook</p>
+  <p class="edition">First Edition — 2026</p>
+  <p class="muted small" style="margin-top:3em;">
+    Covering: Mathematical Foundations · Financial Theory · Derivatives · Risk Management ·
+    Time Series · Machine Learning · Life & Health Insurance · General Insurance ·
+    Reinsurance · Solvency · Financial Reporting · Capstone Projects
+  </p>
+</div>
+
+<!-- ============================================================== -->
+<!--                      TABLE OF CONTENTS                          -->
+<!-- ============================================================== -->
+<nav class="main-toc">
+  <h1>Table of Contents</h1>
+
+  <div class="toc">
+    <!-- PART I -->
+    <ul>
+      <li><span class="toc-part">Part I — Mathematical Foundations</span>
+        <ul>
+          <li class="toc-chapter"><a href="chapters/ch01_algebra.html">Chapter 1: Algebra, Functions, Sequences and Series</a></li>
+          <li class="toc-chapter"><a href="chapters/ch02_calculus.html">Chapter 2: Calculus</a></li>
+          <li class="toc-chapter"><a href="chapters/ch03_linear_algebra.html">Chapter 3: Linear Algebra</a></li>
+          <li class="toc-chapter"><a href="chapters/ch04_probability.html">Chapter 4: Probability Theory</a></li>
+          <li class="toc-chapter"><a href="chapters/ch05_distributions.html">Chapter 5: Probability Distributions</a></li>
+          <li class="toc-chapter"><a href="chapters/ch06_statistics.html">Chapter 6: Statistics and Inference</a></li>
+          <li class="toc-chapter"><a href="chapters/ch07_stochastic_processes.html">Chapter 7: Stochastic Processes</a></li>
+          <li class="toc-chapter"><a href="chapters/ch08_stochastic_calculus.html">Chapter 8: Stochastic Calculus</a></li>
+          <li class="toc-chapter"><a href="chapters/ch09_numerical_methods.html">Chapter 9: Numerical Methods and Optimization</a></li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- PART II -->
+    <ul>
+      <li><span class="toc-part">Part II — Financial Theory and Financial Engineering</span>
+        <ul>
+          <li class="toc-chapter"><a href="chapters/ch10_time_value.html">Chapter 10: Time Value of Money</a></li>
+          <li class="toc-chapter"><a href="chapters/ch11_fixed_income.html">Chapter 11: Fixed Income</a></li>
+          <li class="toc-chapter"><a href="chapters/ch12_term_structure.html">Chapter 12: Term Structure and Interest-Rate Models</a></li>
+          <li class="toc-chapter"><a href="chapters/ch13_portfolio_theory.html">Chapter 13: Portfolio Theory and Asset Pricing</a></li>
+          <li class="toc-chapter"><a href="chapters/ch14_forwards_futures.html">Chapter 14: Forwards, Futures and Swaps</a></li>
+          <li class="toc-chapter"><a href="chapters/ch15_options.html">Chapter 15: Options Theory</a></li>
+          <li class="toc-chapter"><a href="chapters/ch16_advanced_derivatives.html">Chapter 16: Advanced Derivative Pricing</a></li>
+          <li class="toc-chapter"><a href="chapters/ch17_ir_derivatives.html">Chapter 17: Interest-Rate Derivatives</a></li>
+          <li class="toc-chapter"><a href="chapters/ch18_credit_risk.html">Chapter 18: Credit Risk</a></li>
+          <li class="toc-chapter"><a href="chapters/ch19_market_risk.html">Chapter 19: Market and Liquidity Risk</a></li>
+          <li class="toc-chapter"><a href="chapters/ch20_time_series.html">Chapter 20: Time Series and Volatility Modelling</a></li>
+          <li class="toc-chapter"><a href="chapters/ch21_corporate_finance.html">Chapter 21: Corporate Finance and Financial Modeling</a></li>
+          <li class="toc-chapter"><a href="chapters/ch22_ml_finance.html">Chapter 22: Machine Learning and Data Science in Finance</a></li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- PART III -->
+    <ul>
+      <li><span class="toc-part">Part III — Actuarial Science and Insurance</span>
+        <ul>
+          <li class="toc-chapter"><a href="chapters/ch23_insurance_fundamentals.html">Chapter 23: Insurance Fundamentals</a></li>
+          <li class="toc-chapter"><a href="chapters/ch24_utility_theory.html">Chapter 24: Utility Theory and Insurance Demand</a></li>
+          <li class="toc-chapter"><a href="chapters/ch25_survival_models.html">Chapter 25: Survival Models and Life Tables</a></li>
+          <li class="toc-chapter"><a href="chapters/ch26_life_insurance.html">Chapter 26: Life Insurance and Annuities</a></li>
+          <li class="toc-chapter"><a href="chapters/ch27_premiums_reserves.html">Chapter 27: Premiums and Reserves</a></li>
+          <li class="toc-chapter"><a href="chapters/ch28_multiple_life.html">Chapter 28: Multiple-Life and Multiple-Decrement Models</a></li>
+          <li class="toc-chapter"><a href="chapters/ch29_pensions.html">Chapter 29: Pensions and Employee Benefits</a></li>
+          <li class="toc-chapter"><a href="chapters/ch30_general_insurance.html">Chapter 30: Short-Term (General Insurance) Risk Models</a></li>
+          <li class="toc-chapter"><a href="chapters/ch31_ruin_theory.html">Chapter 31: Ruin Theory</a></li>
+          <li class="toc-chapter"><a href="chapters/ch32_credibility.html">Chapter 32: Credibility Theory</a></li>
+          <li class="toc-chapter"><a href="chapters/ch33_ratemaking.html">Chapter 33: Ratemaking and Pricing</a></li>
+          <li class="toc-chapter"><a href="chapters/ch34_loss_reserving.html">Chapter 34: Loss Reserving</a></li>
+          <li class="toc-chapter"><a href="chapters/ch35_reinsurance.html">Chapter 35: Reinsurance</a></li>
+          <li class="toc-chapter"><a href="chapters/ch36_evt_copulas.html">Chapter 36: Extreme Value Theory and Dependence</a></li>
+          <li class="toc-chapter"><a href="chapters/ch37_health_specialty.html">Chapter 37: Health and Specialty Insurance</a></li>
+          <li class="toc-chapter"><a href="chapters/ch38_cat_modelling.html">Chapter 38: Catastrophe Modelling</a></li>
+          <li class="toc-chapter"><a href="chapters/ch39_alm.html">Chapter 39: Asset-Liability Management</a></li>
+          <li class="toc-chapter"><a href="chapters/ch40_capital_solvency.html">Chapter 40: Capital, Solvency and Financial Reporting</a></li>
+          <li class="toc-chapter"><a href="chapters/ch41_insurance_analytics.html">Chapter 41: Insurance Operations and Analytics</a></li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- PART IV -->
+    <ul>
+      <li><span class="toc-part">Part IV — Integration and Capstones</span>
+        <ul>
+          <li class="toc-chapter"><a href="chapters/ch42_capstones.html">Chapter 42: Capstone Projects</a></li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- PART V -->
+    <ul>
+      <li><span class="toc-part">Part V — Dividend Optimizer &amp; Applied Decision Science</span>
+        <ul>
+          <li class="toc-chapter"><a href="chapters/ch43_dividend_policy.html">Chapter 43: Insurance Dividend Policy, Capital Management &amp; Regulatory Framework</a></li>
+          <li class="toc-chapter"><a href="chapters/ch44_ir_sensitivity.html">Chapter 44: Interest Rate Sensitivity Analysis for Insurance</a></li>
+          <li class="toc-chapter"><a href="chapters/ch45_goal_programming.html">Chapter 45: Goal Programming &amp; Multi-Objective Optimization for Finance</a></li>
+          <li class="toc-chapter"><a href="chapters/ch46_stochastic_programming.html">Chapter 46: Stochastic Programming &amp; Robust Optimization Under Uncertainty</a></li>
+          <li class="toc-chapter"><a href="chapters/ch47_systems_thinking.html">Chapter 47: Systems Thinking, Digital Twins &amp; Decision Frameworks</a></li>
+          <li class="toc-chapter"><a href="chapters/ch48_excel_ir_workshop.html">Chapter 48: Excel Workshop — Interest Rate Sensitivity &amp; ALM Models</a></li>
+          <li class="toc-chapter"><a href="chapters/ch49_excel_gp_workshop.html">Chapter 49: Excel Workshop — Goal Programming &amp; Dividend Optimization</a></li>
+          <li class="toc-chapter"><a href="chapters/ch50_best_practices.html">Chapter 50: Industry Best Practices in Dividend Optimization</a></li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- APPENDICES -->
+    <ul>
+      <li><span class="toc-part">Appendices</span>
+        <ul>
+          <li class="toc-chapter"><a href="chapters/app_a_formulas.html">A. Complete Formula Sheet</a></li>
+          <li class="toc-chapter"><a href="chapters/app_b_notation.html">B. Greek Alphabet and Notation Table</a></li>
+          <li class="toc-chapter"><a href="chapters/app_c_tables.html">C. Statistical Tables</a></li>
+          <li class="toc-chapter"><a href="chapters/app_d_quickref.html">D. Python/R/Excel/SQL Quick Reference</a></li>
+          <li class="toc-chapter"><a href="chapters/app_e_exams.html">E. Actuarial Exam Mapping</a></li>
+          <li class="toc-chapter"><a href="chapters/app_f_glossary.html">F. Glossary</a></li>
+          <li class="toc-chapter"><a href="chapters/app_g_bibliography.html">G. Bibliography</a></li>
+          <li class="toc-chapter"><a href="chapters/app_h_solutions.html">H. Solutions to Selected Exercises</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ============================================================== -->
+<!--                      GLOBAL NOTATION TABLE                      -->
+<!-- ============================================================== -->
+<section id="notation">
+  <h1>Global Notation Table</h1>
+  <p>The following symbols and conventions are used throughout this textbook. Each symbol is defined on first use in the chapter indicated.</p>
+
+  <table class="notation-table">
+    <thead>
+      <tr><th>Symbol</th><th>Meaning</th><th>First Used</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>\(\mathbb{R}\)</td><td>Set of real numbers</td><td>Ch 1</td></tr>
+      <tr><td>\(\mathbb{N}\)</td><td>Set of natural numbers \(\{0,1,2,\dots\}\)</td><td>Ch 1</td></tr>
+      <tr><td>\(\mathbb{Z}\)</td><td>Set of integers</td><td>Ch 1</td></tr>
+      <tr><td>\(\sum_{i=1}^{n}\)</td><td>Summation from \(i=1\) to \(n\)</td><td>Ch 1</td></tr>
+      <tr><td>\(\prod_{i=1}^{n}\)</td><td>Product from \(i=1\) to \(n\)</td><td>Ch 1</td></tr>
+      <tr><td>\(n!\)</td><td>Factorial: \(n! = n \cdot (n-1) \cdots 1\)</td><td>Ch 1</td></tr>
+      <tr><td>\(\binom{n}{k}\)</td><td>Binomial coefficient: \(\frac{n!}{k!(n-k)!}\)</td><td>Ch 1</td></tr>
+      <tr><td>\(e\)</td><td>Euler's number \(\approx 2.71828\)</td><td>Ch 1</td></tr>
+      <tr><td>\(\ln x\), \(\log x\)</td><td>Natural logarithm (base \(e\)); \(\log\) without base = \(\ln\)</td><td>Ch 1</td></tr>
+      <tr><td>\(f'(x)\), \(\frac{df}{dx}\)</td><td>First derivative of \(f\) with respect to \(x\)</td><td>Ch 2</td></tr>
+      <tr><td>\(\frac{\partial f}{\partial x}\)</td><td>Partial derivative</td><td>Ch 2</td></tr>
+      <tr><td>\(\nabla f\)</td><td>Gradient vector of \(f\)</td><td>Ch 2</td></tr>
+      <tr><td>\(\mathbf{A}, \mathbf{B}\)</td><td>Matrices (bold uppercase)</td><td>Ch 3</td></tr>
+      <tr><td>\(\mathbf{x}, \mathbf{v}\)</td><td>Vectors (bold lowercase)</td><td>Ch 3</td></tr>
+      <tr><td>\(\det(\mathbf{A})\), \(|\mathbf{A}|\)</td><td>Determinant of matrix \(\mathbf{A}\)</td><td>Ch 3</td></tr>
+      <tr><td>\(\lambda\)</td><td>Eigenvalue (Ch 3); Poisson rate (Ch 5); force of interest (Ch 10)</td><td>Ch 3</td></tr>
+      <tr><td>\(\Omega\)</td><td>Sample space</td><td>Ch 4</td></tr>
+      <tr><td>\(\P(A)\)</td><td>Probability of event \(A\)</td><td>Ch 4</td></tr>
+      <tr><td>\(\E[X]\)</td><td>Expected value of random variable \(X\)</td><td>Ch 4</td></tr>
+      <tr><td>\(\Var(X)\)</td><td>Variance of \(X\)</td><td>Ch 4</td></tr>
+      <tr><td>\(\Cov(X,Y)\)</td><td>Covariance of \(X\) and \(Y\)</td><td>Ch 4</td></tr>
+      <tr><td>\(\sigma\), \(\sigma^2\)</td><td>Standard deviation, variance</td><td>Ch 4</td></tr>
+      <tr><td>\(\mu\)</td><td>Mean (statistics); drift (SDE); force of mortality (actuarial)</td><td>Ch 4</td></tr>
+      <tr><td>\(M_X(t)\)</td><td>Moment generating function of \(X\)</td><td>Ch 4</td></tr>
+      <tr><td>\(F_X(x)\)</td><td>CDF of random variable \(X\)</td><td>Ch 4</td></tr>
+      <tr><td>\(f_X(x)\)</td><td>PDF (or PMF) of random variable \(X\)</td><td>Ch 4</td></tr>
+      <tr><td>\(\Phi(z)\), \(\phi(z)\)</td><td>Standard normal CDF, PDF</td><td>Ch 5</td></tr>
+      <tr><td>\(\hat{\theta}\)</td><td>Estimator of parameter \(\theta\)</td><td>Ch 6</td></tr>
+      <tr><td>\(\mathcal{L}(\theta)\)</td><td>Likelihood function</td><td>Ch 6</td></tr>
+      <tr><td>\(W_t\), \(B_t\)</td><td>Standard Brownian motion / Wiener process</td><td>Ch 7</td></tr>
+      <tr><td>\(\mathrm{d}W_t\)</td><td>Infinitesimal Brownian increment</td><td>Ch 8</td></tr>
+      <tr><td>\(i\), \(r\)</td><td>Interest rate (nominal or effective)</td><td>Ch 10</td></tr>
+      <tr><td>\(\delta\)</td><td>Force of interest (continuous compounding rate)</td><td>Ch 10</td></tr>
+      <tr><td>\(v = \frac{1}{1+i}\)</td><td>Discount factor</td><td>Ch 10</td></tr>
+      <tr><td>\(a_{\overline{n|}}\)</td><td>Present value of annuity-immediate</td><td>Ch 10</td></tr>
+      <tr><td>\(\ddot{a}_{\overline{n|}}\)</td><td>Present value of annuity-due</td><td>Ch 10</td></tr>
+      <tr><td>\(D(t)\), \(P(t)\)</td><td>Discount function; bond price at time \(t\)</td><td>Ch 11</td></tr>
+    </tbody>
+  </table>
+
+  <p class="muted small"><em>Note: Some symbols (e.g., \(\lambda\), \(\mu\), \(\sigma\)) have multiple meanings depending on context. The intended meaning is always clear from the surrounding discussion.</em></p>
+</section>
+
+<hr>
+<p class="text-center muted">
+  Individual chapters are linked above. Open any chapter to begin reading.<br>
+  To compile the full book, print each chapter page to PDF and merge.
+</p>
+
+</body>
+</html>

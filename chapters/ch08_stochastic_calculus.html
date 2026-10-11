@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 8: Stochastic Calculus</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          Q: ['\\mathbb{Q}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 8: Stochastic Calculus</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the formal properties of the Wiener process (Brownian motion) and its quadratic variation.</li>
+        <li>Construct the Itô integral and recognize why standard Riemann-Stieltjes integration fails for stochastic processes.</li>
+        <li>Apply Itô's Lemma to derive stochastic differential equations (SDEs) for functions of random processes.</li>
+        <li>Solve standard SDEs including Geometric Brownian Motion (GBM) and the Vasicek/Ornstein-Uhlenbeck models.</li>
+        <li>Utilize Girsanov's Theorem for changing probability measures and the Feynman-Kac formula to bridge SDEs and PDEs.</li>
+        <li>Extend standard diffusion models using jump-diffusion and Lévy processes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds critically on <strong>Chapter 2: Calculus & Probability Theory</strong> and <strong>Chapter 7: Stochastic Processes</strong>. You must be comfortable with the definition of Brownian motion, conditional expectations, martingales, and filtrations. This chapter forms the absolute mathematical bedrock for <strong>Chapter 10: Derivative Pricing & Black-Scholes</strong> and <strong>Chapter 12: Fixed Income Modeling</strong>. In the next chapter, <strong>Chapter 9: Numerical Methods</strong>, we will simulate the equations derived here.</p>
+    </div>
+  </div>
+
+  <h2>8.1 Intuition & Motivation</h2>
+  <p>Consider a simple problem: modeling the price of a stock, \( S(t) \). In classical physics, if we know the initial position and velocity of a particle, we can use deterministic calculus (Newton's laws) to predict its entire future trajectory. If \( x(t) \) is position, we write \( \frac{\mathrm{d}x}{\mathrm{d}t} = v(t) \), leading to \( \mathrm{d}x = v(t)\mathrm{d}t \).</p>
+  <p>Financial markets, however, are relentlessly bombarded by new information—news, macroeconomic data, trading noise. This makes the path of a stock price erratic and jagged. If we write \( \mathrm{d}S = \mu S \mathrm{d}t \), we imply the stock grows smoothly at a predictable rate \( \mu \). But real stocks exhibit continuous, unpredictable shocks. To model this, we might add a random noise term: \( \mathrm{d}S = \mu S \mathrm{d}t + \sigma S \cdot (\text{noise}) \).</p>
+  <p>The mathematical abstraction for continuous random noise is the <em>Wiener process</em> or <em>Brownian motion</em>, denoted \( W(t) \). A fundamental problem arises: the paths of \( W(t) \) are so jagged that they are nowhere differentiable. Standard calculus (Taylor expansions, chain rules, standard integration) completely breaks down. If standard calculus says the derivative of \( f(x) = x^2 \) is \( 2x \), what is the "derivative" of \( W(t)^2 \)? It turns out to be \( 2W(t)\mathrm{d}W(t) + \mathrm{d}t \). That extra \( \mathrm{d}t \) term is the hallmark of stochastic calculus, and it changes everything about how we price risk, hedge derivatives, and manage portfolios.</p>
+
+  <h2>8.2 The Wiener Process Revisited</h2>
+  <p>Recall from Chapter 7 the definition of a standard Wiener process.</p>
+  <div class="definition">
+    <div class="box-title">Definition 8.1: Standard Wiener Process</div>
+    <div class="box-content">
+      A continuous-time stochastic process \( W = (W(t))_{t \ge 0} \) is a standard Wiener process (or Brownian motion) if it satisfies:
+      <ol>
+        <li>\( W(0) = 0 \) almost surely.</li>
+        <li>\( W \) has independent increments: for any \( 0 \le t_1 < t_2 < \dots < t_n \), the increments \( W(t_2)-W(t_1), \dots, W(t_n)-W(t_{n-1}) \) are independent.</li>
+        <li>\( W \) has stationary, normally distributed increments: \( W(t) - W(s) \sim \mathcal{N}(0, t-s) \) for \( 0 \le s < t \).</li>
+        <li>The sample paths \( t \mapsto W(t) \) are continuous almost surely.</li>
+      </ol>
+    </div>
+  </div>
+
+  <p>We associate with \( W(t) \) a <em>filtration</em> \( \mathcal{F}_t \), which represents the information available up to time \( t \). The process \( W(t) \) is a martingale with respect to its natural filtration because \( \E[W(t) \mid \mathcal{F}_s] = W(s) \) for \( s < t \).</p>
+
+  <h3>Quadratic Variation</h3>
+  <p>A crucial property of Brownian paths is their quadratic variation. For a partition of the interval \( [0, t] \) given by \( 0 = t_0 < t_1 < \dots < t_n = t \) with mesh size \( \Delta t \to 0 \), the quadratic variation is:</p>
+  \[ \langle W \rangle_t = \lim_{\Delta t \to 0} \sum_{i=1}^n [W(t_i) - W(t_{i-1})]^2 \]
+  <p>It can be shown that \( \langle W \rangle_t = t \) almost surely. In differential notation, this is famously written as:</p>
+  <div class="theorem">
+    <div class="box-title">Multiplication Rules for Differentials</div>
+    <div class="box-content">
+      \[ (\mathrm{d}W)^2 = \mathrm{d}t \]
+      \[ \mathrm{d}W \cdot \mathrm{d}t = 0 \]
+      \[ (\mathrm{d}t)^2 = 0 \]
+    </div>
+  </div>
+  <p>Because the quadratic variation over \( [0, t] \) is exactly \( t \), and not zero as it would be for a differentiable function, the paths of \( W(t) \) have <em>infinite first variation</em> (they are unbounded in length). This implies that standard Riemann-Stieltjes integration with respect to \( W(t) \) is impossible.</p>
+
+  <h2>8.3 The Itô Integral</h2>
+  <p>Since standard integration fails, we must define the stochastic integral:</p>
+  \[ I_t = \int_0^t f(u, \omega) \mathrm{d}W(u) \]
+  <p>where the integrand \( f(u) \) must be an adapted process (it only depends on information available up to time \( u \)).</p>
+  
+  <h3>Construction</h3>
+  <p>We start by defining the integral for <em>simple processes</em>—processes that are constant over small time intervals \( [t_{i-1}, t_i) \):</p>
+  \[ f(t) = \sum_{i=1}^n c_i \mathbf{1}_{[t_{i-1}, t_i)}(t) \]
+  <p>For such a simple process, the Itô integral is defined as a Riemann sum:</p>
+  \[ \int_0^t f(u) \mathrm{d}W(u) = \sum_{i=1}^n c_i [W(t_i) - W(t_{i-1})] \]
+  <p>Notice that we evaluate \( f \) at the <strong>left endpoint</strong> \( t_{i-1} \). This non-anticipative property is what makes the Itô integral a martingale. (Evaluating at the midpoint would lead to the Stratonovich integral, which obeys standard calculus rules but loses the martingale property—making it less useful for finance).</p>
+
+  <p>By taking limits in \( L^2 \), we extend this definition to general adapted processes satisfying \( \E\left[ \int_0^t f(u)^2 \mathrm{d}u \right] < \infty \).</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 8.1: Itô Isometry</div>
+    <div class="box-content">
+      For an adapted process \( f(t) \) such that \( \E\left[\int_0^t f(s)^2 \mathrm{d}s\right] < \infty \), the expectation of the squared integral is the integral of the expectation of the squared process:
+      \[ \E\left[ \left( \int_0^t f(u) \mathrm{d}W(u) \right)^2 \right] = \E\left[ \int_0^t f(u)^2 \mathrm{d}u \right] = \int_0^t \E[f(u)^2] \mathrm{d}u \]
+    </div>
+  </div>
+  <p>The Itô integral has zero expectation: \( \E\left[ \int_0^t f(u) \mathrm{d}W(u) \right] = 0 \).</p>
+
+  <h2>8.4 Itô's Lemma</h2>
+  <p>Itô's Lemma is the cornerstone of stochastic calculus. It provides the "chain rule" for stochastic processes.</p>
+  
+  <div class="theorem">
+    <div class="box-title">Theorem 8.2: Itô's Lemma (1-Dimensional)</div>
+    <div class="box-content">
+      Let \( X(t) \) be an Itô process of the form:
+      \[ \mathrm{d}X(t) = \mu(X(t), t)\mathrm{d}t + \sigma(X(t), t)\mathrm{d}W(t) \]
+      Let \( f(x, t) \) be a twice continuously differentiable function. Then \( Y(t) = f(X(t), t) \) is also an Itô process, and its differential is given by:
+      \[ \mathrm{d}f(X, t) = \pdv{f}{t} \mathrm{d}t + \pdv{f}{x} \mathrm{d}X + \frac{1}{2} \frac{\partial^2 f}{\partial x^2} (\mathrm{d}X)^2 \]
+      Expanding \( (\mathrm{d}X)^2 \), and using \( (\mathrm{d}W)^2 = \mathrm{d}t \), \( \mathrm{d}W\mathrm{d}t = 0 \), and \( (\mathrm{d}t)^2 = 0 \):
+      \[ \mathrm{d}f(X, t) = \left( \pdv{f}{t} + \mu \pdv{f}{x} + \frac{1}{2} \sigma^2 \frac{\partial^2 f}{\partial x^2} \right) \mathrm{d}t + \left( \sigma \pdv{f}{x} \right) \mathrm{d}W \]
+    </div>
+  </div>
+
+  <div class="proof">
+    <div class="box-title">Sketch of Proof</div>
+    <div class="box-content">
+      Consider a second-order Taylor expansion of \( f(x, t) \):
+      \[ \mathrm{d}f = \pdv{f}{t}\mathrm{d}t + \pdv{f}{x}\mathrm{d}X + \frac{1}{2}\frac{\partial^2 f}{\partial x^2}(\mathrm{d}X)^2 + \frac{1}{2}\frac{\partial^2 f}{\partial t^2}(\mathrm{d}t)^2 + \frac{\partial^2 f}{\partial x \partial t}\mathrm{d}X\mathrm{d}t + \dots \]
+      Substitute \( \mathrm{d}X = \mu\mathrm{d}t + \sigma\mathrm{d}W \). Then:
+      \[ (\mathrm{d}X)^2 = (\mu\mathrm{d}t + \sigma\mathrm{d}W)^2 = \mu^2(\mathrm{d}t)^2 + 2\mu\sigma\mathrm{d}t\mathrm{d}W + \sigma^2(\mathrm{d}W)^2 \]
+      Applying our multiplication rules \( (\mathrm{d}t)^2=0 \), \( \mathrm{d}t\mathrm{d}W=0 \), and \( (\mathrm{d}W)^2=\mathrm{d}t \), the term collapses to \( \sigma^2 \mathrm{d}t \). All higher-order terms vanish in the limit, leaving exactly the statement of Itô's Lemma.
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 8.1: Solving Geometric Brownian Motion (GBM)</div>
+    <div class="box-content">
+      <p>Suppose a stock price follows GBM: \( \mathrm{d}S = \mu S \mathrm{d}t + \sigma S \mathrm{d}W \).</p>
+      <p>We want to find the explicit solution for \( S(t) \). Let \( f(S) = \ln S \). Then:
+      \[ \pdv{f}{t} = 0, \quad \pdv{f}{S} = \frac{1}{S}, \quad \frac{\partial^2 f}{\partial S^2} = -\frac{1}{S^2} \]
+      By Itô's Lemma:
+      \[ \mathrm{d}(\ln S) = 0 \cdot \mathrm{d}t + \frac{1}{S} \mathrm{d}S + \frac{1}{2} \left( -\frac{1}{S^2} \right) (\mathrm{d}S)^2 \]
+      Substitute \( \mathrm{d}S = \mu S \mathrm{d}t + \sigma S \mathrm{d}W \) and \( (\mathrm{d}S)^2 = \sigma^2 S^2 \mathrm{d}t \):
+      \[ \mathrm{d}(\ln S) = \frac{1}{S}(\mu S \mathrm{d}t + \sigma S \mathrm{d}W) - \frac{1}{2S^2} (\sigma^2 S^2 \mathrm{d}t) \]
+      \[ \mathrm{d}(\ln S) = \left( \mu - \frac{1}{2}\sigma^2 \right) \mathrm{d}t + \sigma \mathrm{d}W \]
+      This is now a simple equation we can integrate directly from 0 to \( t \):
+      \[ \ln S(t) - \ln S(0) = \left( \mu - \frac{1}{2}\sigma^2 \right)t + \sigma W(t) \]
+      Exponentiating both sides yields the final solution:
+      \[ S(t) = S(0) \exp\left[ \left( \mu - \frac{1}{2}\sigma^2 \right)t + \sigma W(t) \right] \]
+      This proves that under GBM, the log returns are normally distributed (the stock price is lognormally distributed). Note the crucial \( -\frac{1}{2}\sigma^2 \) term—often called the <em>Itô correction</em> or <em>volatility drag</em>.
+      </p>
+    </div>
+  </div>
+
+  <div class="warning">
+    <div class="box-title">Warning: Common Mistakes in Stochastic Calculus</div>
+    <div class="box-content">
+      <p>When working with stochastic calculus, students often make the following errors:</p>
+      <ul>
+        <li><strong>Forgetting the Itô correction term:</strong> Treating \( (\mathrm{d}W)^2 \) as 0 instead of \( \mathrm{d}t \).</li>
+        <li><strong>Treating \( \mathrm{d}W \) as differentiable:</strong> Remember that Brownian paths are nowhere differentiable; writing \( \frac{\mathrm{d}W}{\mathrm{d}t} \) is mathematically invalid.</li>
+        <li><strong>Confusing Itô and Stratonovich integrals:</strong> The Itô integral evaluates the integrand at the left endpoint, preserving the martingale property. The Stratonovich integral uses the midpoint, which follows ordinary calculus rules but loses the martingale property.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>8.5 Stochastic Differential Equations (SDEs)</h2>
+  <p>An SDE is an equation of the form \( \mathrm{d}X(t) = \mu(X(t),t)\mathrm{d}t + \sigma(X(t),t)\mathrm{d}W(t) \). Existence and uniqueness of solutions are guaranteed if \( \mu \) and \( \sigma \) satisfy Lipschitz continuity and linear growth conditions. Let us explore some fundamental models used in finance.</p>
+
+  <h3>8.5.1 Ornstein-Uhlenbeck (Vasicek) Process</h3>
+  <p>The Vasicek model describes interest rates exhibiting mean reversion:
+  \[ \mathrm{d}r_t = a(b - r_t)\mathrm{d}t + \sigma \mathrm{d}W_t \]
+  where \( b \) is the long-term mean level, \( a \) is the speed of reversion, and \( \sigma \) is volatility.</p>
+
+  <div class="example">
+    <div class="box-title">Example 8.3: Solving the Vasicek SDE explicitly</div>
+    <div class="box-content">
+      <p>We solve this using an integrating factor, similar to standard ODEs. Multiply by \( e^{at} \). Let \( f(r, t) = r_t e^{at} \).</p>
+      <p>By Itô's Lemma:
+      \[ \mathrm{d}(r_t e^{at}) = \pdv{f}{t}\mathrm{d}t + \pdv{f}{r}\mathrm{d}r_t + \frac{1}{2}\frac{\partial^2 f}{\partial r^2}(\mathrm{d}r_t)^2 \]
+      \[ \pdv{f}{t} = a r_t e^{at}, \quad \pdv{f}{r} = e^{at}, \quad \frac{\partial^2 f}{\partial r^2} = 0 \]
+      \[ \mathrm{d}(r_t e^{at}) = a r_t e^{at} \mathrm{d}t + e^{at} [a(b - r_t)\mathrm{d}t + \sigma \mathrm{d}W_t] \]
+      \[ \mathrm{d}(r_t e^{at}) = a b e^{at} \mathrm{d}t + \sigma e^{at} \mathrm{d}W_t \]
+      Integrating from 0 to \( t \):
+      \[ r_t e^{at} - r_0 = \int_0^t a b e^{au} \mathrm{d}u + \int_0^t \sigma e^{au} \mathrm{d}W_u \]
+      \[ r_t e^{at} = r_0 + b(e^{at} - 1) + \sigma \int_0^t e^{au} \mathrm{d}W_u \]
+      Multiply by \( e^{-at} \):
+      \[ r_t = r_0 e^{-at} + b(1 - e^{-at}) + \sigma \int_0^t e^{-a(t-u)} \mathrm{d}W_u \]
+      Since the integral of a deterministic function w.r.t Brownian motion is a normal random variable, \( r_t \) is normally distributed. A flaw of the Vasicek model is that rates can become negative.
+      </p>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Real-world Use of Stochastic Calculus</div>
+    <div class="box-content">
+      <p>In practice, stochastic calculus is extensively used across the financial sector:</p>
+      <ul>
+        <li><strong>Derivatives Desks:</strong> Traders use SDEs to price and hedge exotic options, relying on Itô's Lemma to derive Greeks.</li>
+        <li><strong>Risk Management:</strong> Calculating Value-at-Risk (VaR) and Expected Shortfall often requires simulating correlated SDEs for portfolios of thousands of assets.</li>
+        <li><strong>Model Validation:</strong> Quants heavily scrutinize assumptions (e.g., constant volatility in GBM) and develop more realistic local or stochastic volatility models to capture market realities.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>8.5.2 Cox-Ingersoll-Ross (CIR) Process</h3>
+  <p>To prevent negative interest rates, the CIR model scales volatility by the square root of the rate:
+  \[ \mathrm{d}r_t = \kappa(\theta - r_t)\mathrm{d}t + \sigma \sqrt{r_t} \mathrm{d}W_t \]
+  When \( r_t \to 0 \), the volatility goes to zero, and the positive drift pulls the rate back up. If the <em>Feller condition</em> \( 2\kappa\theta \ge \sigma^2 \) is satisfied, the process never reaches zero.</p>
+
+  <h2>8.6 Girsanov Theorem and Measure Change</h2>
+  <p>In finance, we observe prices in the real-world probability measure \( \P \). However, for pricing derivatives, we must take expectations under the <em>risk-neutral measure</em> \( \Q \). The mathematical tool that allows us to change the drift of an SDE by changing the probability measure is Girsanov's Theorem.</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 8.3: Girsanov Theorem</div>
+    <div class="box-content">
+      Let \( W^\P(t) \) be a standard Brownian motion under measure \( \P \). Let \( \gamma(t) \) be an adapted process satisfying the Novikov condition \( \E^\P[\exp(\frac{1}{2}\int_0^T \gamma(s)^2 \mathrm{d}s)] < \infty \). Define a new measure \( \Q \) via the Radon-Nikodym derivative:
+      \[ \frac{\mathrm{d}\Q}{\mathrm{d}\P} = \exp\left( -\int_0^T \gamma(s) \mathrm{d}W^\P(s) - \frac{1}{2} \int_0^T \gamma(s)^2 \mathrm{d}s \right) \]
+      Then, under the measure \( \Q \), the process \( W^\Q(t) \) defined by:
+      \[ W^\Q(t) = W^\P(t) + \int_0^t \gamma(s) \mathrm{d}s \]
+      is a standard Brownian motion. Consequently, \( \mathrm{d}W^\P(t) = \mathrm{d}W^\Q(t) - \gamma(t)\mathrm{d}t \).
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 8.4: Applying Girsanov to GBM</div>
+    <div class="box-content">
+      <p>Let the real-world stock price dynamics be \( \mathrm{d}S = \mu S \mathrm{d}t + \sigma S \mathrm{d}W^\P \).</p>
+      <p>We want to price derivatives, so we require the discounted stock price \( S_t e^{-rt} \) to be a martingale under \( \Q \). This means under \( \Q \), the stock must grow at the risk-free rate \( r \). We choose the <em>market price of risk</em> \( \gamma = \frac{\mu - r}{\sigma} \).</p>
+      <p>By Girsanov, \( \mathrm{d}W^\P = \mathrm{d}W^\Q - \left(\frac{\mu - r}{\sigma}\right)\mathrm{d}t \). Substituting this into the SDE:</p>
+      \[ \mathrm{d}S = \mu S \mathrm{d}t + \sigma S \left( \mathrm{d}W^\Q - \frac{\mu - r}{\sigma}\mathrm{d}t \right) \]
+      \[ \mathrm{d}S = \mu S \mathrm{d}t - (\mu - r)S \mathrm{d}t + \sigma S \mathrm{d}W^\Q \]
+      \[ \mathrm{d}S = r S \mathrm{d}t + \sigma S \mathrm{d}W^\Q \]
+      <p>Under \( \Q \), the drift has magically changed from \( \mu \) to \( r \). This implies that risk preferences (\( \mu \)) drop out of derivative pricing entirely!</p>
+    </div>
+  </div>
+
+  <h2>8.7 The Feynman-Kac Formula</h2>
+  <p>The Feynman-Kac formula is the bridge between stochastic processes (expectations) and deterministic calculus (Partial Differential Equations). It tells us that calculating an expected value of a terminal payoff under an SDE is mathematically equivalent to solving a specific parabolic PDE.</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 8.4: Feynman-Kac Formula</div>
+    <div class="box-content">
+      Suppose \( V(x, t) \) is the solution to the PDE:
+      \[ \pdv{V}{t} + \mu(x,t)\pdv{V}{x} + \frac{1}{2}\sigma^2(x,t)\frac{\partial^2 V}{\partial x^2} - rV = 0 \]
+      subject to the terminal condition \( V(x, T) = h(x) \).
+      <br><br>
+      Then \( V(x, t) \) can be expressed as a conditional expectation under the probability measure \( \Q \):
+      \[ V(x, t) = \E^\Q \left[ e^{-r(T-t)} h(X_T) \mid X_t = x \right] \]
+      where \( X_t \) evolves according to the SDE:
+      \[ \mathrm{d}X_t = \mu(X_t, t)\mathrm{d}t + \sigma(X_t, t)\mathrm{d}W^\Q_t \]
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 8.5: Feynman-Kac and the Black-Scholes PDE</div>
+    <div class="box-content">
+      <p>If we apply Feynman-Kac to a European Call option with payoff \( h(S_T) = \max(S_T - K, 0) \), where the stock follows \( \mathrm{d}S = rS\mathrm{d}t + \sigma S \mathrm{d}W^\Q \), the resulting PDE is exactly the Black-Scholes PDE:</p>
+      \[ \pdv{V}{t} + rS\pdv{V}{S} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} - rV = 0 \]
+      <p>Feynman-Kac proves that the solution to this PDE is the discounted expected payoff under the risk-neutral measure: \( V(S_t, t) = e^{-r(T-t)}\E^\Q[\max(S_T - K, 0)] \).</p>
+    </div>
+  </div>
+
+  <h2>8.8 Jump-Diffusion and Lévy Processes</h2>
+  <p>Standard Brownian motion generates continuous sample paths, meaning the probability of a massive instantaneous move (a crash) over a tiny time interval is practically zero. Market empirical data, however, shows heavy tails and sudden gaps (jumps) in prices.</p>
+  <p>To capture this, Merton introduced the <strong>Jump-Diffusion Model</strong>:
+  \[ \frac{\mathrm{d}S_t}{S_{t-}} = (\mu - \lambda k)\mathrm{d}t + \sigma \mathrm{d}W_t + (Y_t - 1)\mathrm{d}N_t \]
+  where:
+  <ul>
+    <li>\( N_t \) is a Poisson process with rate \( \lambda \) (counting jumps).</li>
+    <li>\( Y_t \) is the jump magnitude (e.g., lognormal distribution).</li>
+    <li>\( k = \E[Y - 1] \) is the expected relative jump size.</li>
+  </ul>
+  This falls into the broader class of <strong>Lévy processes</strong> (processes with stationary, independent increments but not necessarily continuous paths). The famous Lévy-Khintchine formula classifies all such processes via a diffusion component, a drift component, and a Lévy measure detailing jump intensities.
+  </p>
+
+  <h2>8.9 Python Code: Simulating Geometric Brownian Motion</h2>
+  <p>Let's simulate paths of GBM and verify the theoretical lognormal distribution at maturity \( T \).</p>
+  <pre><code class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.stats as stats
+
+# Parameters
+S0 = 100.0     # Initial stock price
+mu = 0.08      # Drift (8%)
+sigma = 0.20   # Volatility (20%)
+T = 1.0        # Time to maturity (1 year)
+dt = 1/252     # Daily time steps
+N = int(T/dt)  # Number of steps
+M = 10000      # Number of simulated paths
+
+# Simulate M paths
+# Generate standard normal increments
+Z = np.random.standard_normal((M, N))
+# Precompute constants for efficiency
+drift = (mu - 0.5 * sigma**2) * dt
+vol = sigma * np.sqrt(dt)
+
+# Accumulate the log returns
+# d(ln S) = (mu - 0.5*sigma^2)dt + sigma * dW
+log_returns = drift + vol * Z
+log_paths = np.cumsum(log_returns, axis=1)
+
+# Convert back to price paths
+S_paths = np.zeros((M, N+1))
+S_paths[:, 0] = S0
+S_paths[:, 1:] = S0 * np.exp(log_paths)
+
+# Theoretical distribution of S(T)
+ST_simulated = S_paths[:, -1]
+expected_mean = S0 * np.exp(mu * T)
+simulated_mean = np.mean(ST_simulated)
+
+print(f"Theoretical E[S_T]: {expected_mean:.2f}")
+print(f"Simulated E[S_T]:   {simulated_mean:.2f}")
+  </code></pre>
+
+  <h2>8.10 Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <div class="box-title">Key Formulas</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Multiplication rules:</strong> \( (\mathrm{d}W)^2 = \mathrm{d}t, \quad \mathrm{d}W\mathrm{d}t = 0, \quad (\mathrm{d}t)^2 = 0 \)</li>
+        <li><strong>Itô's Lemma:</strong> \( \mathrm{d}f(X) = f'(X)\mathrm{d}X + \frac{1}{2}f''(X)(\mathrm{d}X)^2 \)</li>
+        <li><strong>GBM Solution:</strong> \( S(t) = S(0)\exp\left[(\mu - \frac{\sigma^2}{2})t + \sigma W(t)\right] \)</li>
+        <li><strong>Girsanov Change of Drift:</strong> \( \mathrm{d}W^\P(t) = \mathrm{d}W^\Q(t) - \gamma(t)\mathrm{d}t \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>8.11 Exercises</h2>
+  <div class="exercises">
+    <div class="box-title">Problems</div>
+    <div class="box-content">
+      <div class="exercise-item">
+        <strong>1. (Basic)</strong> Let \( f(W_t) = W_t^3 \). Use Itô's Lemma to find the SDE for \( \mathrm{d}f \).
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> Here \( f(x) = x^3 \), so \( f'(x) = 3x^2 \) and \( f''(x) = 6x \). By Itô's Lemma, \( \mathrm{d}f(W_t) = 3W_t^2\mathrm{d}W_t + \frac{1}{2}(6W_t)(\mathrm{d}W_t)^2 = 3W_t^2\mathrm{d}W_t + 3W_t\mathrm{d}t \).
+      </div>
+      <div class="exercise-item">
+        <strong>2. (Basic)</strong> Given the GBM process \( \mathrm{d}S = \mu S \mathrm{d}t + \sigma S \mathrm{d}W \), use Itô's Lemma to find the SDE for \( Y_t = S_t^2 \).
+      </div>
+      <div class="solution-item">
+        <strong>Solution:</strong> Let \( f(S) = S^2 \). Then \( f'(S) = 2S \) and \( f''(S) = 2 \). Applying Itô's Lemma gives \( \mathrm{d}Y_t = 2S(\mu S \mathrm{d}t + \sigma S \mathrm{d}W) + \frac{1}{2}(2)(\sigma^2 S^2 \mathrm{d}t) = (2\mu + \sigma^2)Y_t\mathrm{d}t + 2\sigma Y_t\mathrm{d}W \).
+      </div>
+      <div class="exercise-item">
+        <strong>3. (Intermediate)</strong> Derive the explicit solution for the Vasicek model shown in Example 8.3, but assume the process starts at a non-zero time \( t_0 \).
+      </div>
+      <div class="exercise-item">
+        <strong>4. (Advanced)</strong> Let \( X_t = \int_0^t s \mathrm{d}W_s \). Find the mean and variance of \( X_t \). Is \( X_t \) a martingale?
+      </div>
+    </div>
+  </div>
+
+  <h2>8.12 Further Reading</h2>
+  <div class="further-reading">
+    <div class="box-content">
+      <ul>
+        <li>Shreve, S. E. (2004). <em>Stochastic Calculus for Finance II: Continuous-Time Models</em>. Springer. (The absolute gold standard for financial mathematics).</li>
+        <li>Øksendal, B. (2003). <em>Stochastic Differential Equations: An Introduction with Applications</em>. Springer.</li>
+        <li>Karatzas, I., & Shreve, S. E. (1991). <em>Brownian Motion and Stochastic Calculus</em>. Springer.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch07_stochastic_processes.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch09_numerical_methods.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

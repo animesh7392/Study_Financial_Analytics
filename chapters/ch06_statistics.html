@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 6: Statistics and Inference</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 6: Statistics and Inference</h1>
+
+  <section class="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul>
+      <li>Understand and evaluate point estimators using properties such as unbiasedness, consistency, and efficiency.</li>
+      <li>Derive and apply Maximum Likelihood Estimators (MLE) and the Method of Moments (MoM) for various distributions.</li>
+      <li>Construct and interpret confidence intervals and perform hypothesis tests using both classical and Bayesian methodologies.</li>
+      <li>Apply generalized linear models (GLMs), regression techniques, and regularization to insurance and financial data.</li>
+      <li>Utilize non-parametric and computational methods like the Bootstrap, EM Algorithm, and cross-validation for complex estimation and model selection.</li>
+    </ul>
+  </section>
+
+  <section class="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <p>This chapter extensively builds upon the concepts from <strong>Chapter 4 (Probability Theory)</strong> and <strong>Chapter 5 (Statistical Distributions)</strong>. You must be comfortable with expectation, variance, conditional probability, normal distributions, and the exponential family. The tools developed here will be crucial for <strong>Chapter 7 (Stochastic Processes)</strong> and subsequent chapters on actuarial modeling and risk management.</p>
+  </section>
+
+  <section>
+    <h2>3. Intuition & Motivation</h2>
+    <p>Imagine you are the Chief Actuary of a burgeoning auto insurance company in India. You have observed a sample of $n = 1,000$ claim severities over the past year. Your task is to set the premium for the next year. If you assume the claims follow a Pareto distribution, what is the best guess for the parameters? How confident are you in this guess? What if the true distribution is Lognormal?</p>
+    <p>Statistical inference provides the mathematical machinery to move from finite, observed data to conclusions about the underlying, unobserved population. We want to estimate parameters, quantify our uncertainty (confidence intervals), test assumptions (hypothesis testing), and predict future observations (regression). In actuarial science, precision in inference is the difference between profitability and insolvency.</p>
+  </section>
+
+  <section>
+    <h2>4. Formal Theory</h2>
+    
+    <h3>4.1 Point Estimation</h3>
+    <p>A point estimator $\hat{\theta}$ is a statistic (a function of the data $X_1, \dots, X_n$) that guesses the true parameter $\theta$.</p>
+    
+    <div class="definition">
+      <div class="box-title">Definition 6.1 (Properties of Estimators)</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Bias:</strong> $\text{Bias}(\hat{\theta}) = \E[\hat{\theta}] - \theta$. An estimator is unbiased if $\E[\hat{\theta}] = \theta$.</li>
+          <li><strong>Consistency:</strong> $\hat{\theta}_n \xrightarrow{p} \theta$ as $n \to \infty$. (Convergence in probability).</li>
+          <li><strong>Mean Squared Error (MSE):</strong> $\text{MSE}(\hat{\theta}) = \E[(\hat{\theta} - \theta)^2] = \text{Bias}(\hat{\theta})^2 + \Var(\hat{\theta})$.</li>
+          <li><strong>Sufficiency:</strong> A statistic $T(X)$ is sufficient for $\theta$ if the conditional distribution of the data given $T(X)$ does not depend on $\theta$.</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="theorem">
+      <div class="box-title">Theorem 6.1 (Cramér-Rao Lower Bound)</div>
+      <div class="box-content">
+        For any unbiased estimator $\hat{\theta}$ of $\theta$, under mild regularity conditions:
+        \[ \Var(\hat{\theta}) \ge \frac{1}{\mathcal{I}(\theta)} \]
+        where $\mathcal{I}(\theta) = -n \E\left[ \frac{\partial^2}{\partial \theta^2} \log f(X; \theta) \right]$ is the Fisher Information.
+      </div>
+    </div>
+
+    <h3>4.2 Maximum Likelihood Estimation (MLE)</h3>
+    <p>The likelihood function $L(\theta; \mathbf{x}) = \prod_{i=1}^n f(x_i; \theta)$ represents the probability of observing the data given $\theta$. The MLE $\hat{\theta}_{MLE}$ maximizes this function, or equivalently, the log-likelihood $\ell(\theta; \mathbf{x}) = \log L(\theta; \mathbf{x})$.</p>
+    
+    <p>The score function is $S(\theta) = \frac{\partial \ell(\theta)}{\partial \theta}$. Setting $S(\theta) = 0$ gives the MLE.</p>
+    
+    <div class="remark">
+      <div class="box-title">Asymptotic Normality of MLE</div>
+      <div class="box-content">
+        As $n \to \infty$, $\sqrt{n}(\hat{\theta}_{MLE} - \theta) \xrightarrow{d} \mathcal{N}(0, \mathcal{I}(\theta)^{-1})$. This provides large-sample confidence intervals.
+      </div>
+    </div>
+
+    <h3>4.3 Method of Moments (MoM)</h3>
+    <p>MoM equates the population moments to the sample moments: $\E[X^k] = \frac{1}{n}\sum_{i=1}^n X_i^k$. Solving the resulting system of equations yields the MoM estimators. While simpler than MLE, MoM estimators are generally less efficient.</p>
+
+    <h3>4.4 Interval Estimation</h3>
+    <p>A $100(1-\alpha)\%$ confidence interval (CI) is a random interval $[L(X), U(X)]$ such that $\P(L(X) \le \theta \le U(X)) = 1-\alpha$.</p>
+    <p>For large samples using MLE asymptotics, a $95\%$ CI is approximately $\hat{\theta} \pm 1.96 \sqrt{\widehat{\Var}(\hat{\theta})}$.</p>
+    
+    <h3>4.5 Hypothesis Testing</h3>
+    <p>We test a null hypothesis $H_0$ against an alternative $H_1$.</p>
+    <ul>
+      <li><strong>Type I Error ($\alpha$):</strong> Rejecting $H_0$ when it is true (Significance level).</li>
+      <li><strong>Type II Error ($\beta$):</strong> Failing to reject $H_0$ when $H_1$ is true.</li>
+      <li><strong>Power ($1-\beta$):</strong> Probability of correctly rejecting $H_0$.</li>
+      <li><strong>p-value:</strong> The probability of observing a test statistic as extreme as the one computed, assuming $H_0$ is true.</li>
+    </ul>
+    
+    <div class="theorem">
+      <div class="box-title">Neyman-Pearson Lemma</div>
+      <div class="box-content">
+        The most powerful test of size $\alpha$ for testing a simple $H_0: \theta = \theta_0$ versus a simple $H_1: \theta = \theta_1$ is given by the likelihood ratio test: reject $H_0$ if $\frac{L(\theta_1; x)}{L(\theta_0; x)} > k$.
+      </div>
+    </div>
+
+    <h3>4.6 Goodness of Fit Tests</h3>
+    <p>Tests like the Pearson Chi-Square ($\chi^2 = \sum \frac{(O_i - E_i)^2}{E_i}$), Kolmogorov-Smirnov (KS) test, and Anderson-Darling test are used to check if data follows a hypothesized distribution.</p>
+
+    <h3>4.7 Bayesian Inference</h3>
+    <p>Bayes' Theorem updates our prior belief $p(\theta)$ using the data likelihood $p(x|\theta)$ to obtain the posterior $p(\theta|x)$:</p>
+    \[ p(\theta | x) = \frac{p(x | \theta) p(\theta)}{\int p(x | \theta) p(\theta) \dd\theta} \propto p(x | \theta) p(\theta) \]
+    <p>A <strong>conjugate prior</strong> is one where the posterior belongs to the same distribution family as the prior (e.g., Gamma prior with Poisson likelihood yields a Gamma posterior). The posterior mean is often a credibility-weighted average of the prior mean and sample mean.</p>
+
+    <h3>4.8 Bootstrap Methods</h3>
+    <p>When analytical standard errors are untractable, we use the bootstrap. The Non-parametric Bootstrap resamples with replacement from the original data. We compute the statistic on $B$ bootstrap samples (e.g., $B=10,000$) to estimate its sampling distribution and confidence intervals (percentile or BCa).</p>
+
+    <h3>4.9 EM Algorithm</h3>
+    <p>The Expectation-Maximization (EM) algorithm is an iterative method to find MLEs in models with latent variables or incomplete data (like finite mixture models).</p>
+    <ul>
+      <li><strong>E-step:</strong> Calculate expected value of log-likelihood with respect to latent variables given current parameters.</li>
+      <li><strong>M-step:</strong> Maximize the expected log-likelihood to update parameters.</li>
+    </ul>
+
+    <h3>4.10 Regression and GLMs</h3>
+    <p><strong>Ordinary Least Squares (OLS):</strong> For $Y = X\beta + \epsilon$, the estimator is $\hat{\beta} = (X^TX)^{-1}X^TY$.</p>
+    <p><strong>Generalized Linear Models (GLMs):</strong> Extend linear regression to exponential family distributions using a link function $g(\mu_i) = X_i \beta$.
+    <ul>
+      <li>Poisson Regression (Log link): $Y_i \sim \text{Poisson}(\mu_i)$, $\log(\mu_i) = x_i^T\beta$.</li>
+      <li>Logistic Regression (Logit link): $Y_i \sim \text{Binomial}(1, p_i)$, $\log(\frac{p_i}{1-p_i}) = x_i^T\beta$.</li>
+    </ul>
+    </p>
+
+    <h3>4.11 Model Selection</h3>
+    <p>Used to penalize complexity and avoid overfitting.</p>
+    <ul>
+      <li>$\text{AIC} = 2k - 2\ell(\hat{\theta})$</li>
+      <li>$\text{BIC} = k\ln(n) - 2\ell(\hat{\theta})$</li>
+      <li><strong>Cross-Validation:</strong> Splits data into $K$ folds to evaluate out-of-sample prediction error.</li>
+    </ul>
+
+  </section>
+
+  <section>
+    <h2>5. Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 6.1: MLE for Exponential Distribution</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Suppose insurance claim inter-arrival times $X_1, \dots, X_n$ are i.i.d. $\text{Exp}(\lambda)$. Derive the MLE for $\lambda$ and a $95\%$ asymptotic CI. A sample of $n=100$ claims has $\bar{x} = 2.5$ days. Calculate the estimate and CI.</p>
+        <p><strong>Solution:</strong></p>
+        <ol>
+          <li>The PDF is $f(x_i; \lambda) = \lambda e^{-\lambda x_i}$.</li>
+          <li>Likelihood: $L(\lambda) = \prod_{i=1}^n \lambda e^{-\lambda x_i} = \lambda^n e^{-\lambda \sum x_i}$.</li>
+          <li>Log-likelihood: $\ell(\lambda) = n \log(\lambda) - \lambda \sum x_i$.</li>
+          <li>Score function: $\frac{d\ell}{d\lambda} = \frac{n}{\lambda} - \sum x_i = 0 \implies \hat{\lambda} = \frac{n}{\sum x_i} = \frac{1}{\bar{x}}$.</li>
+          <li>Fisher Information: $I(\lambda) = -E\left[ -\frac{n}{\lambda^2} \right] = \frac{n}{\lambda^2}$.</li>
+          <li>Asymptotic Variance: $\Var(\hat{\lambda}) \approx \frac{1}{I(\lambda)} = \frac{\lambda^2}{n}$.</li>
+          <li>Numerical Estimate: $\hat{\lambda} = 1/2.5 = 0.40$ claims/day.</li>
+          <li>Std Error: $SE = \hat{\lambda}/\sqrt{n} = 0.40 / 10 = 0.04$.</li>
+          <li>95% CI: $0.40 \pm 1.96(0.04) \implies [0.3216, 0.4784]$.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 6.2: Bayesian Inference with Gamma-Poisson</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A policyholder's annual claim count $X \sim \text{Poisson}(\lambda)$. The prior for $\lambda$ is $\text{Gamma}(\alpha=2, \beta=1)$ (mean = 2). We observe 3 years of data: 4, 3, 5 claims. Find the posterior distribution and posterior mean.</p>
+        <p><strong>Solution:</strong></p>
+        <p>Prior: $p(\lambda) \propto \lambda^{\alpha-1} e^{-\beta\lambda} = \lambda^1 e^{-\lambda}$.</p>
+        <p>Likelihood: $p(X|\lambda) \propto \prod \lambda^{x_i} e^{-\lambda} = \lambda^{\sum x_i} e^{-n\lambda} = \lambda^{12} e^{-3\lambda}$.</p>
+        <p>Posterior: $p(\lambda|X) \propto p(X|\lambda)p(\lambda) \propto \lambda^{12+1} e^{-(3+1)\lambda} = \lambda^{13} e^{-4\lambda}$.</p>
+        <p>This is a $\text{Gamma}(\alpha' = 14, \beta' = 4)$ distribution.</p>
+        <p>Posterior Mean: $\frac{\alpha'}{\beta'} = \frac{14}{4} = 3.5$.</p>
+        <p>Notice the credibility formulation: $\E[\lambda|X] = Z \bar{X} + (1-Z)\mu_{prior}$, where $Z = \frac{n}{n+\beta} = \frac{3}{4}$. So, $\frac{3}{4}(4) + \frac{1}{4}(2) = 3 + 0.5 = 3.5$.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 6.3: GLM Poisson Regression</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Fit a Poisson regression to claim counts using age as a predictor. $\log(\E[Y_i]) = \beta_0 + \beta_1 \text{Age}_i$. Assume estimates are $\hat{\beta}_0 = -2.0, \hat{\beta}_1 = 0.05$. What is the expected claim count for a 30-year-old?</p>
+        <p><strong>Solution:</strong></p>
+        <p>$\log(\mu_{30}) = -2.0 + 0.05(30) = -2.0 + 1.5 = -0.5$.</p>
+        <p>$\mu_{30} = e^{-0.5} \approx 0.606$ claims.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 6.4: Bootstrap Confidence Interval</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> We have a sample of 5 claim severities in INR: 5k, 12k, 18k, 45k, 120k. The median is 18k. Explain how to find a 95% bootstrap CI for the median.</p>
+        <p><strong>Solution:</strong></p>
+        <ol>
+          <li>Sample 5 items with replacement from the data. E.g., {5k, 18k, 18k, 120k, 120k}. Median = 18k.</li>
+          <li>Repeat this process $B=10,000$ times to obtain $B$ bootstrap medians.</li>
+          <li>Sort the $B$ medians. The 95% percentile CI is the interval from the 2.5th percentile to the 97.5th percentile of these sorted values.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 6.5: Model Selection using AIC</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> We fit Exponential (k=1), Gamma (k=2), and Lognormal (k=2) models to loss data. The log-likelihoods are -500, -480, and -475 respectively. Which is best according to AIC?</p>
+        <p><strong>Solution:</strong></p>
+        <p>$\text{AIC} = 2k - 2\ell$. Lower is better.</p>
+        <ul>
+          <li>Exponential: $2(1) - 2(-500) = 2 + 1000 = 1002$.</li>
+          <li>Gamma: $2(2) - 2(-480) = 4 + 960 = 964$.</li>
+          <li>Lognormal: $2(2) - 2(-475) = 4 + 950 = 954$.</li>
+        </ul>
+        <p>The Lognormal model minimizes the AIC and is therefore preferred.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <section>
+    <h2>6. Python Code</h2>
+    <p>Here we reproduce the GLM Poisson regression example (similar to Example 6.3) using Python's `statsmodels`.</p>
+<pre><code class="language-python">import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+
+# Simulate some insurance data
+np.random.seed(42)
+n_samples = 1000
+age = np.random.uniform(18, 70, n_samples)
+# True relationship: log(lambda) = -2 + 0.03 * age
+true_lambda = np.exp(-2 + 0.03 * age)
+claims = np.random.poisson(true_lambda)
+
+# Prepare data for statsmodels
+X = sm.add_constant(age)  # Adds the intercept term beta_0
+model = sm.GLM(claims, X, family=sm.families.Poisson())
+results = model.fit()
+
+print(results.summary())
+
+# Predict for a 30-year-old
+new_data = sm.add_constant(np.array([30]), has_constant='add')
+pred = results.predict(new_data)
+print(f"Expected claims for 30-year-old: {pred[0]:.4f}")
+</code></pre>
+  </section>
+
+  <section>
+    <h2>7. Diagrams Description</h2>
+    <p><em>Figure 6.1: Profile Likelihood.</em> A plot showing the log-likelihood curve for the parameter $\lambda$ of an Exponential distribution. The peak occurs at the MLE $\hat{\lambda}$. A horizontal line intersects the curve below the peak at $\ell(\hat{\lambda}) - \frac{1}{2}\chi^2_{1, 1-\alpha}$, mapping down to the x-axis to form the Likelihood Ratio Confidence Interval.</p>
+    <p><em>Figure 6.2: Bayesian Updating.</em> Three curves: a broad Gamma prior, a sharp Poisson likelihood (scaled), and the resulting Gamma posterior which sits between them but leans heavily toward the data likelihood due to sample size.</p>
+  </section>
+
+  <section class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confidence Intervals:</strong> Saying "there is a 95% probability that the true parameter lies in this interval." Incorrect! The parameter is fixed; the interval is random. It means 95% of intervals generated this way will contain the true parameter.</li>
+        <li><strong>p-values:</strong> Interpreting the p-value as the probability that the null hypothesis is true. A p-value is $\P(Data | H_0)$, not $\P(H_0 | Data)$.</li>
+        <li><strong>Correlation vs Causation in Regression:</strong> A significant $\beta$ coefficient only implies statistical association, not that changing $X$ will cause $Y$ to change.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="industry">
+    <div class="box-title">9. Industry Application Box: GLMs in Ratemaking</div>
+    <div class="box-content">
+      <p>In property & casualty (P&C) insurance, actuaries calculate base premiums and adjust them using rating factors (e.g., age, car type, zip code). The industry standard for determining these adjustments is the Generalized Linear Model (GLM).</p>
+      <p>Typically, frequency (how often claims happen) is modeled with a Poisson GLM (log link), and severity (how large claims are) is modeled with a Gamma GLM (log link). By using the log link, the resulting premium formula becomes multiplicative: $\text{Premium} = \text{Base Rate} \times \text{Factor}_1 \times \text{Factor}_2$. This multiplicative structure is intuitive for underwriters and easily deployable in IT systems.</p>
+    </div>
+  </section>
+
+  <section class="formula-sheet">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>MSE:</strong> $\text{MSE}(\hat{\theta}) = \text{Bias}^2 + \Var(\hat{\theta})$</li>
+      <li><strong>Score Function:</strong> $S(\theta) = \frac{\partial \ell(\theta)}{\partial \theta}$</li>
+      <li><strong>Fisher Information:</strong> $\mathcal{I}(\theta) = -\E[S'(\theta)]$</li>
+      <li><strong>Asymptotic CI for MLE:</strong> $\hat{\theta} \pm Z_{1-\alpha/2} \frac{1}{\sqrt{\mathcal{I}(\hat{\theta})}}$</li>
+      <li><strong>Bayes' Theorem:</strong> $\text{Posterior} \propto \text{Likelihood} \times \text{Prior}$</li>
+      <li><strong>AIC:</strong> $2k - 2\ell(\hat{\theta})$</li>
+    </ul>
+  </section>
+
+  <section class="exercises">
+    <h2>11. Exercises</h2>
+    
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> If $\hat{\theta}$ is an unbiased estimator of $\theta$, is $\hat{\theta}^2$ generally an unbiased estimator of $\theta^2$? Why or why not?
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> Find the Method of Moments estimator for $\lambda$ for a Poisson distribution.
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> State the definition of a Type I error and its relationship to the significance level $\alpha$.
+      </div>
+      <div class="exercise-item">
+        <strong>4.</strong> What is the difference between a confidence interval and a Bayesian credible interval?
+      </div>
+      <div class="exercise-item">
+        <strong>5.</strong> Calculate AIC for a model with $k=3$ parameters and a log-likelihood of -120.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>6.</strong> Derive the MLE for the variance $\sigma^2$ of a Normal distribution with unknown mean $\mu$. Show whether it is biased or unbiased.
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> Given a Bernoulli sample $X_1, \dots, X_n \sim \text{Bern}(p)$, derive the score function and Fisher Information. Find the Cramér-Rao lower bound for $\Var(\hat{p})$.
+      </div>
+      <div class="exercise-item">
+        <strong>8.</strong> Consider a Gamma prior $\text{Gamma}(\alpha, \beta)$ and Poisson likelihood. Show that the posterior predictive distribution for a new observation is Negative Binomial.
+      </div>
+      <div class="exercise-item">
+        <strong>9.</strong> Construct a Likelihood Ratio Test for $H_0: \lambda = \lambda_0$ vs $H_1: \lambda \neq \lambda_0$ in an Exponential distribution.
+      </div>
+      <div class="exercise-item">
+        <strong>10.</strong> Explain the mechanics of a 10-fold cross-validation for evaluating a Poisson regression model.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>11.</strong> Derive the equations for the E-step and M-step for a mixture of two Normal distributions.
+      </div>
+      <div class="exercise-item">
+        <strong>12.</strong> Prove that the least squares estimator $\hat{\beta}$ in multiple linear regression is unbiased, assuming $\E[\epsilon|X]=0$.
+      </div>
+      <div class="exercise-item">
+        <strong>13.</strong> Contrast LASSO and Ridge regression. Explain how the $L1$ penalty in LASSO leads to sparse solutions (variable selection) compared to the $L2$ penalty.
+      </div>
+      <div class="exercise-item">
+        <strong>14.</strong> For Pareto distribution $F(x) = 1 - (x_m/x)^\alpha$, assuming $x_m$ is known, derive the asymptotic variance of the MLE for $\alpha$.
+      </div>
+      <div class="exercise-item">
+        <strong>15.</strong> Design an algorithm using the parametric bootstrap to find a confidence interval for the 99th percentile (Value at Risk) of a Lognormal loss distribution.
+      </div>
+    </div>
+
+    <h3>Solutions to Selected Exercises</h3>
+    <div class="solution-item">
+      <strong>Solution to 1:</strong> No. $\E[\hat{\theta}^2] = \Var(\hat{\theta}) + (\E[\hat{\theta}])^2 = \Var(\hat{\theta}) + \theta^2$. As long as $\Var(\hat{\theta}) > 0$, $\E[\hat{\theta}^2] > \theta^2$, making it biased.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 2:</strong> $\E[X] = \lambda$. Equating to sample mean gives $\hat{\lambda}_{MoM} = \bar{X}$.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 5:</strong> $\text{AIC} = 2k - 2\ell = 2(3) - 2(-120) = 6 + 240 = 246$.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 6:</strong> MLE is $\hat{\sigma}^2 = \frac{1}{n}\sum(X_i - \bar{X})^2$. Since $\E[\hat{\sigma}^2] = \frac{n-1}{n}\sigma^2$, it is biased. (The unbiased estimator divides by $n-1$).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7:</strong> $\ell(p) = \sum x_i \log p + (n-\sum x_i) \log(1-p)$. $S(p) = \frac{\sum x_i}{p} - \frac{n-\sum x_i}{1-p}$. Fisher info $\mathcal{I}(p) = \frac{n}{p(1-p)}$. CRLB is $\frac{p(1-p)}{n}$.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 12:</strong> $\hat{\beta} = (X^TX)^{-1}X^TY = (X^TX)^{-1}X^T(X\beta + \epsilon) = \beta + (X^TX)^{-1}X^T\epsilon$. Taking expectation conditionally on $X$, $\E[\hat{\beta}|X] = \beta + (X^TX)^{-1}X^T\E[\epsilon|X] = \beta + 0 = \beta$.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 13:</strong> Ridge uses $\sum \beta_j^2 \le t$, resulting in a circular constraint region. LASSO uses $\sum |\beta_j| \le t$, a diamond-shaped region. The elliptical contours of the sum of squared errors are more likely to hit the corners of the LASSO diamond (where some $\beta_j=0$) than the smooth edges of the Ridge circle.
+    </div>
+
+  </section>
+
+  <section class="further-reading">
+    <h2>12. Further Reading</h2>
+    <ul>
+      <li>Casella, G., & Berger, R. L. (2001). <em>Statistical Inference</em> (2nd ed.). Duxbury Press.</li>
+      <li>Gelman, A., et al. (2013). <em>Bayesian Data Analysis</em> (3rd ed.). CRC Press.</li>
+      <li>McCullagh, P., & Nelder, J. A. (1989). <em>Generalized Linear Models</em> (2nd ed.). Chapman and Hall.</li>
+      <li>Hastie, T., Tibshirani, R., & Friedman, J. (2009). <em>The Elements of Statistical Learning</em>. Springer.</li>
+    </ul>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch05_distributions.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch07_stochastic_processes.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

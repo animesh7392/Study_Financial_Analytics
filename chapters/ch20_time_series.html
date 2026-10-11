@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 20: Time Series and Volatility Modelling</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 20: Time Series and Volatility Modelling</h1>
+
+  <section id="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <div class="learning-objectives">
+      <div class="box-title">Learning Objectives</div>
+      <div class="box-content">
+        <ul>
+          <li>Distinguish between strict and weak stationarity, and apply transformations to induce stationarity.</li>
+          <li>Analyze ACF and PACF to identify the appropriate AR, MA, or ARMA model for a given time series.</li>
+          <li>Estimate and interpret conditional volatility models, particularly the GARCH family.</li>
+          <li>Understand unit roots, cointegration, and their application to pairs trading.</li>
+          <li>Explore advanced techniques including VAR, state-space representations (Kalman filter), and regime switching models.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <div class="prerequisites">
+      <div class="box-title">Prerequisites & Roadmap</div>
+      <div class="box-content">
+        <p>This chapter builds upon foundational concepts covered in earlier chapters:</p>
+        <ul>
+          <li><strong>Probability and Statistics (Chapters 4-6):</strong> Expected values, variance, covariance, and probability distributions.</li>
+          <li><strong>Returns (Chapter 13):</strong> Calculation and properties of simple and log returns.</li>
+        </ul>
+        <p>Following this chapter, the concepts of time series forecasting and volatility modeling will be crucial for <strong>Chapter 21: Corporate Finance</strong> and future discussions on advanced risk management frameworks.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="intuition">
+    <h2>3. Intuition & Motivation</h2>
+    <p>
+      Imagine you are a risk manager at a large investment bank in Mumbai, monitoring a portfolio of Indian equities and US Treasuries. You notice that market volatility is not constant over time; rather, it clusters. A large movement in the NIFTY 50 index today is likely to be followed by another large movement tomorrow, though the direction is unpredictable. This phenomenon, known as volatility clustering, cannot be explained by standard independent and identically distributed (i.i.d.) normal return models.
+    </p>
+    <p>
+      Similarly, suppose you are developing an algorithmic trading strategy. You observe that while individual stock prices (like Reliance Industries or HDFC Bank) wander unpredictably like a "drunkard's walk," certain combinations of stocks move together over the long term. If they temporarily diverge, they eventually snap back to their historical relationship. How can you rigorously test if this relationship is robust enough to trade?
+    </p>
+    <p>
+      Time series analysis provides the mathematical framework to answer these questions. It allows us to model the temporal dependence in data, forecast future values based on past information, and capture the dynamic nature of risk (volatility). From macroeconomic forecasting to high-frequency trading, time series econometrics is the indispensable toolkit of the quantitative analyst.
+    </p>
+  </section>
+
+  <section id="formal-theory">
+    <h2>4. Formal Theory</h2>
+
+    <h3>4.1 Stationarity</h3>
+    <p>
+      The cornerstone of traditional time series analysis is the concept of stationarity, which essentially requires that the statistical properties of the series do not change over time.
+    </p>
+    
+    <div class="definition">
+      <div class="box-title">Strict vs. Weak Stationarity</div>
+      <div class="box-content">
+        <p><strong>Strict Stationarity:</strong> A time series \( \{X_t\} \) is strictly stationary if the joint distribution of \( (X_{t_1}, X_{t_2}, \dots, X_{t_k}) \) is identical to that of \( (X_{t_1+h}, X_{t_2+h}, \dots, X_{t_k+h}) \) for any set of times \( t_1, \dots, t_k \) and any lag \( h \).</p>
+        <p><strong>Weak (Covariance) Stationarity:</strong> A series is weakly stationary if:
+        <ol>
+          <li>\(\E[X_t] = \mu\), a constant independent of \(t\).</li>
+          <li>\(\Var(X_t) = \sigma^2\), a constant independent of \(t\).</li>
+          <li>\(\Cov(X_t, X_{t+h}) = \gamma_h\), which depends only on the lag \(h\), not on \(t\).</li>
+        </ol>
+        </p>
+      </div>
+    </div>
+    
+    <p>
+      Why does stationarity matter? If a series is not stationary (e.g., it has a trending mean or growing variance), we cannot meaningfully estimate parameters from historical data because the "true" parameters are constantly changing.
+    </p>
+    <p>
+      Most financial price series (like stock prices) are non-stationary. We typically transform them into stationary series by <strong>differencing</strong> or computing <strong>log returns</strong>:
+      \[ r_t = \ln(P_t) - \ln(P_{t-1}) \approx \frac{P_t - P_{t-1}}{P_{t-1}} \]
+      Trend and seasonality can also be removed using regression or seasonal differencing.
+    </p>
+
+    <h3>4.2 ACF and PACF</h3>
+    <p>
+      The Autocorrelation Function (ACF) and Partial Autocorrelation Function (PACF) are diagnostic tools used to measure the linear dependence between observations at different time lags.
+    </p>
+    
+    <div class="definition">
+      <div class="box-title">ACF and PACF</div>
+      <div class="box-content">
+        <p><strong>Autocorrelation Function (ACF):</strong> The correlation between \(X_t\) and \(X_{t-h}\):
+        \[ \rho_h = \frac{\gamma_h}{\gamma_0} = \frac{\Cov(X_t, X_{t-h})}{\Var(X_t)} \]
+        </p>
+        <p><strong>Partial Autocorrelation Function (PACF):</strong> The correlation between \(X_t\) and \(X_{t-h}\) after removing the linear effects of the intermediate lags \(X_{t-1}, \dots, X_{t-h+1}\).</p>
+      </div>
+    </div>
+    
+    <p>
+      The <strong>sample ACF</strong> is estimated as:
+      \[ \hat{\rho}_h = \frac{\sum_{t=h+1}^T (X_t - \bar{X})(X_{t-h} - \bar{X})}{\sum_{t=1}^T (X_t - \bar{X})^2} \]
+      To test if autocorrelations are statistically significant, we use Bartlett’s formula, which states that for a white noise process, the sample autocorrelations are approximately normally distributed with variance \(1/T\). The 95% confidence bands are roughly \(\pm 1.96/\sqrt{T}\).
+    </p>
+
+    <h3>4.3 Autoregressive (AR) Models</h3>
+    <p>
+      An AR model assumes the current value of the series is a linear combination of its past values plus a white noise error term.
+    </p>
+    
+    <div class="definition">
+      <div class="box-title">AR(p) Model</div>
+      <div class="box-content">
+        <p>An autoregressive process of order \(p\), denoted AR(\(p\)), is:
+        \[ X_t = c + \phi_1 X_{t-1} + \phi_2 X_{t-2} + \dots + \phi_p X_{t-p} + \varepsilon_t \]
+        where \(\varepsilon_t \sim \text{WN}(0, \sigma^2)\) is a white noise process.</p>
+      </div>
+    </div>
+    
+    <p><strong>AR(1) Case:</strong> \( X_t = c + \phi X_{t-1} + \varepsilon_t \).</p>
+    <p>
+      For an AR(1) process to be weakly stationary, we require \(|\phi| < 1\). If this holds:
+      <ul>
+        <li>\(\E[X_t] = \frac{c}{1 - \phi}\)</li>
+        <li>\(\Var(X_t) = \frac{\sigma^2}{1 - \phi^2}\)</li>
+        <li>The ACF is \(\rho_h = \phi^h\), showing a geometric decay.</li>
+      </ul>
+      The PACF of an AR(\(p\)) model cuts off (is exactly zero) after lag \(p\). The parameters can be estimated using OLS or by solving the Yule-Walker equations.
+    </p>
+
+    <h3>4.4 Moving Average (MA) Models</h3>
+    <p>
+      An MA model expresses the current value as a linear combination of current and past white noise error terms (shocks).
+    </p>
+    
+    <div class="definition">
+      <div class="box-title">MA(q) Model</div>
+      <div class="box-content">
+        <p>A moving average process of order \(q\), denoted MA(\(q\)), is:
+        \[ X_t = \mu + \varepsilon_t + \theta_1 \varepsilon_{t-1} + \dots + \theta_q \varepsilon_{t-q} \]
+        where \(\varepsilon_t \sim \text{WN}(0, \sigma^2)\).</p>
+      </div>
+    </div>
+    
+    <p><strong>MA(1) Case:</strong> \( X_t = \mu + \varepsilon_t + \theta \varepsilon_{t-1} \).</p>
+    <p>
+      All finite-order MA processes are unconditionally stationary. For MA(1):
+      <ul>
+        <li>\(\Var(X_t) = \sigma^2(1 + \theta^2)\)</li>
+        <li>\(\rho_1 = \frac{\theta}{1 + \theta^2}\) and \(\rho_h = 0\) for \(h > 1\).</li>
+      </ul>
+      Thus, the ACF of an MA(\(q\)) model cuts off after lag \(q\). 
+    </p>
+    <p>
+      <strong>Invertibility:</strong> An MA model is invertible if it can be rewritten as an AR(\(\infty\)) process. For MA(1), this requires \(|\theta| < 1\). Invertibility ensures the uniqueness of the model representation.
+    </p>
+
+    <h3>4.5 ARMA and ARIMA</h3>
+    <p>
+      Combining AR and MA yields the ARMA model, providing a parsimonious parameterization.
+    </p>
+    
+    <div class="definition">
+      <div class="box-title">ARMA and ARIMA Models</div>
+      <div class="box-content">
+        <p>An <strong>ARMA(p,q)</strong> process is given by:
+        \[ X_t = c + \sum_{i=1}^p \phi_i X_{t-i} + \varepsilon_t + \sum_{j=1}^q \theta_j \varepsilon_{t-j} \]
+        </p>
+        <p>If the original series is non-stationary but becomes stationary after being differenced \(d\) times, it is modeled as an <strong>ARIMA(p,d,q)</strong> process.</p>
+      </div>
+    </div>
+    
+    <p>
+      The <strong>Box-Jenkins Methodology</strong> involves three steps:
+      <ol>
+        <li><strong>Identification:</strong> Use time plots, differencing, ACF, and PACF to determine \(p, d, q\).</li>
+        <li><strong>Estimation:</strong> Estimate parameters using Maximum Likelihood Estimation (MLE).</li>
+        <li><strong>Diagnostics:</strong> Check if the residuals resemble white noise (e.g., using the Ljung-Box test).</li>
+      </ol>
+      For data with seasonality (e.g., quarterly earnings), <strong>Seasonal ARIMA (SARIMA)</strong> models incorporate seasonal AR and MA terms at lag \(s\) (where \(s=4\) for quarterly, \(s=12\) for monthly).
+    </p>
+
+    <h3>4.6 Unit Roots</h3>
+    <p>
+      If \(\phi = 1\) in an AR(1) model, we have a <strong>random walk</strong>: \(X_t = X_{t-1} + \varepsilon_t\). This is a non-stationary process with infinite variance as \(t \to \infty\), and it has a "unit root". 
+      In the presence of a unit root, standard asymptotic theory for OLS fails (t-statistics are no longer t-distributed), leading to spurious regressions.
+    </p>
+    
+    <div class="theorem">
+      <div class="box-title">Dickey-Fuller (DF) and Augmented Dickey-Fuller (ADF) Tests</div>
+      <div class="box-content">
+        <p>To test for a unit root, consider the regression:
+        \[ \Delta X_t = \alpha + \beta t + \gamma X_{t-1} + \sum_{i=1}^p \delta_i \Delta X_{t-i} + \varepsilon_t \]
+        The null hypothesis is \(H_0: \gamma = 0\) (the series has a unit root / is non-stationary). The alternative is \(H_1: \gamma < 0\) (stationary).
+        The test statistic does not follow a standard t-distribution but rather a non-standard Dickey-Fuller distribution.</p>
+      </div>
+    </div>
+    
+    <p>The Phillips-Perron (PP) test is an alternative that corrects for autocorrelation and heteroskedasticity non-parametrically, rather than adding lagged difference terms like the ADF test.</p>
+
+    <h3>4.7 Cointegration</h3>
+    <p>
+      While regressing one non-stationary series on another often leads to a spurious regression, there are exceptions. If two series \(X_t\) and \(Y_t\) are both integrated of order 1, denoted I(1) (meaning they have a unit root), but there exists a linear combination \(Z_t = Y_t - \beta X_t\) that is stationary (I(0)), then \(X_t\) and \(Y_t\) are said to be <strong>cointegrated</strong>.
+    </p>
+    
+    <p>Cointegration implies a long-run equilibrium relationship. The <strong>Engle-Granger Two-Step Method</strong>:</p>
+    <ol>
+      <li>Regress \(Y_t\) on \(X_t\) using OLS: \(Y_t = \alpha + \beta X_t + u_t\).</li>
+      <li>Perform a unit root test (e.g., ADF) on the residuals \(\hat{u}_t\). If stationary, they are cointegrated.</li>
+    </ol>
+    
+    <p>
+      If cointegrated, they can be represented by an <strong>Error Correction Model (ECM)</strong>:
+      \[ \Delta Y_t = c + \lambda \hat{u}_{t-1} + \sum \delta_i \Delta Y_{t-i} + \sum \gamma_j \Delta X_{t-j} + \varepsilon_t \]
+      where \(\lambda < 0\) is the speed of adjustment back to equilibrium.
+    </p>
+    
+    <p><strong>Pairs Trading:</strong> Cointegration is the statistical foundation of statistical arbitrage or pairs trading. If two stocks are cointegrated, the spread \(u_t = Y_t - \beta X_t\) is mean-reverting. You short the outperforming stock and buy the underperforming one when the spread widens, expecting it to revert to zero.</p>
+
+    <h3>4.8 Vector Autoregression (VAR)</h3>
+    <p>
+      When dealing with multiple interacting time series, we use VAR models where each variable is a linear function of past lags of itself and past lags of all other variables in the system.
+    </p>
+    <div class="definition">
+      <div class="box-title">VAR(p) Model</div>
+      <div class="box-content">
+        <p>A VAR of order \(p\) for a \(k \times 1\) vector \(\mathbf{X}_t\) is:
+        \[ \mathbf{X}_t = \mathbf{c} + \mathbf{A}_1 \mathbf{X}_{t-1} + \mathbf{A}_2 \mathbf{X}_{t-2} + \dots + \mathbf{A}_p \mathbf{X}_{t-p} + \mathbf{e}_t \]
+        where \(\mathbf{A}_i\) are \(k \times k\) coefficient matrices and \(\mathbf{e}_t\) is a vector of white noise.</p>
+      </div>
+    </div>
+    
+    <p>
+      <strong>Granger Causality:</strong> A variable \(X\) is said to Granger-cause \(Y\) if past values of \(X\) help predict the current value of \(Y\) beyond what past values of \(Y\) alone can do. In a VAR framework, this is tested via F-tests on the off-diagonal elements of the \(\mathbf{A}_i\) matrices.
+    </p>
+    <p>
+      <strong>Impulse Response Functions (IRF)</strong> trace the effect of a one-standard-deviation shock to one of the innovations on current and future values of the endogenous variables. <strong>Variance Decomposition</strong> breaks down the forecast error variance of a variable into components attributable to the various shocks in the system.
+    </p>
+
+    <h3>4.9 The GARCH Family</h3>
+    <p>
+      Financial returns exhibit <strong>volatility clustering</strong>. To model this, Robert Engle introduced the ARCH (Autoregressive Conditional Heteroskedasticity) model, generalized by Tim Bollerslev to GARCH.
+    </p>
+    
+    <div class="definition">
+      <div class="box-title">GARCH(1,1) Model</div>
+      <div class="box-content">
+        <p>Let \(r_t = \mu + \varepsilon_t\) be the return series, where \(\varepsilon_t = \sigma_t z_t\) and \(z_t \sim \text{iid}(0,1)\) (often standard normal or Student-t).</p>
+        <p>The conditional variance \(\sigma_t^2\) follows a GARCH(1,1) process:
+        \[ \sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2 \]
+        where \(\omega > 0, \alpha \ge 0, \beta \ge 0\).</p>
+      </div>
+    </div>
+    
+    <p>
+      <strong>Stationarity:</strong> The GARCH(1,1) process is covariance stationary if \(\alpha + \beta < 1\). The unconditional (long-run) variance is \(V_L = \frac{\omega}{1 - \alpha - \beta}\).
+    </p>
+    <p>
+      <strong>EWMA:</strong> The Exponentially Weighted Moving Average model (popularized by RiskMetrics) is a special case of GARCH(1,1) where \(\omega = 0\), \(\alpha = 1 - \lambda\), and \(\beta = \lambda\) (usually \(\lambda = 0.94\) for daily data). Note that EWMA is not strictly stationary as \(\alpha + \beta = 1\).
+    </p>
+    <p>
+      <strong>Extensions:</strong>
+      <ul>
+        <li><strong>EGARCH (Exponential GARCH):</strong> Models \(\ln(\sigma_t^2)\) to ensure positivity without parameter constraints and captures the <em>leverage effect</em> (negative shocks increase volatility more than positive shocks of the same magnitude).</li>
+        <li><strong>GJR-GARCH:</strong> Adds an asymmetric term to the standard variance equation: \(\alpha \varepsilon_{t-1}^2 + \gamma \varepsilon_{t-1}^2 I(\varepsilon_{t-1} < 0)\).</li>
+        <li><strong>GARCH-M (GARCH-in-Mean):</strong> The conditional mean \(\mu\) depends on the conditional variance \(\sigma_t^2\), modeling the risk premium.</li>
+      </ul>
+      GARCH models are estimated using Maximum Likelihood Estimation (MLE).
+    </p>
+
+    <h3>4.10 Realized Volatility</h3>
+    <p>
+      With the advent of high-frequency tick data, volatility can be treated as an observable rather than latent variable.
+    </p>
+    <p>
+      <strong>Realized Variance (RV)</strong> for a given day \(t\) is calculated by summing squared intraday returns (e.g., 5-minute intervals):
+      \[ RV_t = \sum_{j=1}^M r_{t,j}^2 \]
+      As the sampling frequency goes to infinity (\(M \to \infty\)), RV converges to the true integrated variance. However, at ultra-high frequencies, <strong>microstructure noise</strong> (bid-ask bounce, discrete ticks) biases the estimator. <em>Kernel estimators</em> or sparse sampling (using 5-10 minute returns) are used to mitigate this noise.
+    </p>
+
+    <h3>4.11 Kalman Filter</h3>
+    <p>
+      The Kalman Filter is an algorithm used to estimate the hidden (latent) state of a linear dynamic system from a series of noisy measurements.
+    </p>
+    <p>
+      <strong>State-Space Representation:</strong>
+      <ul>
+        <li>Measurement Equation: \( y_t = \mathbf{Z}_t \alpha_t + \varepsilon_t \) (links observed \(y_t\) to unobserved state \(\alpha_t\))</li>
+        <li>Transition Equation: \( \alpha_t = \mathbf{T}_t \alpha_{t-1} + \eta_t \) (governs the evolution of the state)</li>
+      </ul>
+    </p>
+    <p>
+      The filter recursively alternates between a <strong>Prediction Step</strong> (forecasting the next state based on prior info) and an <strong>Update Step</strong> (adjusting the forecast based on the new observation). It is heavily used in estimating time-varying betas, term structure models, and trend inflation.
+    </p>
+
+    <h3>4.12 Regime Switching Models</h3>
+    <p>
+      Financial time series often exhibit distinct regimes (e.g., bull vs. bear markets, high vs. low volatility). Hamilton’s <strong>Markov-Switching Model</strong> captures this by assuming the parameters depend on an unobserved state variable \(S_t \in \{1, 2, \dots, K\}\) which follows a Markov chain with a given transition probability matrix.
+    </p>
+    <p>
+      Estimation is performed via Maximum Likelihood using the Expectation-Maximization (EM) algorithm. Output includes <em>filtered probabilities</em> (probability of being in a state given info up to time \(t\)) and <em>smoothed probabilities</em> (given the entire sample).
+    </p>
+  </section>
+
+  <section id="worked-examples">
+    <h2>5. Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 20.1: AR(1) Forecasting</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> You estimate an AR(1) model for daily log returns (in bps) of an asset:
+        \( r_t = 2.0 + 0.4 r_{t-1} + \varepsilon_t \). 
+        Today's return is \(r_T = 10\) bps. What is the forecast for the next 5 days? What is the unconditional mean?</p>
+        <p><strong>Solution:</strong>
+        <br>Step 1: Unconditional mean \(\mu = \frac{c}{1-\phi} = \frac{2.0}{1 - 0.4} = \frac{2.0}{0.6} = 3.333\) bps.
+        <br>Step 2: Forecasts \(\hat{r}_{T+h|T} = c + \phi \hat{r}_{T+h-1|T}\)
+        <br>- \(h=1\): \(\hat{r}_{T+1} = 2.0 + 0.4(10) = 6.0\) bps.
+        <br>- \(h=2\): \(\hat{r}_{T+2} = 2.0 + 0.4(6.0) = 4.4\) bps.
+        <br>- \(h=3\): \(\hat{r}_{T+3} = 2.0 + 0.4(4.4) = 3.76\) bps.
+        <br>- \(h=4\): \(\hat{r}_{T+4} = 2.0 + 0.4(3.76) = 3.504\) bps.
+        <br>- \(h=5\): \(\hat{r}_{T+5} = 2.0 + 0.4(3.504) = 3.4016\) bps.
+        <br>Notice how the forecasts exponentially decay towards the unconditional mean of 3.333 bps.
+        </p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 20.2: GARCH(1,1) Volatility Calculation</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A GARCH(1,1) model is estimated for a stock index with parameters: \(\omega = 0.000002, \alpha = 0.08, \beta = 0.90\). The current day's variance is \(\sigma_t^2 = 0.00015\), and today's return shock was \(\varepsilon_t = -0.02\) (-2%). Calculate the long-run annualized volatility (assuming 252 days) and the forecasted volatility for tomorrow (\(\sigma_{t+1}\)).</p>
+        <p><strong>Solution:</strong>
+        <br>Step 1: Check stationarity. \(\alpha + \beta = 0.08 + 0.90 = 0.98 < 1\). (Stationary)
+        <br>Step 2: Unconditional daily variance \(V_L = \frac{0.000002}{1 - 0.98} = \frac{0.000002}{0.02} = 0.0001\).
+        <br>Step 3: Annualized long-run volatility = \(\sqrt{0.0001 \times 252} = \sqrt{0.0252} \approx 15.87\%\).
+        <br>Step 4: Conditional variance for tomorrow: 
+        \(\sigma_{t+1}^2 = 0.000002 + 0.08(-0.02)^2 + 0.90(0.00015)\)
+        \(\sigma_{t+1}^2 = 0.000002 + 0.08(0.0004) + 0.000135 = 0.000002 + 0.000032 + 0.000135 = 0.000169\).
+        <br>Step 5: Tomorrow's forecasted volatility \(\sigma_{t+1} = \sqrt{0.000169} = 0.013\) or 1.30% daily.
+        </p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 20.3: ADF Test Interpretation</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An analyst runs an Augmented Dickey-Fuller (ADF) test on an INR/USD exchange rate series (Level) and its first differences (Log Returns). The critical value at 5% is -2.89.
+        <br>Level series ADF test statistic: -1.25
+        <br>First difference ADF test statistic: -6.42
+        <br>Interpret these results.</p>
+        <p><strong>Solution:</strong> 
+        <br>For the Level series, -1.25 > -2.89. We fail to reject the null hypothesis of a unit root. The level series is non-stationary.
+        <br>For the First difference, -6.42 < -2.89. We reject the null hypothesis. The differenced series is stationary.
+        <br>Conclusion: The exchange rate series is integrated of order 1, or I(1). Log returns should be used for modeling.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 20.4: Pairs Trading via Cointegration</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Two bank stocks, Bank A and Bank B, are both I(1). You estimate OLS: \(P_A = 10.5 + 0.85 P_B + u_t\). The ADF test on \(\hat{u}_t\) yields a statistic of -4.10 (5% critical value -3.34). Today, \(P_A = 150\) INR and \(P_B = 160\) INR. Determine if they are cointegrated and what the trading signal is.</p>
+        <p><strong>Solution:</strong>
+        <br>Step 1: Test cointegration. -4.10 < -3.34. The residuals are stationary. The stocks are cointegrated.
+        <br>Step 2: Calculate current spread. \(\hat{u}_t = P_A - 10.5 - 0.85 P_B = 150 - 10.5 - 0.85(160) = 150 - 10.5 - 136 = 3.5\) INR.
+        <br>Step 3: Interpretation. The spread is positive, meaning Bank A is overvalued relative to its historical equilibrium with Bank B.
+        <br>Trade: Sell (Short) Bank A, and Buy Bank B (specifically, buy 0.85 shares of B for every 1 share of A shorted).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 20.5: EWMA vs GARCH</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Using RiskMetrics EWMA (\(\lambda=0.94\)) vs GARCH(1,1) (\(\omega=0.000001, \alpha=0.05, \beta=0.90\)). Yesterday's variance was 0.0001 for both, and the return was zero (\(\varepsilon_t = 0\)). What is tomorrow's variance forecast for both models?</p>
+        <p><strong>Solution:</strong>
+        <br><strong>EWMA:</strong> \(\sigma_{t+1}^2 = (1-\lambda)\varepsilon_t^2 + \lambda \sigma_t^2 = 0.06(0) + 0.94(0.0001) = 0.000094\).
+        <br><strong>GARCH:</strong> \(\sigma_{t+1}^2 = \omega + \alpha\varepsilon_t^2 + \beta\sigma_t^2 = 0.000001 + 0.05(0) + 0.90(0.0001) = 0.000001 + 0 + 0.000090 = 0.000091\).
+        <br>Because the shock was zero (a very quiet day), both models predict lower volatility. GARCH drops slightly more because \(\beta < \lambda\) and it pulls towards its long-run mean.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="python-code">
+    <h2>6. Python Code</h2>
+    <p>Below is a practical example of estimating a GARCH(1,1) model on S&P 500 returns using the popular <code>arch</code> library in Python.</p>
+    <pre><code class="language-python">
+import pandas as pd
+import numpy as np
+import yfinance as yf
+from arch import arch_model
+import matplotlib.pyplot as plt
+
+# 1. Download Data
+data = yf.download('^GSPC', start='2015-01-01', end='2023-01-01')
+# Calculate log returns in percentage
+returns = 100 * np.log(data['Adj Close'] / data['Adj Close'].shift(1)).dropna()
+
+# 2. Specify and Fit GARCH(1,1) Model
+# mean='Zero' assumes mu=0, common for daily returns
+am = arch_model(returns, vol='Garch', p=1, q=1, mean='Zero', dist='Normal')
+res = am.fit(disp='off')
+print(res.summary())
+
+# 3. Forecast volatility for the next 5 days
+forecasts = res.forecast(horizon=5)
+print("\nForecasted variance for next 5 days:")
+print(forecasts.variance.iloc[-1])
+
+# 4. Plot annualized conditional volatility
+cond_vol_annualized = res.conditional_volatility * np.sqrt(252)
+plt.figure(figsize=(10,4))
+plt.plot(cond_vol_annualized)
+plt.title('S&P 500 Annualized Conditional Volatility (GARCH 1,1)')
+plt.ylabel('Volatility (%)')
+plt.show()
+    </code></pre>
+    <p><em>Expected Output:</em> The summary table will show statistically significant estimates for \(\omega, \alpha,\) and \(\beta\) (typically \(\alpha \approx 0.1\), \(\beta \approx 0.85\)), indicating strong volatility clustering.</p>
+  </section>
+
+  <section id="diagrams">
+    <h2>7. Diagrams Description</h2>
+    <p>When working through time series econometrics, visualizing data is paramount. Below are descriptions of typical plots you would generate:</p>
+    <ul>
+      <li><strong>Time Series Price Plot vs. Log Returns:</strong> The price plot typically exhibits a non-stationary random walk with drift (trending upward with varying slopes). The log return plot resembles a stationary noise process oscillating around zero, but with clear "bursts" or clusters of high variance (e.g., during the 2008 crash or 2020 pandemic).</li>
+      <li><strong>ACF/PACF Correlograms:</strong> A bar chart where lags (1, 2, 3...) are on the x-axis and correlation (-1 to 1) is on the y-axis. Blue shaded regions indicate the 95% Bartlett confidence bands. An AR(1) process will show ACF bars gradually decaying exponentially, while the PACF has a single significant spike at lag 1 and zero elsewhere.</li>
+      <li><strong>Volatility Plot:</strong> A time series plot showing conditional volatility (from GARCH) overlaid on absolute daily returns. You will see the volatility curve spikes sharply when absolute returns are large, and slowly decays exponentially during quiet market periods.</li>
+    </ul>
+  </section>
+
+  <section id="common-mistakes">
+    <h2>8. Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Common Mistakes</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Regressing Non-Stationary Variables:</strong> A classic beginner mistake is running OLS on two trending price series. This leads to <em>spurious regression</em>, where \(R^2\) and t-stats are artificially high, implying a relationship that doesn't exist. Always test for unit roots and use returns or cointegration methods.</li>
+          <li><strong>Confusing AR and MA ACF signatures:</strong> Remembering which one decays and which one cuts off is tricky. <em>Mnemonic:</em> AR(p) models have infinite memory, so their ACF decays slowly. MA(q) models have finite memory, so their ACF cuts off at \(q\).</li>
+          <li><strong>Misinterpreting GARCH Parameters:</strong> In GARCH(1,1), \(\alpha\) measures the immediate reaction to shocks, while \(\beta\) measures the persistence of volatility. A high \(\beta\) (e.g., 0.95) means a volatile market will take a long time to calm down.</li>
+          <li><strong>Data Snooping in Pairs Trading:</strong> Finding two series that happen to be cointegrated in a small sample might just be statistical noise. Out-of-sample testing is mandatory to ensure economic validity.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="industry-application">
+    <h2>9. Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Industry Application: Value at Risk (VaR) at a Commercial Bank</div>
+      <div class="box-content">
+        <p>
+          Basel III regulations require large banks to calculate market risk capital daily using Value at Risk (VaR) or Expected Shortfall (ES). Suppose a trading desk holds a large portfolio of foreign exchange (FX) spot positions. 
+        </p>
+        <p>
+          If the risk team uses a simple historical standard deviation, they assume volatility is constant. If a major shock hits (e.g., the 2015 Swiss Franc unpegging), the historical volatility will react too slowly, underestimating risk.
+        </p>
+        <p>
+          Instead, Quants use an asymmetric <strong>GJR-GARCH</strong> model updated daily. The model immediately spikes the conditional volatility \(\sigma_{t+1}\) upon seeing a large negative shock. This \(\sigma_{t+1}\) is then plugged into a Monte Carlo simulation engine to forecast the 1-day 99% VaR. This ensures the bank's capital buffers dynamically scale up precisely when markets become turbulent, satisfying stringent regulatory backtesting requirements.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="summary-formula">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <div class="box-title">Formula Cheat-Sheet</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>AR(1) Model:</strong> \( X_t = c + \phi X_{t-1} + \varepsilon_t \)</li>
+          <li><strong>AR(1) Stationarity:</strong> \( |\phi| < 1 \)</li>
+          <li><strong>AR(1) Mean:</strong> \( \mu = \frac{c}{1-\phi} \)</li>
+          <li><strong>MA(1) Model:</strong> \( X_t = \mu + \varepsilon_t + \theta \varepsilon_{t-1} \)</li>
+          <li><strong>ADF Test Regression:</strong> \( \Delta X_t = \alpha + \beta t + \gamma X_{t-1} + \sum \delta_i \Delta X_{t-i} + \varepsilon_t \)</li>
+          <li><strong>GARCH(1,1) Variance:</strong> \( \sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2 \)</li>
+          <li><strong>GARCH(1,1) Unconditional Variance:</strong> \( V_L = \frac{\omega}{1 - \alpha - \beta} \)</li>
+          <li><strong>GARCH(1,1) Stationarity:</strong> \( \alpha + \beta < 1 \)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercises">
+      
+      <div class="exercise-group">
+        <h3>Basic Questions</h3>
+        <div class="exercise-item">
+          <strong>Q1.</strong> Determine if the following process is weakly stationary: \(X_t = 0.5 X_{t-1} + \varepsilon_t\), where \(\varepsilon_t \sim WN(0,2)\). Find its mean and variance.
+        </div>
+        <div class="exercise-item">
+          <strong>Q2.</strong> For an MA(1) process \(X_t = \varepsilon_t - 0.6 \varepsilon_{t-1}\) with \(\sigma_\varepsilon^2 = 1\), calculate the variance and the first two autocorrelations \(\rho_1, \rho_2\).
+        </div>
+        <div class="exercise-item">
+          <strong>Q3.</strong> Explain the difference between strict stationarity and weak stationarity. Which one is more commonly tested in financial econometrics?
+        </div>
+        <div class="exercise-item">
+          <strong>Q4.</strong> True or False: If a time series has a unit root, we can make it stationary by taking its first difference.
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Intermediate Questions</h3>
+        <div class="exercise-item">
+          <strong>Q5.</strong> An ARMA(1,1) model is specified as \(X_t = 0.8 X_{t-1} + \varepsilon_t + 0.4 \varepsilon_{t-1}\). Is the model stationary? Is it invertible?
+        </div>
+        <div class="exercise-item">
+          <strong>Q6.</strong> You estimate a GARCH(1,1) model with \(\omega=0.000005, \alpha=0.15, \beta=0.82\). Calculate the long-run annualized volatility (assuming 252 trading days).
+        </div>
+        <div class="exercise-item">
+          <strong>Q7.</strong> Describe the Engle-Granger two-step procedure for testing cointegration between two price series.
+        </div>
+        <div class="exercise-item">
+          <strong>Q8.</strong> How does an EGARCH model capture the "leverage effect" differently from a standard GARCH(1,1) model?
+        </div>
+        <div class="exercise-item">
+          <strong>Q9.</strong> In a VAR(2) system with 3 variables, how many coefficients need to be estimated (excluding the constant terms)?
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Advanced / Applied Questions</h3>
+        <div class="exercise-item">
+          <strong>Q10.</strong> You are modeling daily USD/INR returns. The GARCH(1,1) parameters are \(\omega=10^{-6}, \alpha=0.06, \beta=0.92\). Day \(t\) return was 0 (shock is 0), and variance was \(0.0001\). Calculate the variance forecast for day \(t+1\) and day \(t+2\). Show that as \(k \to \infty\), the forecast converges to the unconditional variance.
+        </div>
+        <div class="exercise-item">
+          <strong>Q11.</strong> Derive the Yule-Walker equations for an AR(2) process to express \(\phi_1\) and \(\phi_2\) in terms of \(\rho_1\) and \(\rho_2\).
+        </div>
+        <div class="exercise-item">
+          <strong>Q12.</strong> A pairs trading strategy relies on the ECM: \(\Delta Y_t = c - 0.15 \hat{u}_{t-1} + e_t\). What does the -0.15 coefficient signify? Calculate the half-life of mean reversion.
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Solutions (Selected)</h3>
+        <div class="solution-item box">
+          <div class="box-content">
+            <p><strong>Solution Q1:</strong> Yes, it is stationary because \(|\phi| = 0.5 < 1\). Mean \(\mu = 0\). Variance \(\Var(X) = \frac{\sigma^2}{1-\phi^2} = \frac{2}{1-0.25} = 2.667\).</p>
+            <p><strong>Solution Q2:</strong> Variance = \(\sigma^2(1+\theta^2) = 1(1 + (-0.6)^2) = 1.36\). <br> \(\rho_1 = \frac{\theta}{1+\theta^2} = \frac{-0.6}{1.36} = -0.441\). \(\rho_2 = 0\) (MA(1) ACF cuts off at lag 1).</p>
+            <p><strong>Solution Q5:</strong> Stationary because AR part \(|0.8| < 1\). Invertible because MA part \(|0.4| < 1\).</p>
+            <p><strong>Solution Q6:</strong> \(V_L = \frac{0.000005}{1 - 0.15 - 0.82} = \frac{0.000005}{0.03} = 0.0001667\). Annualized volatility = \(\sqrt{0.0001667 \times 252} = \sqrt{0.042} \approx 20.49\%\).</p>
+            <p><strong>Solution Q9:</strong> 3 variables, 2 lags. Each equation has \(3 \times 2 = 6\) coefficients. 3 equations total, so \(3 \times 6 = 18\) coefficients.</p>
+            <p><strong>Solution Q12:</strong> The -0.15 coefficient is the speed of adjustment. It means 15% of the disequilibrium is corrected each period. The half-life is \( \frac{\ln(0.5)}{\ln(1 - 0.15)} = \frac{-0.693}{-0.1625} \approx 4.26 \) periods.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="further-reading">
+    <h2>12. Further Reading</h2>
+    <div class="further-reading">
+      <div class="box-title">Further Reading</div>
+      <div class="box-content">
+        <ul>
+          <li>Tsay, R. S. (2010). <em>Analysis of Financial Time Series</em> (3rd ed.). John Wiley & Sons. (The standard text for financial econometricians).</li>
+          <li>Hamilton, J. D. (1994). <em>Time Series Analysis</em>. Princeton University Press. (The comprehensive, advanced reference for theory).</li>
+          <li>Bollerslev, T. (1986). "Generalized autoregressive conditional heteroskedasticity". <em>Journal of Econometrics</em>, 31(3), 307-327.</li>
+          <li>Engle, R. F., & Granger, C. W. J. (1987). "Co-integration and error correction: representation, estimation, and testing". <em>Econometrica</em>, 55(2), 251-276.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch19_market_risk.html">← Previous Chapter (Market Risk)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch21_corporate_finance.html">Next Chapter (Corporate Finance) →</a>
+  </nav>
+
+</body>
+</html>

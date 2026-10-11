@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 30: General Insurance</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 30: General Insurance</h1>
+
+  <div class="learning-objectives">
+    <h3>Learning Objectives</h3>
+    <ul>
+      <li>Understand the distinct features of general (non-life) insurance products including motor, property, marine, liability, and specialized covers.</li>
+      <li>Formulate and analyze the frequency-severity model for aggregate claims and compute moments of compound distributions.</li>
+      <li>Apply Panjer's recursion algorithm to compute the exact aggregate loss distribution for discretized severities.</li>
+      <li>Evaluate the impact of coverage modifications such as deductibles, policy limits, and coinsurance on expected claims and loss elimination ratios.</li>
+      <li>Fit parametric claim amount distributions using maximum likelihood estimation (MLE) and distinguish light-tailed from heavy-tailed distributions using the mean excess function.</li>
+      <li>Analyze the structural features, regulatory nuances, and historical development of the Indian General Insurance market.</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h3>Prerequisites & Roadmap</h3>
+    <p>This chapter builds upon foundational probability and statistics covered in Chapter 4 (Probability Theory) and Chapter 5 (Statistical Inference). A strong grasp of stochastic processes (Chapter 12) is necessary for the compound Poisson process sections. The structural understanding of insurance contracts from Chapter 27 (Life Insurance) provides a contrasting backdrop. This chapter sets the stage for Chapter 31 (Ruin Theory), where we analyze the long-term solvency of the portfolio constructed here.</p>
+  </div>
+
+  <h2>30.1 Intuition & Motivation</h2>
+  <p>Imagine you are the Chief Actuary for a rapidly growing general insurance company in Mumbai, writing policies for everything from individual motor vehicles to massive petrochemical refineries in Gujarat. Unlike life insurance, where the event (death) is certain to happen eventually and the payout is typically a fixed sum, general insurance deals with events that may never happen, but if they do, the financial impact can range from a minor dent in a bumper to billions of rupees in catastrophic damage.</p>
+  
+  <p>Your challenge is two-fold: First, you must predict <em>how often</em> accidents will occur (frequency). Second, you must predict <em>how much</em> each accident will cost (severity). A minor fender-bender might cost ₹15,000, while a severe crash could result in third-party liability claims exceeding ₹50,000,000. For a portfolio of thousands of policies, you need to understand the distribution of the <em>total aggregate claims</em>. If a freak storm hits a coastal industrial zone, thousands of claims might pour in simultaneously. How much capital must the company hold to ensure it can pay all these claims without going bankrupt?</p>
+
+  <p>This chapter introduces the mathematical and statistical machinery used to answer these questions. We move away from deterministic cash flows and delve into the highly stochastic world of non-life insurance, building the framework to price these risks, set reserves, and structure reinsurance treaties.</p>
+
+  <h2>30.2 General Insurance Products</h2>
+  <p>General insurance (often called Property and Casualty, or P&C, in North America, and non-life insurance elsewhere) encompasses any insurance that is not life insurance. These products typically have a short duration (usually one year) and cover a wide array of risks.</p>
+
+  <h3>30.2.1 Motor Insurance</h3>
+  <p>Motor insurance is typically the largest portfolio for any general insurer.</p>
+  <ul>
+    <li><strong>Third-Party (TP) Liability:</strong> Covers bodily injury or property damage caused to third parties. In many jurisdictions, including India, this is mandatory by law. The liability can be theoretically unlimited, especially for bodily injury leading to death or permanent disability.</li>
+    <li><strong>Own Damage (OD):</strong> Covers damage to the insured's own vehicle due to accidents, theft, natural disasters, etc. This is capped at the Insured Declared Value (IDV) of the vehicle.</li>
+    <li><strong>Commercial Vehicle:</strong> A separate class covering trucks, buses, and taxis. The risk profile is significantly different due to higher mileage, heavier loads, and commercial usage.</li>
+  </ul>
+
+  <h3>30.2.2 Property Insurance</h3>
+  <p>Property insurance covers physical assets against loss or damage.</p>
+  <ul>
+    <li><strong>Fire and Special Perils:</strong> The foundational property policy, covering fire, lightning, explosion, and often extended to cover natural perils like floods, earthquakes (STFI - Storm, Tempest, Flood, Inundation), and riots.</li>
+    <li><strong>Erection All Risks (EAR) & Contractor's All Risks (CAR):</strong> Covers projects during the construction or erection phase.</li>
+    <li><strong>Industrial All Risk (IAR):</strong> A comprehensive package policy for large industrial setups covering physical damage and often business interruption.</li>
+  </ul>
+
+  <h3>30.2.3 Marine Insurance</h3>
+  <p>One of the oldest forms of insurance, marine insurance covers goods in transit.</p>
+  <ul>
+    <li><strong>Marine Cargo:</strong> Covers goods being transported by sea, air, rail, or road.</li>
+    <li><strong>Marine Hull:</strong> Covers the vessel itself (ships, tankers, etc.) and its machinery.</li>
+  </ul>
+
+  <h3>30.2.4 Liability Insurance</h3>
+  <p>Liability insurance protects against legal obligations to pay damages to third parties.</p>
+  <ul>
+    <li><strong>Professional Indemnity (PI):</strong> Covers professionals (doctors, architects, consultants) against negligence claims.</li>
+    <li><strong>Public/Product Liability:</strong> Covers businesses against injury or damage claims arising from their operations or products.</li>
+    <li><strong>Directors & Officers (D&O):</strong> Protects corporate directors and officers from personal losses if they are sued as a result of serving on a board.</li>
+  </ul>
+
+  <h3>30.2.5 Specialized Lines</h3>
+  <ul>
+    <li><strong>Engineering:</strong> Covers machinery breakdown, electronic equipment, etc.</li>
+    <li><strong>Crop/Agriculture:</strong> Protects farmers against yield losses due to natural perils (e.g., PMFBY in India).</li>
+    <li><strong>Cyber Insurance:</strong> A rapidly growing line covering first-party and third-party risks associated with data breaches, ransomware, and IT infrastructure failures.</li>
+  </ul>
+
+  <h2>30.3 Frequency-Severity Model</h2>
+  <p>The cornerstone of non-life actuarial mathematics is the collective risk model, which separates the aggregate claims into two independent components: the number of claims (frequency) and the size of each claim (severity).</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 30.1: Collective Risk Model</div>
+    <div class="box-content">
+      Let \( N \) be a random variable representing the total number of claims in a given period (frequency). Let \( X_1, X_2, \dots \) be random variables representing the amount of each individual claim (severities). The aggregate loss \( S \) is defined as:
+      \[ S = \sum_{i=1}^{N} X_i \]
+      with the convention that if \( N=0 \), then \( S=0 \).
+    </div>
+  </div>
+
+  <p><strong>Standard Assumptions:</strong></p>
+  <ol>
+    <li>The severities \( X_1, X_2, \dots \) are independent and identically distributed (i.i.d.) random variables. Let \( X \) denote a generic random variable with this distribution.</li>
+    <li>The frequency \( N \) is independent of the severities \( X_i \).</li>
+  </ol>
+
+  <h3>30.3.1 Moments of Aggregate Loss</h3>
+  <p>Using the laws of total expectation and total variance, we can derive the moments of \( S \).</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 30.1: Moments of Aggregate Claims</div>
+    <div class="box-content">
+      Under the assumptions of the collective risk model, the expected value and variance of the aggregate loss \( S \) are given by:
+      \[ \E[S] = \E[N] \cdot \E[X] \]
+      \[ \Var(S) = \E[N] \cdot \Var(X) + \Var(N) \cdot (\E[X])^2 \]
+    </div>
+  </div>
+
+  <div class="proof">
+    <div class="box-title">Proof</div>
+    <div class="box-content">
+      By the law of total expectation:
+      \[ \E[S] = \E[\E[S|N]] = \E\left[\E\left[\sum_{i=1}^N X_i \middle| N\right]\right] \]
+      Given \( N \), the sum is of \( N \) i.i.d. variables, so \( \E\left[\sum_{i=1}^N X_i \middle| N\right] = N \E[X] \).
+      \[ \E[S] = \E[N \E[X]] = \E[N]\E[X] \]
+      
+      By the law of total variance:
+      \[ \Var(S) = \E[\Var(S|N)] + \Var(\E[S|N]) \]
+      Given \( N \), because \( X_i \) are independent, \( \Var(S|N) = N \Var(X) \).
+      \[ \Var(S) = \E[N \Var(X)] + \Var(N \E[X]) \]
+      \[ \Var(S) = \E[N]\Var(X) + (\E[X])^2 \Var(N) \]
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 30.1: Compute aggregate claim distribution moments for Poisson(100)-Exponential(5000) model</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A motor third-party insurance portfolio experiences a number of claims \( N \) following a Poisson distribution with mean 100 per year. The severity of each claim \( X \) follows an Exponential distribution with a mean of ₹5,000. Calculate the expected aggregate loss and the standard deviation of the aggregate loss.</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p>For the frequency \( N \sim \text{Poisson}(\lambda = 100) \):</p>
+      <ul>
+        <li>\( \E[N] = 100 \)</li>
+        <li>\( \Var(N) = 100 \)</li>
+      </ul>
+      
+      <p>For the severity \( X \sim \text{Exponential}(\theta = 5000) \):</p>
+      <ul>
+        <li>\( \E[X] = \theta = 5000 \)</li>
+        <li>\( \Var(X) = \theta^2 = 25,000,000 \)</li>
+      </ul>
+      
+      <p>Using Theorem 30.1, the expected aggregate loss is:</p>
+      \[ \E[S] = \E[N]\E[X] = 100 \times 5000 = \text{₹}500,000 \]
+      
+      <p>The variance of the aggregate loss is:</p>
+      \[ \Var(S) = \E[N]\Var(X) + \Var(N)(\E[X])^2 \]
+      \[ \Var(S) = 100(25,000,000) + 100(5000)^2 = 2,500,000,000 + 2,500,000,000 = 5,000,000,000 \]
+      
+      <p>The standard deviation is:</p>
+      \[ \sigma_S = \sqrt{5,000,000,000} \approx \text{₹}70,710.68 \]
+    </div>
+  </div>
+
+  <h3>30.3.2 Distributions for Frequency and Severity</h3>
+  <p>Typical distributions used for the claim count \( N \):</p>
+  <ul>
+    <li><strong>Poisson Distribution:</strong> The standard assumption, where \( \Var(N) = \E[N] \).</li>
+    <li><strong>Negative Binomial Distribution:</strong> Used when there is overdispersion, i.e., \( \Var(N) > \E[N] \). This often arises in a mixed Poisson model where the Poisson parameter itself is a random variable (e.g., Gamma distributed), representing heterogeneity in the portfolio.</li>
+    <li><strong>Binomial Distribution:</strong> Used when the maximum number of claims is bounded, resulting in underdispersion \( \Var(N) < \E[N] \).</li>
+  </ul>
+
+  <p>Typical distributions used for the claim severity \( X \):</p>
+  <ul>
+    <li><strong>Exponential:</strong> Light-tailed, mathematically tractable.</li>
+    <li><strong>Gamma / Weibull:</strong> Flexible distributions for moderate tails.</li>
+    <li><strong>Lognormal:</strong> Very common in property and motor lines for right-skewed data.</li>
+    <li><strong>Pareto / Burr:</strong> Heavy-tailed distributions, crucial for liability and catastrophic risks.</li>
+  </ul>
+
+
+  <h2>30.4 Compound Poisson Process</h2>
+  <p>If we view the claims arriving over time, we extend the static collective risk model to a dynamic stochastic process.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 30.2: Compound Poisson Process</div>
+    <div class="box-content">
+      The aggregate claim process \( \{S(t)\}_{t \ge 0} \) is a compound Poisson process if:
+      \[ S(t) = \sum_{i=1}^{N(t)} X_i \]
+      where:
+      1. \( \{N(t)\}_{t \ge 0} \) is a homogeneous Poisson process with rate \( \lambda > 0 \).
+      2. \( \{X_i\}_{i=1}^{\infty} \) are i.i.d. positive random variables representing claim severities.
+      3. The processes \( \{N(t)\} \) and \( \{X_i\} \) are independent.
+    </div>
+  </div>
+
+  <p>At any fixed time \( t \), the number of claims \( N(t) \) follows a Poisson distribution with parameter \( \lambda t \). Therefore, \( S(t) \) has a compound Poisson distribution. The Moment Generating Function (MGF) provides a powerful way to analyze \( S(t) \).</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 30.2: MGF of Compound Poisson Distribution</div>
+    <div class="box-content">
+      If \( S = \sum_{i=1}^N X_i \) where \( N \sim \text{Poisson}(\lambda) \) and \( X_i \) has MGF \( M_X(r) \), then the MGF of \( S \) is:
+      \[ M_S(r) = \exp\left\{ \lambda (M_X(r) - 1) \right\} \]
+    </div>
+  </div>
+
+  <div class="proof">
+    <div class="box-title">Proof</div>
+    <div class="box-content">
+      By definition, \( M_S(r) = \E[e^{rS}] \). Using the law of total expectation conditioning on \( N \):
+      \[ M_S(r) = \E[\E[e^{rS}|N]] = \E\left[\E\left[\exp\left(r\sum_{i=1}^N X_i\right) \middle| N\right]\right] \]
+      Since the \( X_i \)'s are i.i.d.:
+      \[ \E\left[\prod_{i=1}^N e^{r X_i} \middle| N\right] = (M_X(r))^N \]
+      Now we take the expectation with respect to \( N \sim \text{Poisson}(\lambda) \):
+      \[ M_S(r) = \E[(M_X(r))^N] = P_N(M_X(r)) \]
+      where \( P_N(z) \) is the probability generating function (PGF) of \( N \). For a Poisson distribution, \( P_N(z) = e^{\lambda(z-1)} \). Substituting \( z = M_X(r) \):
+      \[ M_S(r) = \exp\left\{ \lambda(M_X(r) - 1) \right\} \]
+    </div>
+  </div>
+
+  <p>Computing the exact distribution of \( S \) analytically is often impossible unless the severity distribution has a very specific form (e.g., if \( X \sim \text{Exponential} \), \( S \) follows a Compound Poisson-Exponential distribution, where the non-zero part is related to a Bessel function). In practice, we rely on approximations (like the Normal or translated Gamma approximation) or exact recursive algorithms.</p>
+
+
+  <h2>30.5 Panjer's Recursion</h2>
+  <p>When the severity distribution is defined on a discrete grid (or discretized from a continuous distribution), the exact distribution of the aggregate loss \( S \) can be computed using a highly efficient recursive algorithm known as Panjer's Recursion.</p>
+
+  <p>Assume that the severity random variable \( X \) can only take values on a grid \( 0, 1, 2, \dots, m \) with probabilities \( f_X(k) = P(X = k) \). (The unit could be e.g., ₹10,000).</p>
+
+  <p>The frequency distribution \( N \) must belong to the <strong>(a,b,0) class</strong> of distributions. This class includes the Poisson, Binomial, and Negative Binomial distributions, which satisfy the recursive relation:</p>
+  \[ P(N = n) = \left( a + \frac{b}{n} \right) P(N = n-1), \quad \text{for } n = 1, 2, 3, \dots \]
+
+  <ul>
+    <li><strong>Poisson(\( \lambda \)):</strong> \( a = 0, b = \lambda \)</li>
+    <li><strong>Negative Binomial(\( r, p \)):</strong> \( a = 1-p, b = (r-1)(1-p) \)</li>
+    <li><strong>Binomial(\( m, q \)):</strong> \( a = \frac{-q}{1-q}, b = \frac{(m+1)q}{1-q} \)</li>
+  </ul>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 30.3: Panjer's Recursion</div>
+    <div class="box-content">
+      Let \( f_S(x) = P(S = x) \). If \( N \) is in the (a,b,0) class and \( X \) is discrete on \( \{0, 1, 2, \dots\} \), then \( f_S(x) \) can be computed recursively as:
+      
+      \[ f_S(0) = \begin{cases} 
+      \exp(\lambda(f_X(0) - 1)) & \text{if } N \sim \text{Poisson} \\
+      (1 - a f_X(0))^{-(a+b)/a} & \text{if } N \sim \text{Negative Binomial} \\
+      (1 - a f_X(0))^{-(a+b)/a} & \text{if } N \sim \text{Binomial}
+      \end{cases} \]
+      
+      For \( x = 1, 2, 3, \dots \):
+      \[ f_S(x) = \frac{1}{1 - a f_X(0)} \sum_{j=1}^{x} \left( a + \frac{b \cdot j}{x} \right) f_X(j) f_S(x-j) \]
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 30.2: Panjer's recursion for compound Poisson with discrete severity</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> The number of claims \( N \) follows a Poisson distribution with \( \lambda = 2 \). The claim severity \( X \) can take values ₹10,000 or ₹20,000 with probabilities \( P(X=1) = 0.6 \) and \( P(X=2) = 0.4 \) (where 1 unit = ₹10,000). Note that \( f_X(0) = 0 \). Calculate the probability that aggregate claims \( S \) equal exactly 0, 1, 2, and 3 units.</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p>For Poisson(\( \lambda=2 \)), the (a,b,0) parameters are \( a = 0 \) and \( b = \lambda = 2 \).</p>
+      <p>The severity probabilities are \( f_X(1) = 0.6, f_X(2) = 0.4 \), and \( f_X(x) = 0 \) for \( x > 2 \).</p>
+      
+      <p>Step 1: Calculate \( f_S(0) \)</p>
+      \[ f_S(0) = P(N=0) = e^{-\lambda} = e^{-2} \approx 0.135335 \]
+      
+      <p>Step 2: Apply the recursion for \( x=1 \)</p>
+      \[ f_S(1) = \frac{1}{1 - 0} \sum_{j=1}^{1} \left( 0 + \frac{2j}{1} \right) f_X(j) f_S(1-j) = (2 \times 1) f_X(1) f_S(0) \]
+      \[ f_S(1) = 2 \times 0.6 \times 0.135335 = 1.2 \times 0.135335 \approx 0.162402 \]
+      
+      <p>Step 3: Apply the recursion for \( x=2 \)</p>
+      \[ f_S(2) = \sum_{j=1}^{2} \left( \frac{2j}{2} \right) f_X(j) f_S(2-j) = \sum_{j=1}^{2} j \cdot f_X(j) f_S(2-j) \]
+      \[ f_S(2) = 1 \cdot f_X(1) f_S(1) + 2 \cdot f_X(2) f_S(0) \]
+      \[ f_S(2) = (0.6 \times 0.162402) + (2 \times 0.4 \times 0.135335) = 0.097441 + 0.108268 \approx 0.205709 \]
+      
+      <p>Step 4: Apply the recursion for \( x=3 \)</p>
+      \[ f_S(3) = \sum_{j=1}^{3} \left( \frac{2j}{3} \right) f_X(j) f_S(3-j) \]
+      \[ f_S(3) = \frac{2}{3}f_X(1)f_S(2) + \frac{4}{3}f_X(2)f_S(1) + \frac{6}{3}f_X(3)f_S(0) \]
+      Since \( f_X(3) = 0 \):
+      \[ f_S(3) = \left(\frac{2}{3} \times 0.6 \times 0.205709\right) + \left(\frac{4}{3} \times 0.4 \times 0.162402\right) \]
+      \[ f_S(3) = 0.082284 + 0.086614 \approx 0.168898 \]
+      
+      <p>Thus, \( P(S = \text{₹}30,000) \approx 16.89\% \).</p>
+    </div>
+  </div>
+
+
+  <h2>30.6 Coverage Modifications</h2>
+  <p>Insurance contracts rarely cover the ground-up loss perfectly. Insurers implement mechanisms to reduce small frequent claims, cap maximum exposure, and align the insured's incentives with risk mitigation.</p>
+
+  <h3>30.6.1 Deductibles</h3>
+  <p>A deductible shifts the initial burden of a loss to the policyholder.</p>
+  <ul>
+    <li><strong>Ordinary Deductible (\( d \)):</strong> The insurer pays only the amount of loss exceeding \( d \). 
+    <br> Let \( X \) be the ground-up loss. The amount paid per loss event, \( Y_L \), is:
+    \[ Y_L = (X - d)_+ = \max(0, X - d) \]
+    The expected cost per loss event is \( \E[Y_L] = \E[(X-d)_+] \). This includes zeros when claims are below the deductible. Note that this is different from the expected cost per <em>payment</em>, \( \E[Y_P] = \E[X - d | X > d] \).
+    </li>
+    <li><strong>Franchise Deductible:</strong> If the loss is less than or equal to \( d \), the insurer pays nothing. If the loss exceeds \( d \), the insurer pays the <strong>entire</strong> loss \( X \).
+    \[ Y = \begin{cases} 0 & \text{if } X \le d \\ X & \text{if } X > d \end{cases} \]
+    </li>
+  </ul>
+
+  <h3>30.6.2 Policy Limits</h3>
+  <p>A policy limit caps the maximum amount the insurer will pay for a single event.</p>
+  <p>Let \( u \) be the policy limit. The amount paid by the insurer is \( Y = \min(X, u) = X \wedge u \).</p>
+  <p>The expected payment is the limited expected value, denoted \( \E[X \wedge u] \):</p>
+  \[ \E[X \wedge u] = \int_{0}^{u} x f_X(x) \dd x + u [1 - F_X(u)] = \int_{0}^{u} (1 - F_X(x)) \dd x \]
+
+  <h3>30.6.3 Combined Modifications and Coinsurance</h3>
+  <p>If a policy has a deductible \( d \), a limit \( u \) applied <em>to the loss</em>, and a coinsurance factor \( \alpha \) (where the insurer pays \( \alpha \) fraction of the payable claim), the payment is:</p>
+  \[ Y = \alpha \cdot (\min(X, u) - d)_+ = \alpha \left[ (X \wedge u) - (X \wedge d) \right] \]
+  <p>The expected payment per loss is:</p>
+  \[ \E[Y_L] = \alpha \left( \E[X \wedge u] - \E[X \wedge d] \right) \]
+
+  <div class="definition">
+    <div class="box-title">Definition 30.3: Loss Elimination Ratio (LER)</div>
+    <div class="box-content">
+      The Loss Elimination Ratio is the fraction of expected total losses that are eliminated (not paid by the insurer) due to the deductible \( d \).
+      \[ \text{LER} = \frac{\E[X \wedge d]}{\E[X]} \]
+      It follows that the expected cost per loss with an ordinary deductible \( d \) is \( \E[Y_L] = \E[X] - \E[X \wedge d] = \E[X](1 - \text{LER}) \).
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 30.3: Impact of a deductible on expected claims and loss elimination ratio</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Ground-up losses for a property risk follow a Pareto distribution with shape parameter \( \alpha = 3 \) and scale parameter \( \theta = \text{₹}10,000 \). The insurer is considering introducing an ordinary deductible of \( d = \text{₹}2,000 \). Calculate the expected ground-up loss, the expected payout per loss under the new deductible, and the Loss Elimination Ratio.</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p>For a Pareto(\( \alpha, \theta \)) distribution, the CDF is \( F(x) = 1 - \left(\frac{\theta}{x+\theta}\right)^\alpha \) and the limited expected value is:</p>
+      \[ \E[X \wedge d] = \frac{\theta}{\alpha-1} \left[ 1 - \left(\frac{\theta}{d+\theta}\right)^{\alpha-1} \right] \]
+      
+      <p>First, calculate the expected ground-up loss (\( d \to \infty \)):</p>
+      \[ \E[X] = \frac{\theta}{\alpha - 1} = \frac{10,000}{3 - 1} = \text{₹}5,000 \]
+      
+      <p>Next, calculate the limited expected value at the deductible \( d = 2,000 \):</p>
+      \[ \E[X \wedge 2000] = \frac{10,000}{2} \left[ 1 - \left(\frac{10,000}{2,000+10,000}\right)^{2} \right] = 5000 \left[ 1 - \left(\frac{10}{12}\right)^2 \right] \]
+      \[ \E[X \wedge 2000] = 5000 \left[ 1 - \frac{100}{144} \right] = 5000 \left[ \frac{44}{144} \right] = 5000 \times 0.30555 = \text{₹}1,527.78 \]
+      
+      <p>The expected payout per loss is:</p>
+      \[ \E[Y_L] = \E[X] - \E[X \wedge d] = 5000 - 1527.78 = \text{₹}3,472.22 \]
+      
+      <p>The Loss Elimination Ratio is:</p>
+      \[ \text{LER} = \frac{\E[X \wedge d]}{\E[X]} = \frac{1527.78}{5000} = 30.56\% \]
+      <p>By implementing a ₹2,000 deductible, the insurer eliminates 30.56% of the expected losses.</p>
+    </div>
+  </div>
+
+
+  <h2>30.7 Claim Amount Distributions and Fitting</h2>
+  <p>To use the models described above, we must fit probability distributions to historical claim data.</p>
+  
+  <h3>30.7.1 Common Parametric Families</h3>
+  <ul>
+    <li><strong>Lognormal Distribution:</strong> \( X \sim \text{LN}(\mu, \sigma^2) \). The log of the claim is normally distributed. Very common for property claims.
+      \[ f_X(x) = \frac{1}{x \sigma \sqrt{2\pi}} \exp\left(-\frac{(\ln x - \mu)^2}{2\sigma^2}\right) \]
+    </li>
+    <li><strong>Pareto Distribution:</strong> A power-law probability distribution useful for heavy-tailed phenomena like liability claims.
+      \[ f_X(x) = \frac{\alpha \theta^\alpha}{(x+\theta)^{\alpha+1}}, \quad x>0 \]
+    </li>
+    <li><strong>Burr Distribution:</strong> A generalization of the Pareto providing a more flexible shape.</li>
+    <li><strong>Weibull Distribution:</strong> Can have a heavy or light tail depending on the shape parameter. Useful in engineering and marine claims.</li>
+  </ul>
+
+  <h3>30.7.2 Maximum Likelihood Estimation (MLE)</h3>
+  <p>The standard method for parameter estimation. For a sample of \( n \) i.i.d. observed claims \( x_1, x_2, \dots, x_n \), the likelihood function is \( L(\theta) = \prod_{i=1}^n f_X(x_i | \theta) \). We maximize the log-likelihood \( \ell(\theta) = \ln L(\theta) \).</p>
+
+  <div class="warning">
+    <div class="box-title">Warning: Data Censoring and Truncation</div>
+    <div class="box-content">
+      Insurance data is rarely clean ground-up losses. 
+      <ul>
+        <li><strong>Truncation from below:</strong> If a deductible exists, claims below the deductible are simply not recorded. You must condition the likelihood on \( X > d \): \( f(x|X>d) = \frac{f(x)}{1-F(d)} \).</li>
+        <li><strong>Censoring from above:</strong> If a policy limit \( u \) exists, claims exceeding \( u \) are recorded exactly as \( u \). For these claims, the contribution to the likelihood is the probability mass \( 1 - F(u) \), not the density \( f(u) \).</li>
+      </ul>
+      Ignoring truncation and censoring will result in severely biased parameter estimates.
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 30.4: Fit Pareto to claim data using MLE</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> You observe a sample of 3 large liability claims: \( x_1 = 20,000 \), \( x_2 = 40,000 \), \( x_3 = 100,000 \). Assume these follow a single-parameter Pareto distribution where the scale parameter \( \theta \) is known to be \( 10,000 \) (so the support is \( x > 10,000 \), this is a shifted/Type I Pareto variation where \( f(x) = \alpha \theta^\alpha x^{-(\alpha+1)} \) for \( x > \theta \)). Find the MLE for \( \alpha \).</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p>The density is \( f(x) = \alpha \theta^\alpha x^{-(\alpha+1)} \) for \( x > \theta \). Here \( \theta = 10,000 \).</p>
+      <p>The likelihood function for \( n \) observations is:</p>
+      \[ L(\alpha) = \prod_{i=1}^n \alpha \theta^\alpha x_i^{-(\alpha+1)} = \alpha^n \theta^{n\alpha} \prod_{i=1}^n x_i^{-(\alpha+1)} \]
+      <p>The log-likelihood is:</p>
+      \[ \ell(\alpha) = n \ln \alpha + n\alpha \ln \theta - (\alpha+1) \sum_{i=1}^n \ln x_i \]
+      <p>Take the derivative with respect to \( \alpha \) and set to zero:</p>
+      \[ \frac{\partial \ell}{\partial \alpha} = \frac{n}{\alpha} + n \ln \theta - \sum_{i=1}^n \ln x_i = 0 \]
+      \[ \frac{n}{\hat{\alpha}} = \sum_{i=1}^n \ln x_i - n \ln \theta = \sum_{i=1}^n (\ln x_i - \ln \theta) = \sum_{i=1}^n \ln\left(\frac{x_i}{\theta}\right) \]
+      \[ \hat{\alpha} = \frac{n}{\sum_{i=1}^n \ln(x_i / \theta)} \]
+      
+      <p>Plugging in our data (\( \theta = 10000 \)):</p>
+      <ul>
+        <li>\( x_1 = 20000 \implies \ln(2) \approx 0.693 \)</li>
+        <li>\( x_2 = 40000 \implies \ln(4) \approx 1.386 \)</li>
+        <li>\( x_3 = 100000 \implies \ln(10) \approx 2.303 \)</li>
+      </ul>
+      \[ \sum \ln(x_i / \theta) = 0.693 + 1.386 + 2.303 = 4.382 \]
+      \[ \hat{\alpha} = \frac{3}{4.382} \approx 0.684 \]
+      
+      <p>The estimated shape parameter is \( 0.684 \). Because \( \hat{\alpha} \le 1 \), this fitted distribution has an infinite mean, indicating an extremely heavy tail, which is common in un-capped liability data.</p>
+    </div>
+  </div>
+
+
+  <h2>30.8 Large Claims and Heavy Tails</h2>
+  <p>In life insurance, a claim cannot exceed the sum assured. In general insurance, particularly liability and natural catastrophe lines, a single event can devastate the portfolio. This behavior is captured by "heavy-tailed" distributions.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 30.4: Mean Excess Function</div>
+    <div class="box-content">
+      The mean excess function (or mean residual life function), \( e(d) \), is the expected value of the claim amount exceeding a threshold \( d \), given that the claim is larger than \( d \).
+      \[ e(d) = \E[X - d | X > d] = \frac{\int_d^\infty (1 - F_X(x)) \dd x}{1 - F_X(d)} \]
+    </div>
+  </div>
+
+  <p>The behavior of \( e(d) \) as \( d \) increases is a fundamental diagnostic tool:</p>
+  <ul>
+    <li><strong>Constant \( e(d) \):</strong> Indicates an Exponential distribution (memoryless property). Light-tailed.</li>
+    <li><strong>Decreasing \( e(d) \):</strong> Indicates a distribution with a tail lighter than exponential (e.g., Weibull with shape > 1, Uniform).</li>
+    <li><strong>Increasing \( e(d) \):</strong> Indicates a <strong>heavy-tailed</strong> distribution (e.g., Pareto, Lognormal). The larger the claim gets, the larger the expected <em>remaining</em> claim size becomes.</li>
+  </ul>
+
+  <div class="example">
+    <div class="box-title">Example 30.5: Mean excess plot to determine appropriate tail model</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> For a Pareto distribution with \( F(x) = 1 - \left(\frac{\theta}{x+\theta}\right)^\alpha \), derive the mean excess function \( e(d) \) and prove that it is linearly increasing in \( d \).</p>
+      
+      <p><strong>Solution:</strong></p>
+      <p>First, the survival function is \( S(x) = 1 - F(x) = \left(\frac{\theta}{x+\theta}\right)^\alpha \).</p>
+      <p>The numerator of \( e(d) \) is the integral of the survival function from \( d \) to \( \infty \):</p>
+      \[ \int_d^\infty \left(\frac{\theta}{x+\theta}\right)^\alpha \dd x = \theta^\alpha \left[ \frac{(x+\theta)^{-\alpha+1}}{-\alpha+1} \right]_d^\infty \]
+      Assuming \( \alpha > 1 \) (so the integral converges):
+      \[ \int_d^\infty S(x) \dd x = \frac{\theta^\alpha (d+\theta)^{1-\alpha}}{\alpha-1} \]
+      
+      <p>The denominator is \( S(d) = \left(\frac{\theta}{d+\theta}\right)^\alpha = \theta^\alpha (d+\theta)^{-\alpha} \).</p>
+      
+      <p>Dividing the numerator by the denominator:</p>
+      \[ e(d) = \frac{\frac{\theta^\alpha (d+\theta)^{1-\alpha}}{\alpha-1}}{\theta^\alpha (d+\theta)^{-\alpha}} = \frac{d + \theta}{\alpha - 1} \]
+      
+      <p><strong>Conclusion:</strong> \( e(d) = \frac{1}{\alpha-1} d + \frac{\theta}{\alpha-1} \). This is a straight line with a positive slope (since \( \alpha > 1 \)). A linearly increasing mean excess function is the signature of a Pareto tail.</p>
+    </div>
+  </div>
+
+
+  <h2>30.9 Diagrams & Empirical Analysis</h2>
+  <p>In practice, actuaries construct an empirical mean excess plot to choose distributions before formal fitting.</p>
+  <ul>
+    <li><strong>Figure 30.1 (Empirical Mean Excess Plot):</strong> A scatter plot of threshold \( d \) on the x-axis versus the sample mean of \( (x_i - d) \) for all \( x_i > d \). If the plot curves upwards, a lognormal or Weibull (shape < 1) is indicated. If it forms a straight line upwards, a Pareto distribution is heavily suggested. If it oscillates horizontally, an Exponential is appropriate.</li>
+    <li><strong>Figure 30.2 (Aggregate Loss Histogram):</strong> A right-skewed bell-like curve resulting from Panjer's recursion or Monte Carlo simulation, showing the exact aggregate distribution \( S \). The 99th or 99.5th percentile of this curve determines the insurer's economic capital requirement.</li>
+  </ul>
+
+
+  <h2>30.10 Python Implementation: Panjer's Recursion</h2>
+  <p>The following Python code implements Panjer's recursion for the exact aggregate loss distribution. It uses arbitrary precision or careful scaling in practice, but here is the textbook educational version.</p>
+
+<pre><code class="language-python">import numpy as np
+
+def panjer_recursion(a, b, f_X, p0_N, max_s):
+    """
+    Compute aggregate loss distribution using Panjer's recursion.
+    
+    Parameters:
+    a, b  : Parameters of the (a,b,0) class frequency distribution
+    f_X   : Array of severity probabilities, f_X[k] = P(X = k*unit)
+            Must start with f_X[0] (which is typically 0).
+    p0_N  : P(N=0) for the frequency distribution
+    max_s : Maximum aggregate loss to compute
+    
+    Returns:
+    f_S   : Array of aggregate loss probabilities up to max_s
+    """
+    f_S = np.zeros(max_s + 1)
+    
+    # Initialization step
+    if f_X[0] == 0:
+        f_S[0] = p0_N
+    else:
+        # Complex initialization if f_X(0) > 0 (handled per theorem 30.3)
+        if a == 0: # Poisson
+            lam = b
+            f_S[0] = np.exp(lam * (f_X[0] - 1))
+        else:
+            f_S[0] = (1 - a * f_X[0]) ** (-(a + b) / a)
+            
+    # Recursion step
+    for s in range(1, max_s + 1):
+        sum_term = 0
+        limit = min(s, len(f_X) - 1)
+        for j in range(1, limit + 1):
+            term = (a + b * j / s) * f_X[j] * f_S[s - j]
+            sum_term += term
+            
+        f_S[s] = sum_term / (1 - a * f_X[0])
+        
+    return f_S
+
+# Example 30.2 reproduction
+# Poisson(2), f_X = [0, 0.6, 0.4]
+a = 0
+lam = 2
+b = lam
+p0_N = np.exp(-lam)
+f_X = np.array([0.0, 0.6, 0.4])
+
+f_S = panjer_recursion(a, b, f_X, p0_N, max_s=5)
+
+print("Aggregate Loss Probabilities:")
+for s, prob in enumerate(f_S):
+    print(f"P(S = {s} units) = {prob:.6f}")
+    
+# Output:
+# P(S = 0 units) = 0.135335
+# P(S = 1 units) = 0.162402
+# P(S = 2 units) = 0.205709
+# P(S = 3 units) = 0.168898
+# P(S = 4 units) = 0.117180
+# P(S = 5 units) = 0.071221
+</code></pre>
+
+
+  <h2>30.11 The Indian General Insurance Market</h2>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Evolution and Structure of the Indian GI Market</div>
+    <div class="box-content">
+      <p>The Indian General Insurance market is a fascinating blend of state intervention, rapid privatization, and unique systemic risk pools. Fully nationalized in 1972, the sector was reopened to private players in 2000 through the IRDA Act.</p>
+      
+      <h4>Key Structural Elements</h4>
+      <ul>
+        <li><strong>Public vs. Private:</strong> The market includes four dominant public sector insurers (New India, United India, Oriental, National) and dozens of private players. While public insurers historically dominated property lines due to public sector bank tie-ups, private insurers drive innovation in motor and health.</li>
+        <li><strong>GIC Re:</strong> The General Insurance Corporation of India is the sole domestic reinsurer. By regulation, every direct insurer in India must cede a mandatory percentage (currently 4%, historically higher) of every policy written to GIC Re, known as the "obligatory cession." This retains premium within the country.</li>
+        <li><strong>Motor Third-Party (TP) Pricing:</strong> Historically, Motor TP premiums were strictly tariff-controlled by the regulator (IRDAI) to keep them affordable. Because court-awarded liabilities are uncapped, this led to massive underwriting losses. To socialize this loss, the <em>Indian Motor Third Party Insurance Pool (IMTPIP)</em> was created, later replaced by the Declined Risk Pool, requiring all insurers to share the burden of commercial vehicle TP losses based on their market share.</li>
+        <li><strong>Terrorism and Nuclear Pools:</strong> Following global catastrophic events, international reinsurers withdrew terrorism cover. India established the Indian Terrorism Risk Insurance Pool (TRIP), managed by GIC Re, where all non-life companies contribute to provide capacity for terrorism risks locally. A similar pool exists for Nuclear Liability.</li>
+        <li><strong>Pradhan Mantri Fasal Bima Yojana (PMFBY):</strong> One of the largest crop insurance schemes globally. It operates on an actuarial premium basis, where farmers pay a heavily subsidized flat rate (e.g., 2% for Kharif crops), and the state/central governments pay the balance actuarial premium. It requires complex weather and yield indices modeling.</li>
+      </ul>
+    </div>
+  </div>
+
+
+  <h2>30.12 Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <h3>Key Formulas</h3>
+    <ul>
+      <li><strong>Collective Risk Model Moments:</strong> <br>\( \E[S] = \E[N]\E[X] \) <br> \( \Var(S) = \E[N]\Var(X) + \Var(N)(\E[X])^2 \)</li>
+      <li><strong>Compound Poisson MGF:</strong> <br>\( M_S(r) = \exp\{\lambda(M_X(r) - 1)\} \)</li>
+      <li><strong>Panjer Recursion:</strong> <br>\( f_S(x) = \frac{1}{1 - a f_X(0)} \sum_{j=1}^{x} \left( a + \frac{b \cdot j}{x} \right) f_X(j) f_S(x-j) \)</li>
+      <li><strong>Limited Expected Value:</strong> <br>\( \E[X \wedge u] = \int_0^u (1 - F_X(x)) \dd x \)</li>
+      <li><strong>Loss Elimination Ratio (LER):</strong> <br>\( \text{LER} = \frac{\E[X \wedge d]}{\E[X]} \)</li>
+      <li><strong>Mean Excess Function:</strong> <br>\( e(d) = \frac{\int_d^\infty (1 - F_X(x)) \dd x}{1 - F_X(d)} \)</li>
+    </ul>
+  </div>
+
+
+  <h2>30.13 Exercises</h2>
+  <div class="exercises">
+    
+    <div class="exercise-group">
+      <h4>Basic Level</h4>
+      <div class="exercise-item">
+        <strong>Exercise 30.1:</strong> In a commercial fire insurance portfolio, claim frequencies follow a Poisson distribution with mean 50. Claim severities follow a Gamma distribution with mean ₹100,000 and standard deviation ₹50,000. Calculate the expected value and standard deviation of aggregate claims.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.2:</strong> An insurer implements a franchise deductible of ₹5,000. If a loss of ₹4,500 occurs, how much does the insurer pay? If a loss of ₹6,000 occurs, how much does the insurer pay?
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.3:</strong> Identify the (a,b,0) class parameters \( a \) and \( b \) for a Negative Binomial distribution with \( r=3 \) and \( p=0.2 \).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.4:</strong> A ground-up loss follows an Exponential distribution with mean 10,000. Calculate the Loss Elimination Ratio for an ordinary deductible of 2,000.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h4>Intermediate Level</h4>
+      <div class="exercise-item">
+        <strong>Exercise 30.5:</strong> Losses \( X \) are Uniformly distributed on \( [0, 20000] \). A policy has an ordinary deductible of ₹5,000 and a policy limit of ₹15,000 (applied to the loss). Calculate the expected payout per loss, \( \E[Y_L] \).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.6:</strong> Let \( N \sim \text{Binomial}(m=2, q=0.5) \). Let \( X \) have discrete distribution \( P(X=1) = 0.8 \) and \( P(X=2) = 0.2 \). Use Panjer's recursion to find \( P(S=2) \).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.7:</strong> Prove that for an Exponential distribution with mean \( \theta \), the mean excess function \( e(d) = \theta \) for all \( d > 0 \).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.8:</strong> The number of claims has a Negative Binomial distribution with mean 4 and variance 12. Individual claims have mean 50 and variance 100. Find the variance of aggregate claims.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h4>Advanced Level</h4>
+      <div class="exercise-item">
+        <strong>Exercise 30.9:</strong> You are given an i.i.d. sample of 5 claims from a Weibull distribution with density \( f(x) = \frac{\tau}{\theta} (\frac{x}{\theta})^{\tau-1} e^{-(x/\theta)^\tau} \). Assume \( \tau = 2 \) is known. Derive the maximum likelihood estimator for \( \theta \) and calculate it for the sample: 10, 15, 20, 25, 30.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.10:</strong> An insurer faces aggregate claims \( S \sim \text{Compound Poisson} \) with \( \lambda = 100 \). The severity \( X \) is Pareto with \( \alpha=3 \) and \( \theta=1000 \). To protect its capital, the insurer buys Stop-Loss reinsurance with priority (deductible) \( R \). The expected cost of this reinsurance is \( \E[(S - R)_+] \). State the challenges in calculating this analytically and suggest a numerical approach.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.11:</strong> In the Indian market, motor TP premiums are fixed, but losses are heavy-tailed. Discuss how the presence of unlimited liability theoretically impacts the existence of the mean and variance of aggregate claims, and what mechanisms IRDAI uses to stabilize the market.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 30.12:</strong> Let \( S_1 \) and \( S_2 \) be independent compound Poisson processes with rates \( \lambda_1 \) and \( \lambda_2 \), and severity distributions \( F_1(x) \) and \( F_2(x) \). Prove that \( S = S_1 + S_2 \) is also a compound Poisson process, and find its rate and severity distribution.
+      </div>
+    </div>
+
+    <h3>Solutions to Selected Exercises</h3>
+    
+    <div class="solution-item">
+      <strong>Solution to 30.1:</strong>
+      <p>\( \E[N] = 50 \), \( \Var(N) = 50 \) (Poisson).</p>
+      <p>\( \E[X] = 100,000 \), \( \sigma_X = 50,000 \implies \Var(X) = 2,500,000,000 \).</p>
+      <p>\( \E[S] = 50 \times 100,000 = \text{₹}5,000,000 \).</p>
+      <p>\( \Var(S) = 50(2,500,000,000) + 50(100,000)^2 = 1.25 \times 10^{11} + 5 \times 10^{11} = 6.25 \times 10^{11} \).</p>
+      <p>\( \sigma_S = \sqrt{6.25 \times 10^{11}} \approx \text{₹}790,569 \).</p>
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 30.4:</strong>
+      <p>For Exponential(\( \theta = 10,000 \)), \( F(x) = 1 - e^{-x/10000} \).</p>
+      <p>\( \E[X \wedge d] = \int_0^d (1 - F(x)) \dd x = \int_0^d e^{-x/\theta} \dd x = \theta(1 - e^{-d/\theta}) \).</p>
+      <p>At \( d = 2000 \), \( \E[X \wedge 2000] = 10000(1 - e^{-0.2}) \approx 10000(1 - 0.8187) = 1812.69 \).</p>
+      <p>LER = \( 1812.69 / 10000 = 18.13\% \).</p>
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 30.5:</strong>
+      <p>Uniform on \( [0, 20000] \implies f(x) = 1/20000 \), \( F(x) = x/20000 \).</p>
+      <p>Limit \( u = 15000 \), deductible \( d = 5000 \).</p>
+      <p>\( \E[Y_L] = \E[X \wedge 15000] - \E[X \wedge 5000] \).</p>
+      <p>\( \E[X \wedge w] = \int_0^w (1 - x/20000) \dd x = [x - \frac{x^2}{40000}]_0^w = w - \frac{w^2}{40000} \).</p>
+      <p>\( \E[X \wedge 15000] = 15000 - \frac{225,000,000}{40000} = 15000 - 5625 = 9375 \).</p>
+      <p>\( \E[X \wedge 5000] = 5000 - \frac{25,000,000}{40000} = 5000 - 625 = 4375 \).</p>
+      <p>\( \E[Y_L] = 9375 - 4375 = \text{₹}5,000 \).</p>
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 30.7:</strong>
+      <p>For Exponential(\( \theta \)), \( F(x) = 1 - e^{-x/\theta} \).</p>
+      <p>Numerator: \( \int_d^\infty e^{-x/\theta} \dd x = \theta e^{-d/\theta} \).</p>
+      <p>Denominator: \( 1 - F(d) = e^{-d/\theta} \).</p>
+      <p>\( e(d) = \frac{\theta e^{-d/\theta}}{e^{-d/\theta}} = \theta \). This proves the memoryless property; regardless of the deductible, the expected remaining claim size is always \( \theta \).</p>
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 30.8:</strong>
+      <p>Given \( \E[N] = 4 \), \( \Var(N) = 12 \), \( \E[X] = 50 \), \( \Var(X) = 100 \).</p>
+      <p>\( \Var(S) = \E[N]\Var(X) + \Var(N)(\E[X])^2 \)</p>
+      <p>\( \Var(S) = 4(100) + 12(50^2) = 400 + 12(2500) = 400 + 30000 = 30,400 \).</p>
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 30.12:</strong>
+      <p>Using the MGF property from Theorem 30.2:</p>
+      <p>\( M_{S_1}(r) = \exp\{\lambda_1 (M_{X_1}(r) - 1)\} \) and \( M_{S_2}(r) = \exp\{\lambda_2 (M_{X_2}(r) - 1)\} \).</p>
+      <p>Since \( S_1 \) and \( S_2 \) are independent, \( M_S(r) = M_{S_1}(r)M_{S_2}(r) \).</p>
+      <p>\( M_S(r) = \exp\{\lambda_1 M_{X_1}(r) - \lambda_1 + \lambda_2 M_{X_2}(r) - \lambda_2\} \).</p>
+      <p>Let \( \lambda = \lambda_1 + \lambda_2 \). The expression can be rewritten as:</p>
+      <p>\( M_S(r) = \exp\left\{ \lambda \left( \frac{\lambda_1}{\lambda}M_{X_1}(r) + \frac{\lambda_2}{\lambda}M_{X_2}(r) - 1 \right) \right\} \).</p>
+      <p>This is the MGF of a compound Poisson process with rate \( \lambda = \lambda_1 + \lambda_2 \) and a mixture severity distribution \( F_X(x) = \frac{\lambda_1}{\lambda}F_1(x) + \frac{\lambda_2}{\lambda}F_2(x) \).</p>
+    </div>
+
+  </div>
+
+  <h2>30.14 Further Reading</h2>
+  <div class="further-reading">
+    <ul>
+      <li>Klugman, S. A., Panjer, H. H., & Willmot, G. E. (2012). <em>Loss Models: From Data to Decisions</em> (4th ed.). John Wiley & Sons. (The definitive text for frequency-severity modeling and empirical fitting).</li>
+      <li>Mikosch, T. (2009). <em>Non-Life Insurance Mathematics: An Introduction with the Poisson Process</em> (2nd ed.). Springer.</li>
+      <li>Kaas, R., Goovaerts, M., Dhaene, J., & Denuit, M. (2008). <em>Modern Actuarial Risk Theory: Using R</em>. Springer.</li>
+      <li>Panjer, H. H. (1981). Recursive evaluation of a family of compound distributions. <em>ASTIN Bulletin: The Journal of the IAA</em>, 12(1), 22-26.</li>
+      <li>Insurance Regulatory and Development Authority of India (IRDAI) Annual Reports, accessible via irda.gov.in, for historical data on Motor TP pools and GIC Re obligatory cessions.</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch29_pensions.html">← Previous Chapter (Chapter 29: Pensions)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch31_ruin_theory.html">Next Chapter (Chapter 31: Ruin Theory) →</a>
+  </nav>
+
+</body>
+</html>

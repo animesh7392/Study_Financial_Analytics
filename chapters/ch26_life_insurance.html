@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 26: Life Insurance and Annuities</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 26: Life Insurance and Annuities</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the present value random variables for common life insurance and annuity products.</li>
+        <li>Calculate the Actuarial Present Value (APV) and Variance for whole life, term, pure endowment, and endowment insurance.</li>
+        <li>Master life annuity calculations (annuity-due, annuity-immediate, temporary, and deferred) and their relationship to life insurance.</li>
+        <li>Derive and apply the fundamental identity connecting life insurance and life annuities (e.g., \(A_x = 1 - d\ddot{a}_x\)).</li>
+        <li>Utilize commutation functions for efficient computation and construct recursion relations for valuation.</li>
+        <li>Apply the principles of m-thly payments and understand approximations connecting continuous and discrete models.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds directly upon <strong>Chapter 25: Survival Models</strong>, which introduced survival functions, force of mortality, and the curtate future lifetime random variable \(K_x\). It also requires a solid grasp of time value of money concepts from <strong>Chapter 14: Financial Mathematics</strong>. In the next chapter, <strong>Chapter 27: Premiums and Reserves</strong>, we will combine the APV of benefits and annuities to determine fair premium rates and required reserves.</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>Consider an individual, say a 40-year-old software engineer, who wants to ensure their family is financially protected if they were to pass away unexpectedly. They approach an insurance company to buy a $1,000,000 policy. From the insurer's perspective, the timing of the payout is uncertain because the policyholder's time of death is a random variable. The insurer must determine the <strong>present value</strong> of this uncertain future payout to decide how much to charge today (the premium).</p>
+  <p>Because the payout occurs at a random future time \(T\), its present value \(v^T\) is also a random variable. The insurer relies on the Law of Large Numbers. By aggregating thousands of independent risks, the insurer can rely on the <em>expected value</em> of this present value—known in actuarial science as the <strong>Actuarial Present Value (APV)</strong>—as a pricing baseline. Similarly, retirement products like pensions pay a regular income for as long as the retiree survives. These are life annuities. Valuing these annuities uses the same survival probabilities, creating an elegant mathematical duality between life insurance (pays upon death) and life annuities (pays upon survival).</p>
+
+  <h2>2. Formal Theory</h2>
+
+  <h3>2.1 Present Value Random Variables</h3>
+  <p>Let \( (x) \) denote an individual currently aged \( x \). The continuous future lifetime random variable is \( T_x \), and the curtate future lifetime (number of completed future years) is \( K_x = \lfloor T_x \rfloor \). The constant force of interest is \( \delta \), corresponding to an annual effective rate \( i \), such that \( v = e^{-\delta} = \frac{1}{1+i} \) and \( d = \frac{i}{1+i} = 1-v \).</p>
+  
+  <p>A life insurance contract pays a benefit of 1 at the time of death. We consider two main timing conventions:</p>
+  <ul>
+    <li><strong>Continuous:</strong> Benefit paid at the exact moment of death. Present value random variable: \( Z = v^{T_x} = e^{-\delta T_x} \).</li>
+    <li><strong>Discrete (End of Year):</strong> Benefit paid at the end of the year of death. Present value random variable: \( Z = v^{K_x+1} \).</li>
+  </ul>
+
+  <h3>2.2 Insurance Benefit Models</h3>
+  
+  <div class="definition">
+    <div class="box-title">Whole Life Insurance</div>
+    <div class="box-content">
+      <p>A whole life insurance pays 1 upon the death of \( (x) \) at any time in the future.
+      <br><strong>Discrete APV:</strong> \( A_x = \E[v^{K_x+1}] = \sum_{k=0}^{\infty} v^{k+1} \,_{k}p_x q_{x+k} \)
+      <br><strong>Continuous APV:</strong> \( \bar{A}_x = \E[v^{T_x}] = \int_0^\infty v^t \,_tp_x \mu_{x+t} \dd t \)
+      <br><strong>Variance (Discrete):</strong> \( \Var(Z) = \E[v^{2(K_x+1)}] - (\E[v^{K_x+1}])^2 = \,^2A_x - (A_x)^2 \)
+      where \( \,^2A_x \) is calculated at twice the force of interest (i.e., using \( v^2 \)).</p>
+    </div>
+  </div>
+
+  <div class="definition">
+    <div class="box-title">Term Insurance</div>
+    <div class="box-content">
+      <p>Pays 1 if death occurs within \( n \) years. The discrete PV random variable is \( Z = v^{K_x+1} \) if \( K_x < n \), and \( Z = 0 \) if \( K_x \ge n \).
+      <br><strong>APV:</strong> \( A^1_{x:\overline{n|}} = \sum_{k=0}^{n-1} v^{k+1} \,_{k}p_x q_{x+k} \)</p>
+    </div>
+  </div>
+
+  <div class="definition">
+    <div class="box-title">Pure Endowment</div>
+    <div class="box-content">
+      <p>Pays 1 if \( (x) \) survives \( n \) years. The PV random variable is \( Z = 0 \) if \( K_x < n \), and \( Z = v^n \) if \( K_x \ge n \).
+      <br><strong>APV:</strong> \( A_{x:\overline{n|}}^{\;\;\;1} = v^n \,_np_x \). Often denoted as \( \,_nE_x \).</p>
+    </div>
+  </div>
+
+  <div class="definition">
+    <div class="box-title">Endowment Insurance</div>
+    <div class="box-content">
+      <p>Pays 1 if death occurs within \( n \) years, or pays 1 at the end of \( n \) years if \( (x) \) survives.
+      <br><strong>APV:</strong> \( A_{x:\overline{n|}} = A^1_{x:\overline{n|}} + A_{x:\overline{n|}}^{\;\;\;1} \)</p>
+    </div>
+  </div>
+  
+  <p><strong>Deferred Insurance:</strong> A policy that pays 1 upon death, provided death occurs after \( u \) years. The APV is \( _{u|}A_x = \sum_{k=u}^\infty v^{k+1} \,_{k}p_x q_{x+k} \). Note that \( _{u|}A_x = \,_uE_x A_{x+u} \).</p>
+
+  <h3>2.3 Life Annuities</h3>
+  <p>A life annuity provides periodic payments as long as \( (x) \) survives.</p>
+
+  <div class="definition">
+    <div class="box-title">Whole Life Annuities</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Annuity-Due (\( \ddot{a}_x \)):</strong> Pays 1 at the beginning of each year while \( (x) \) survives. Payments occur at \( t=0, 1, \dots, K_x \).
+        <br>PV random variable: \( Y = \ddot{a}_{\overline{K_x+1}|} = \frac{1 - v^{K_x+1}}{d} \)
+        <br>\( \ddot{a}_x = \E[Y] = \sum_{k=0}^\infty v^k \,_kp_x \)</li>
+        <li><strong>Annuity-Immediate (\( a_x \)):</strong> Pays 1 at the end of each year while \( (x) \) survives.
+        <br>\( a_x = \sum_{k=1}^\infty v^k \,_kp_x = \ddot{a}_x - 1 \)</li>
+        <li><strong>Continuous Annuity (\( \bar{a}_x \)):</strong> Pays continuously at a rate of 1 per year.
+        <br>\( \bar{a}_x = \int_0^\infty v^t \,_tp_x \dd t \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <p><strong>Temporary Annuity-Due:</strong> Pays 1 at the start of each year for a maximum of \( n \) years.
+  \( \ddot{a}_{x:\overline{n|}} = \sum_{k=0}^{n-1} v^k \,_kp_x \)</p>
+
+  <p><strong>Deferred Annuity:</strong> A \( u \)-year deferred whole life annuity-due pays 1 at the start of each year, beginning at age \( x+u \).
+  \( _{u|}\ddot{a}_x = \sum_{k=u}^\infty v^k \,_kp_x = \,_uE_x \ddot{a}_{x+u} \)</p>
+
+  <h3>2.4 The Key Identity</h3>
+  <p>There is a fundamental relationship tying life insurance and life annuities.</p>
+  <div class="theorem">
+    <div class="box-title">Key Identity: Insurance vs. Annuity</div>
+    <div class="box-content">
+      <p>For a discrete whole life model:</p>
+      \[ A_x = 1 - d\ddot{a}_x \]
+      <p>For a continuous whole life model:</p>
+      \[ \bar{A}_x = 1 - \delta\bar{a}_x \]
+    </div>
+  </div>
+  <div class="proof">
+    <div class="box-title">Proof (Discrete Case)</div>
+    <div class="box-content">
+      <p>Consider the present value random variable for a whole life annuity-due, \( Y = \ddot{a}_{\overline{K+1}|} \). From financial mathematics, we know the certain annuity relationship:
+      \[ \ddot{a}_{\overline{m}|} = \frac{1 - v^m}{d} \]
+      Substitute \( m = K_x + 1 \):
+      \[ Y = \frac{1 - v^{K_x+1}}{d} \]
+      Note that \( v^{K_x+1} \) is precisely \( Z \), the PV random variable for whole life insurance. Thus:
+      \[ Y = \frac{1 - Z}{d} \implies Z = 1 - dY \]
+      Taking the expected value of both sides:
+      \[ \E[Z] = \E[1 - dY] \implies A_x = 1 - d\ddot{a}_x \]
+      <em>Intuition:</em> Imagine placing 1 in a bank account. Each year it generates interest \( d \) at the beginning of the year. If you die, the 1 is withdrawn. Thus, a unit capital buys a life annuity of \( d \) plus a unit life insurance.
+      </p>
+    </div>
+  </div>
+
+  <h3>2.5 Commutation Functions</h3>
+  <p>Historically, when calculations were done by hand or on mechanical calculators, actuaries tabulated specific functions to speed up life insurance arithmetic. Even with modern computers, they remain theoretically elegant and notationally compact.</p>
+  <p>Define an arbitrary deterministic radix \( l_0 \) (e.g., 100,000) and let \( l_x = l_0 \,_xp_0 \). Then the number of deaths is \( d_x = l_x - l_{x+1} \).</p>
+  <ul>
+    <li>\( D_x = v^x l_x \)</li>
+    <li>\( N_x = \sum_{k=0}^{\infty} D_{x+k} \)</li>
+    <li>\( C_x = v^{x+1} d_x \)</li>
+    <li>\( M_x = \sum_{k=0}^{\infty} C_{x+k} \)</li>
+  </ul>
+  <p>With these, all APVs become simple fractions:</p>
+  <ul>
+    <li>\( \,_nE_x = \frac{D_{x+n}}{D_x} \)</li>
+    <li>\( \ddot{a}_x = \frac{N_x}{D_x} \)</li>
+    <li>\( \ddot{a}_{x:\overline{n|}} = \frac{N_x - N_{x+n}}{D_x} \)</li>
+    <li>\( A_x = \frac{M_x}{D_x} \)</li>
+    <li>\( A^1_{x:\overline{n|}} = \frac{M_x - M_{x+n}}{D_x} \)</li>
+  </ul>
+
+  <h3>2.6 Recursion Relations</h3>
+  <p>Recursion relations allow for backward induction valuation (crucial for modern spreadsheet and software implementations).</p>
+  <ul>
+    <li><strong>Annuity:</strong> \( \ddot{a}_x = 1 + v p_x \ddot{a}_{x+1} \)
+      <br><em>Proof:</em> An annuity pays 1 now. If the person survives one year (prob \( p_x \)), they receive an annuity-due from age \( x+1 \), discounted by \( v \).</li>
+    <li><strong>Insurance:</strong> \( A_x = v q_x + v p_x A_{x+1} \)
+      <br><em>Proof:</em> If death occurs in year 1 (prob \( q_x \)), the payout is 1 at year-end, PV is \( v \). If they survive (prob \( p_x \)), they effectively hold a whole life policy issued at age \( x+1 \), discounted back one year by \( v \).</li>
+  </ul>
+
+  <h3>2.7 Variance of Insurance and Annuity PVs</h3>
+  <p>Using the identity \( Y = \frac{1 - Z}{d} \), we can easily find the variance of an annuity in terms of insurance:</p>
+  \[ \Var(Y) = \Var\left( \frac{1-Z}{d} \right) = \frac{\Var(Z)}{d^2} \]
+  And we know \( \Var(Z) = \,^2A_x - (A_x)^2 \).</p>
+  
+  <h3>2.8 m-thly Payments and Approximations</h3>
+  <p>In reality, premiums and annuities are often paid monthly (\( m=12 \)), quarterly (\( m=4 \)), etc.</p>
+  <p>For insurance paying at the end of the m-thly interval of death, assuming Uniform Distribution of Deaths (UDD) over each year of age:</p>
+  \[ A_x^{(m)} = \frac{i}{i^{(m)}} A_x \]
+  <p>For m-thly annuities-due, Woolhouse's formula (a truncation of the Euler-Maclaurin expansion) provides a practical approximation:</p>
+  \[ \ddot{a}_x^{(m)} \approx \ddot{a}_x - \frac{m-1}{2m} - \frac{m^2-1}{12m^2}(\mu_x + \delta) \]
+  <p>A simpler, widely used UDD approximation for annuities is:</p>
+  \[ \ddot{a}_x^{(m)} \approx \alpha(m)\ddot{a}_x - \beta(m) \]
+  where \( \alpha(m) = \frac{i d}{i^{(m)} d^{(m)}} \) and \( \beta(m) = \frac{i - i^{(m)}}{i^{(m)} d^{(m)}} \).
+
+  <h2>3. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 26.1: Whole Life Insurance via Recursion</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Consider a discrete mortality table where \( q_{98} = 0.4 \), \( q_{99} = 0.7 \), and \( q_{100} = 1.0 \). Compute \( A_{98} \) at \( i = 5\% \) (\( v = 1/1.05 = 0.95238 \)).</p>
+      <p><strong>Solution:</strong> We use the backward recursion \( A_x = v q_x + v p_x A_{x+1} \).</p>
+      <ol>
+        <li>At age 100, death is certain by age 101. \( A_{100} = v q_{100} = 0.95238 \times 1.0 = 0.95238 \).</li>
+        <li>At age 99, \( p_{99} = 0.3 \). <br>\( A_{99} = v q_{99} + v p_{99} A_{100} = 0.95238(0.7) + 0.95238(0.3)(0.95238) = 0.66667 + 0.27211 = 0.93878 \).</li>
+        <li>At age 98, \( p_{98} = 0.6 \). <br>\( A_{98} = v q_{98} + v p_{98} A_{99} = 0.95238(0.4) + 0.95238(0.6)(0.93878) = 0.38095 + 0.53644 = 0.91739 \).</li>
+      </ol>
+      <p>The APV of a $1 whole life insurance issued to (98) is $0.917.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 26.2: Temporary Annuity via Commutation Functions</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Given \( D_{40} = 20,000 \), \( N_{40} = 340,000 \), and \( N_{60} = 80,000 \). Calculate the APV of a 20-year temporary annuity-due of $50,000 per year for (40).</p>
+      <p><strong>Solution:</strong>
+      The APV for a unit annuity is \( \ddot{a}_{40:\overline{20|}} = \frac{N_{40} - N_{60}}{D_{40}} \).
+      \[ \ddot{a}_{40:\overline{20|}} = \frac{340,000 - 80,000}{20,000} = \frac{260,000}{20,000} = 13.0 \]
+      Total APV = \( 50,000 \times 13.0 = \$650,000 \).
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 26.3: Verifying the Key Identity</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> For age \( x \), you are given \( \ddot{a}_x = 12.5 \) and \( i = 6\% \). Calculate \( A_x \) directly using the key identity.</p>
+      <p><strong>Solution:</strong>
+      First, find \( d \):
+      \[ d = \frac{i}{1+i} = \frac{0.06}{1.06} \approx 0.056604 \]
+      Use the identity \( A_x = 1 - d\ddot{a}_x \):
+      \[ A_x = 1 - (0.056604)(12.5) = 1 - 0.70755 = 0.29245 \]
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 26.4: Variance of Whole Life PV</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> You are given \( A_x = 0.3 \), \( \,^2A_x = 0.14 \), and \( i = 4\% \). An insurance company issues 1,000 independent policies of $10,000 whole life insurance to lives age \( x \). Let \( S \) be the total present value of benefits. Find the mean and standard deviation of \( S \).</p>
+      <p><strong>Solution:</strong>
+      For one policy paying $1, the PV random variable is \( Z \).
+      \[ \E[Z] = A_x = 0.3 \]
+      \[ \Var(Z) = \,^2A_x - (A_x)^2 = 0.14 - (0.3)^2 = 0.14 - 0.09 = 0.05 \]
+      For a policy paying $10,000, let \( Z^* = 10000 Z \).
+      \[ \E[Z^*] = 10000(0.3) = 3000 \]
+      \[ \Var(Z^*) = (10000)^2 \Var(Z) = 10^8 \times 0.05 = 5,000,000 \]
+      For 1,000 independent policies:
+      \[ \E[S] = 1000 \times 3000 = \$3,000,000 \]
+      \[ \Var(S) = 1000 \times 5,000,000 = 5 \times 10^9 \]
+      Standard Deviation:
+      \[ \sigma_S = \sqrt{5 \times 10^9} \approx \$70,710.68 \]
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 26.5: Valuing an Endowment Insurance</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> For age 35, you are given a 25-year term insurance APV \( A^1_{35:\overline{25|}} = 0.08 \) and a 25-year pure endowment APV \( A_{35:\overline{25|}}^{\;\;\;1} = \,_{25}E_{35} = 0.25 \). Find the APV of a 25-year endowment insurance of ₹5,000,000.</p>
+      <p><strong>Solution:</strong>
+      An endowment insurance pays upon death within the term OR upon survival to the end of the term.
+      \[ A_{35:\overline{25|}} = A^1_{35:\overline{25|}} + A_{35:\overline{25|}}^{\;\;\;1} \]
+      \[ A_{35:\overline{25|}} = 0.08 + 0.25 = 0.33 \]
+      The total APV for a policy with face amount ₹5,000,000 is:
+      \[ 5,000,000 \times 0.33 = \text{₹} 1,650,000 \]
+      </p>
+    </div>
+  </div>
+
+  <h2>4. Python Code Implementation</h2>
+  <p>The following Python code defines a class to handle a given mortality table, calculate commutation functions, and derive basic Actuarial Present Values.</p>
+
+<pre><code class="language-python">
+import numpy as np
+
+class LifeTable:
+    def __init__(self, qx_array, interest_rate):
+        self.qx = np.array(qx_array)
+        self.i = interest_rate
+        self.v = 1.0 / (1.0 + self.i)
+        self.omega = len(self.qx)
+        self.build_commutation_functions()
+
+    def build_commutation_functions(self):
+        # Build lx (start with radix 100,000)
+        self.lx = np.zeros(self.omega + 1)
+        self.lx[0] = 100000.0
+        for x in range(self.omega):
+            self.lx[x+1] = self.lx[x] * (1 - self.qx[x])
+            
+        self.dx = self.lx[:-1] * self.qx
+        
+        # Dx and Cx
+        x_idx = np.arange(self.omega)
+        self.Dx = (self.v ** x_idx) * self.lx[:-1]
+        self.Cx = (self.v ** (x_idx + 1)) * self.dx
+        
+        # Nx and Mx (backward cumulative sum)
+        self.Nx = np.cumsum(self.Dx[::-1])[::-1]
+        self.Mx = np.cumsum(self.Cx[::-1])[::-1]
+
+    def whole_life_insurance(self, x):
+        return self.Mx[x] / self.Dx[x]
+        
+    def whole_life_annuity_due(self, x):
+        return self.Nx[x] / self.Dx[x]
+        
+    def term_insurance(self, x, n):
+        if x + n >= self.omega:
+            return self.whole_life_insurance(x)
+        return (self.Mx[x] - self.Mx[x+n]) / self.Dx[x]
+
+# Example usage reproducing Example 26.1 context
+# qx = [0.4, 0.7, 1.0] for ages 98, 99, 100.
+# We offset x so x=0 maps to age 98
+qx_data = [0.4, 0.7, 1.0]
+lt = LifeTable(qx_data, interest_rate=0.05)
+
+print(f"A_98: {lt.whole_life_insurance(0):.5f}")
+print(f"a_ddot_98: {lt.whole_life_annuity_due(0):.5f}")
+
+# Verify Key Identity: A_x = 1 - d*a_ddot_x
+d = 0.05 / 1.05
+identity_Ax = 1 - d * lt.whole_life_annuity_due(0)
+print(f"1 - d*a_ddot_98: {identity_Ax:.5f}")
+</code></pre>
+  
+  <h2>5. Diagrams Description</h2>
+  <p>To fully grasp these concepts, visualize the cash flows along a timeline:</p>
+  <ul>
+    <li><strong>Figure 26.1 (Whole Life Insurance Cash Flow):</strong> A timeline starting at age \( x \). Probabilities \( q_x, _{1|}q_x, _{2|}q_x \) are mapped to potential payout nodes at \( t=1, 2, 3 \dots \). A dashed discount curve \( v^t \) curves backward to \( t=0 \). The sum over all paths gives \( A_x \).</li>
+    <li><strong>Figure 26.2 (Annuity vs Insurance):</strong> A dual timeline. On top, an annuity pays 1 at \( t=0, 1, 2 \dots \) stopping at death. On the bottom, an insurance pays 1 exactly at the end of the year of death. The shaded area under the survival curve relates to the annuity, while the boundary (PDF of death) relates to insurance.</li>
+  </ul>
+
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Annuity-Due and Annuity-Immediate:</strong> Annuity-due (\( \ddot{a}_x \)) pays at the <em>beginning</em> of the year (starting immediately at \( t=0 \)). Annuity-immediate (\( a_x \)) pays at the <em>end</em> of the year. Remember \( \ddot{a}_x = 1 + a_x \).</li>
+        <li><strong>Forgetting the force of interest vs effective rate:</strong> The continuous PV uses \( e^{-\delta t} \). Do not use \( (1+i)^{-t} \) unless you explicitly convert \( 1+i = e^\delta \).</li>
+        <li><strong>Variance calculations:</strong> The variance of the present value is \( \,^2A_x - (A_x)^2 \), <strong>not</strong> \( A_x^2 \). \( \,^2A_x \) means calculating the APV using double the force of interest (or \( v^2 \)).</li>
+        <li><strong>Misapplying UDD:</strong> The formula \( A_x^{(m)} = \frac{i}{i^{(m)}} A_x \) assumes uniform distribution of deaths. It does <em>not</em> exactly apply to annuities without using the specific alpha-beta adjustment formulas.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Valuation in Life Insurance Companies</div>
+    <div class="box-content">
+      <p>In practice, life insurance actuaries do not value single policies in isolation. An insurer’s liability portfolio consists of millions of policies (term, whole life, annuities). The concepts in this chapter form the basis of <strong>Statutory and GAAP Valuation</strong>. Actuarial modeling software (like Prophet, GGY AXIS, or ALFA) uses recursion relations similar to those shown here to project cash flows month-by-month for up to 100 years into the future. 
+      <br><br>
+      Furthermore, modern valuation requires Stochastic modeling. The variance formulas (\( \Var(Z) \)) allow actuaries to quantify the process risk—the risk of statistical fluctuation in death claims. In capital modeling (such as Solvency II in Europe or RBC in the US), insurers must hold capital to withstand a 1-in-200 year adverse mortality deviation, directly drawing upon the standard deviations of these PV random variables.</p>
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <div class="box-title">Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Expected PVs (Discrete):</strong>
+          <ul>
+            <li>\( A_x = \sum v^{k+1} \,_{k}p_x q_{x+k} \)</li>
+            <li>\( \ddot{a}_x = \sum v^k \,_kp_x \)</li>
+          </ul>
+        </li>
+        <li><strong>Key Identity:</strong> \( A_x = 1 - d \ddot{a}_x \)</li>
+        <li><strong>Variance:</strong> \( \Var(v^{K+1}) = \,^2A_x - (A_x)^2 \)</li>
+        <li><strong>Commutation Relations:</strong>
+          <ul>
+            <li>\( A_x = \frac{M_x}{D_x} \)</li>
+            <li>\( \ddot{a}_x = \frac{N_x}{D_x} \)</li>
+            <li>\( A^1_{x:\overline{n|}} = \frac{M_x - M_{x+n}}{D_x} \)</li>
+          </ul>
+        </li>
+        <li><strong>Pure Endowment:</strong> \( \,_nE_x = A_{x:\overline{n|}}^{\;\;\;1} = \frac{D_{x+n}}{D_x} = v^n \,_np_x \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>6. Exercises</h2>
+  <div class="exercises">
+    
+    <div class="exercise-group">
+      <h4>Basic Exercises</h4>
+      <div class="exercise-item">
+        <strong>Exercise 26.1:</strong> Given \( A_x = 0.25 \), \( i = 0.05 \). Calculate \( \ddot{a}_x \).
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> \( d = \frac{0.05}{1.05} = 0.047619 \). From \( A_x = 1 - d\ddot{a}_x \), we have \( 0.25 = 1 - 0.047619\ddot{a}_x \implies \ddot{a}_x = \frac{0.75}{0.047619} = 15.75 \).
+      </div>
+      
+      <div class="exercise-item">
+        <strong>Exercise 26.2:</strong> Given \( q_{50} = 0.004 \) and \( i = 6\% \). Find the 1-year term insurance APV \( A^1_{50:\overline{1|}} \).
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> \( A^1_{50:\overline{1|}} = v q_{50} = \frac{1}{1.06}(0.004) = 0.003774 \).
+      </div>
+      
+      <div class="exercise-item">
+        <strong>Exercise 26.3:</strong> Given \( D_{50} = 15,000 \), \( D_{60} = 8,000 \). Calculate the APV of a 10-year pure endowment for (50).
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> \( \,_{10}E_{50} = \frac{D_{60}}{D_{50}} = \frac{8000}{15000} = 0.5333 \).
+      </div>
+      
+      <div class="exercise-item">
+        <strong>Exercise 26.4:</strong> You are given \( A_x = 0.4 \) and \( \,^2A_x = 0.2 \). Calculate the variance of the present value random variable \( Z \).
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> \( \Var(Z) = \,^2A_x - (A_x)^2 = 0.2 - (0.4)^2 = 0.2 - 0.16 = 0.04 \).
+      </div>
+      
+      <div class="exercise-item">
+        <strong>Exercise 26.5:</strong> Define the difference between \( A_{x:\overline{n|}}^{\;\;\;1} \) and \( A^1_{x:\overline{n|}} \).
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h4>Intermediate Exercises</h4>
+      <div class="exercise-item">
+        <strong>Exercise 26.6:</strong> Given \( A_{40} = 0.16132 \), \( A_{41} = 0.16869 \), and \( i = 0.05 \). Determine \( q_{40} \).
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> Use recursion: \( A_{40} = v q_{40} + v p_{40} A_{41} \). Let \( v = 1/1.05 = 0.95238 \). 
+        <br>\( 0.16132 = 0.95238 q_{40} + 0.95238 (1-q_{40})(0.16869) \)
+        <br>\( 0.16132 = 0.95238 q_{40} + 0.16066 - 0.16066 q_{40} \)
+        <br>\( 0.00066 = 0.79172 q_{40} \implies q_{40} = 0.00083 \).
+      </div>
+      
+      <div class="exercise-item">
+        <strong>Exercise 26.7:</strong> Show that \( A_x = v \ddot{a}_x - a_x \).
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> \( \ddot{a}_x - a_x = 1 \). Multiply by \( v \): \( v \ddot{a}_x - v a_x \dots \) Wait, better derivation:
+        Recall \( a_x = \ddot{a}_x - 1 \). And \( d = 1 - v \).
+        \( A_x = 1 - d\ddot{a}_x = 1 - (1-v)\ddot{a}_x = 1 - \ddot{a}_x + v\ddot{a}_x = -( \ddot{a}_x - 1 ) + v\ddot{a}_x = -a_x + v\ddot{a}_x \). Proved.
+      </div>
+
+      <div class="exercise-item">
+        <strong>Exercise 26.8:</strong> Prove the identity \( \ddot{a}_{x} = \ddot{a}_{x:\overline{n|}} + \,_nE_x \ddot{a}_{x+n} \).
+      </div>
+
+      <div class="exercise-item">
+        <strong>Exercise 26.9:</strong> A 20-year endowment insurance issued to (35) pays $100,000. Given \( \ddot{a}_{35:\overline{20|}} = 12.5 \) and \( i = 4\% \). Find the single net premium (APV).
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> \( d = 0.04/1.04 = 0.03846 \). The identity holds for n-year terms too: \( A_{35:\overline{20|}} = 1 - d \ddot{a}_{35:\overline{20|}} = 1 - 0.03846(12.5) = 1 - 0.48077 = 0.51923 \).
+        <br>Premium = \( 100,000 \times 0.51923 = \$51,923 \).
+      </div>
+
+      <div class="exercise-item">
+        <strong>Exercise 26.10:</strong> Assuming UDD over each year of age, given \( A_x = 0.3 \) and \( i = 5\% \). Calculate \( A_x^{(12)} \).
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h4>Advanced Exercises</h4>
+      <div class="exercise-item">
+        <strong>Exercise 26.11:</strong> A continuous whole life insurance pays 1 at the moment of death. The force of mortality is constant at \( \mu = 0.02 \) and the force of interest is constant at \( \delta = 0.04 \). Calculate the APV \( \bar{A}_x \) and its variance.
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> \( \bar{A}_x = \int_0^\infty e^{-\delta t} e^{-\mu t} \mu \dd t = \frac{\mu}{\mu + \delta} = \frac{0.02}{0.06} = \frac{1}{3} \).
+        <br>For the variance, \( \,^2\bar{A}_x = \frac{\mu}{\mu + 2\delta} = \frac{0.02}{0.10} = 0.2 \).
+        <br>\( \Var(Z) = 0.2 - (1/3)^2 = 0.2 - 0.1111 = 0.0888 \).
+      </div>
+
+      <div class="exercise-item">
+        <strong>Exercise 26.12:</strong> Derive Woolhouse’s approximation for \( \ddot{a}_x^{(2)} \) using three terms, given \( \mu_x = 0.01 \), \( \delta = 0.04 \), and \( \ddot{a}_x = 18.0 \).
+      </div>
+
+      <div class="exercise-item">
+        <strong>Exercise 26.13:</strong> A discrete whole life annuity-due pays $10,000 per year. Given \( A_x = 0.4 \), \( \,^2A_x = 0.2 \), and \( i = 0.05 \). Find the standard deviation of the present value of this annuity.
+      </div>
+      <div class="solution-item">
+        <em>Solution:</em> Let \( Y \) be the PV of the unit annuity. \( \Var(Y) = \frac{\Var(Z)}{d^2} \).
+        <br>\( d = 0.05/1.05 = 0.047619 \).
+        <br>\( \Var(Z) = 0.2 - 0.16 = 0.04 \).
+        <br>\( \Var(Y) = 0.04 / (0.047619)^2 = 0.04 / 0.0022675 = 17.64 \).
+        <br>For $10,000 annuity, SD = \( 10000 \times \sqrt{17.64} = 10000 \times 4.2 = \$42,000 \).
+      </div>
+
+      <div class="exercise-item">
+        <strong>Exercise 26.14:</strong> Consider an increasing life insurance that pays \( k+1 \) at the end of year \( k+1 \) if death occurs in that year. Formulate the APV \( (IA)_x \) in terms of commutation functions.
+      </div>
+
+      <div class="exercise-item">
+        <strong>Exercise 26.15:</strong> Construct a spreadsheet or Python script that reads standard mortality table data (e.g., Makeham's law) and plots \( \Var(Z) \) for a whole life insurance across ages \( x=20 \) to \( x=80 \). Discuss the shape of the resulting curve.
+      </div>
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Bowers, N. L., Gerber, H. U., Hickman, J. C., Jones, D. A., & Nesbitt, C. J. (1997). <em>Actuarial Mathematics</em> (2nd ed.). Society of Actuaries. (Chapters 4 and 5).</li>
+        <li>Dickson, D. C. M., Hardy, M. R., & Waters, H. R. (2013). <em>Actuarial Mathematics for Life Contingent Risks</em> (2nd ed.). Cambridge University Press. (Chapters 4 and 5).</li>
+        <li>Promislow, S. D. (2014). <em>Fundamentals of Actuarial Mathematics</em> (3rd ed.). John Wiley & Sons.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch25_survival_models.html">← Previous Chapter (Survival Models)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch27_premiums_reserves.html">Next Chapter (Premiums and Reserves) →</a>
+  </nav>
+
+</body>
+</html>

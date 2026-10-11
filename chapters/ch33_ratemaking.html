@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 33: Ratemaking</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 33: Ratemaking</h1>
+  
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the fundamental principles of ratemaking: rate adequacy, equity, and regulatory compliance.</li>
+        <li>Apply the Pure Premium and Loss Ratio methods to determine indicated rate changes.</li>
+        <li>Design Generalized Linear Models (GLMs) for claim frequency and severity to establish multiplicative tariff structures.</li>
+        <li>Incorporate trend factors and loss development factors to adjust historical data for future rating periods.</li>
+        <li>Implement experience rating and schedule rating to modify manual rates for individual risks.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter relies heavily on the credibility concepts from <strong>Chapter 32: Credibility Theory</strong>, as well as the fundamentals of generalized linear models introduced in Chapter 14. We will also preview loss development factors (LDFs), which will be extensively covered in <strong>Chapter 34: Loss Reserving</strong>.</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>Imagine you are the Chief Actuary for a newly established auto insurance company. Your first task is to price the policies. If you charge too much, healthy drivers will flock to competitors, leaving you with only the riskiest drivers (adverse selection). If you charge too little, you will sell many policies but eventually go bankrupt as claims exceed premium revenue. This balancing act is the essence of <em>ratemaking</em> (or pricing).</p>
+  
+  <p>Ratemaking is not just about finding an average cost; it is about segmenting the risk. A 20-year-old driving a sports car in a congested city has a fundamentally different risk profile than a 50-year-old driving a sedan in a rural area. How do we quantify these differences? How do we adjust for inflation and the fact that claims take time to settle? This chapter provides the quantitative tools to answer these questions.</p>
+
+  <h2>2. Formal Theory: Ratemaking Principles</h2>
+  <p>The ultimate goal of ratemaking is to determine a premium that covers expected losses, expenses, and provides a reasonable profit margin, while adhering to regulatory and actuarial principles.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 33.1: Fundamental Ratemaking Principles</div>
+    <div class="box-content">
+      <p>Rates must be:</p>
+      <ul>
+        <li><strong>Adequate:</strong> Rates should generate enough revenue to pay all claims and expenses.</li>
+        <li><strong>Not Excessive:</strong> Rates should not generate unreasonable profits.</li>
+        <li><strong>Equitable (Not Unfairly Discriminatory):</strong> Risks with similar expected costs should be charged similar rates. Differences in rates must reflect demonstrable differences in expected costs.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>The gross premium (or rate) consists of three components:</p>
+  \[ \text{Rate} = \text{Pure Premium} + \text{Expenses} + \text{Profit Margin} \]
+  <p>Or, often formulated as:</p>
+  \[ \text{Rate} = \frac{\text{Pure Premium} + \text{Fixed Expenses}}{1 - \text{Variable Expense Ratio} - \text{Target Profit Ratio}} \]
+
+  <h2>3. Fundamental Methods</h2>
+  
+  <h3>3.1 The Pure Premium Method</h3>
+  <p>The pure premium (PP) is the expected loss per unit of exposure. It is the product of expected frequency and expected severity.</p>
+  
+  <div class="definition">
+    <div class="box-title">Definition 33.2: Pure Premium</div>
+    <div class="box-content">
+      \[ \text{Pure Premium} = \E[\text{Frequency}] \times \E[\text{Severity}] = \frac{\text{Total Expected Losses}}{\text{Total Exposures}} \]
+      <p>Where Frequency = Claim Count / Exposure, and Severity = Total Losses / Claim Count.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 33.1: Pure Premium Calculation for Motor Insurance</div>
+    <div class="box-content">
+      <p>An insurer has 50,000 car-years of exposure. Over the experience period, there were 4,000 claims totaling $12,000,000 in losses.</p>
+      <p><strong>Step 1: Frequency</strong><br>
+      Frequency = 4,000 / 50,000 = 0.08 (or 8% per car-year).</p>
+      <p><strong>Step 2: Severity</strong><br>
+      Severity = $12,000,000 / 4,000 = $3,000 per claim.</p>
+      <p><strong>Step 3: Pure Premium</strong><br>
+      Pure Premium = Frequency \times Severity = 0.08 \times \$3,000 = \$240 \text{ per car-year}.</p>
+      <p>If fixed expenses are $30 per exposure, variable expenses are 20%, and the profit target is 5%, the gross rate is:<br>
+      \[ \text{Rate} = \frac{240 + 30}{1 - 0.20 - 0.05} = \frac{270}{0.75} = \$360 \]</p>
+    </div>
+  </div>
+
+  <h3>3.2 The Loss Ratio Method</h3>
+  <p>The loss ratio method calculates the necessary rate change relative to the current rate level, rather than computing a rate from scratch.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 33.3: Indicated Rate Change</div>
+    <div class="box-content">
+      \[ \text{Indicated Rate Change} = \frac{\text{Experienced Loss Ratio} + \text{Fixed Expense Ratio}}{\text{Target Loss Ratio}} - 1 \]
+      <p>Alternatively, neglecting fixed expenses as a separate component:<br>
+      \[ \text{Indicated Rate Change} = \frac{\text{Experienced Loss Ratio}}{\text{Target Loss Ratio}} - 1 \]</p>
+      <p>Where the Target Loss Ratio = 1 - Variable Expense Ratio - Target Profit Ratio.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 33.2: Loss Ratio Method</div>
+    <div class="box-content">
+      <p>Current premium volume is $5,000,000. Projected ultimate losses are $3,800,000. The experienced loss ratio is:<br>
+      \[ \text{ELR} = \frac{3,800,000}{5,000,000} = 0.76 \]</p>
+      <p>The insurer targets a variable expense ratio of 25% and a profit margin of 5%, giving a Target Loss Ratio of:<br>
+      \[ \text{TLR} = 1 - 0.25 - 0.05 = 0.70 \]</p>
+      <p>Indicated Rate Change:<br>
+      \[ \text{Change} = \frac{0.76}{0.70} - 1 = 1.0857 - 1 = +8.57\% \]</p>
+      <p>The insurer needs to increase rates by 8.57% to achieve the target profitability.</p>
+    </div>
+  </div>
+
+  <h2>4. GLMs for Ratemaking</h2>
+  <p>To ensure rate equity, insurers segment risks using rating factors (e.g., age, vehicle type). Modern ratemaking uses Generalized Linear Models (GLMs) to create a multiplicative tariff structure. The rate for an individual is a base rate multiplied by a set of relativities.</p>
+  
+  <h3>4.1 Multiplicative Tariff Structure</h3>
+  <div class="theorem">
+    <div class="box-title">Theorem 33.1: GLM Multiplicative Tariff</div>
+    <div class="box-content">
+      <p>Under a Poisson GLM with log link, the predicted claim frequency for a risk with factors \(x_1, \dots, x_k\) is multiplicative:</p>
+      \[ \hat{\lambda} = e^{\beta_0} \cdot e^{\beta_1 x_1} \cdots e^{\beta_k x_k} \]
+      <p>Each \(e^{\beta_j}\) is the <em>relativity</em> for factor \(j\). This result follows from the exponential inverse-link function of the Poisson GLM.</p>
+    </div>
+  </div>
+  <p>A multiplicative model assumes the expected pure premium for a risk with characteristics \( x_1, x_2, \dots, x_k \) is:</p>
+  \[ \E[Y] = \text{Base} \times f_1(x_1) \times f_2(x_2) \times \dots \times f_k(x_k) \]
+  <p>To fit this with a GLM, we use a logarithmic link function, turning the multiplicative relationship into an additive one in the linear predictor:</p>
+  \[ \ln(\E[Y]) = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k \]
+  <p>Here, \( \exp(\beta_0) \) represents the base rate, and \( \exp(\beta_j) \) represents the relativity for factor \( j \).</p>
+
+  <h3>4.2 Frequency and Severity GLMs</h3>
+  <ul>
+    <li><strong>Frequency:</strong> Modeled using a <strong>Poisson</strong> or Negative Binomial distribution with a log link. Exposure is included as an offset term: \( \ln(\text{Exposure}) \).</li>
+    <li><strong>Severity:</strong> Modeled using a <strong>Gamma</strong> distribution with a log link.</li>
+    <li><strong>Pure Premium (Tweedie):</strong> Modeled directly using a <strong>Tweedie</strong> distribution (variance proportional to \( \mu^p \), where \( 1 < p < 2 \)), which handles the point mass at zero (no claims) and the continuous positive tail (claim sizes).</li>
+  </ul>
+
+  <div class="example">
+    <div class="box-title">Example 33.3: GLM Poisson Frequency Model</div>
+    <div class="box-content">
+      <p>An actuary runs a Poisson GLM for claim frequency with two categorical variables: Area (Urban/Rural) and Driver Age (Young/Adult). The reference levels are Rural and Adult. The estimated coefficients are:</p>
+      <ul>
+        <li>Intercept (\( \beta_0 \)): -2.30</li>
+        <li>Area: Urban (\( \beta_1 \)): 0.40</li>
+        <li>Age: Young (\( \beta_2 \)): 0.65</li>
+      </ul>
+      <p><strong>Calculations:</strong></p>
+      <p>Base Frequency (Rural, Adult) = \( \exp(-2.30) = 0.100 \)</p>
+      <p>Relativity for Urban = \( \exp(0.40) = 1.492 \)<br>
+      Relativity for Young = \( \exp(0.65) = 1.915 \)</p>
+      <p>Expected frequency for a Young driver in an Urban area:<br>
+      \( \E[F] = 0.100 \times 1.492 \times 1.915 = 0.286 \) (or 28.6%).</p>
+    </div>
+  </div>
+
+  <h2>5. Trend and Development</h2>
+  <p>Historical loss data must be adjusted to the future period when the rates will be in effect.</p>
+
+  <h3>5.1 Loss Development</h3>
+  <p>Claims take time to be reported and settled. Historical losses must be multiplied by Loss Development Factors (LDFs) to estimate their ultimate value. We compute LDFs using run-off triangles (detailed in Chapter 34). For ratemaking, we take reported losses and multiply by the appropriate Cumulative LDF (CLDF) to reach ultimate losses.</p>
+
+  <h3>5.2 Trending</h3>
+  <p>Losses also suffer from inflation (severity trend) and changes in accident rates (frequency trend). We project these from the average date of the historical experience period to the average date of the future policy period.</p>
+
+  <div class="example">
+    <div class="box-title">Example 33.5: Trending and Developing Loss Data</div>
+    <div class="box-content">
+      <p>Experience period: Accident Year 2023. We are setting rates for policies written in 2025.</p>
+      <ul>
+        <li>Reported losses for AY 2023: $5,000,000</li>
+        <li>CLDF to ultimate: 1.15</li>
+        <li>Annual severity trend: 4%</li>
+        <li>Annual frequency trend: 0%</li>
+      </ul>
+      <p><strong>Development:</strong><br>
+      Ultimate Losses = $5,000,000 \times 1.15 = \$5,750,000.</p>
+      <p><strong>Trending:</strong><br>
+      Average date of AY 2023 is July 1, 2023. Average date of accident for policies written in 2025 is July 1, 2026 (assuming 1-year policies). The trend period is 3 years.<br>
+      Trend Factor = \( (1.04)^3 = 1.12486 \).</p>
+      <p><strong>Trended Ultimate Losses:</strong><br>
+      $5,750,000 \times 1.12486 = \$6,467,945.</p>
+    </div>
+  </div>
+
+  <h2>6. Experience, Schedule, and Judgment Rating</h2>
+  
+  <h3>6.1 Experience Rating</h3>
+  <p>For larger commercial risks, the manual rate (class rate) is modified based on the insured's own historical loss experience. This uses an Experience Modification Factor (Mod), driven by credibility theory (Chapter 32).</p>
+  \[ \text{Mod} = \frac{Z \times \text{Actual Losses} + (1-Z) \times \text{Expected Losses}}{\text{Expected Losses}} \]
+  <p>Where \( Z \) is the credibility factor. The final rate is the manual rate multiplied by the Mod.</p>
+
+  <div class="example">
+    <div class="box-title">Example 33.4: Experience Modification Factor</div>
+    <div class="box-content">
+      <p>A commercial fleet's manual premium is $200,000, with expected losses of $130,000. Over the past 3 years, their actual losses were $180,000. Actuarial tables assign a credibility factor of \( Z = 0.60 \).</p>
+      <p>Mod = \( \frac{0.60(180,000) + 0.40(130,000)}{130,000} = \frac{108,000 + 52,000}{130,000} = \frac{160,000}{130,000} = 1.23 \)</p>
+      <p>The modified premium is $200,000 \times 1.23 = \$246,000.</p>
+    </div>
+  </div>
+
+  <h3>6.2 Schedule and Judgment Rating</h3>
+  <p><strong>Schedule rating</strong> allows underwriters to apply subjective percentage credits or debits based on risk characteristics not captured in the manual rate (e.g., condition of premises, safety training programs). <strong>Judgment rating</strong> is used when data is too sparse for statistical analysis (e.g., unique marine or aviation risks), relying entirely on the underwriter's expertise.</p>
+
+  <h2>7. Regulatory Considerations</h2>
+  <p>Insurance is heavily regulated to protect consumers.</p>
+  <ul>
+    <li><strong>Prior Approval:</strong> Insurers must file rates with regulators and wait for approval before using them.</li>
+    <li><strong>File-and-Use:</strong> Insurers file rates and can use them immediately, subject to later regulatory review.</li>
+    <li><strong>Use-and-File:</strong> Insurers can change rates immediately and file the justification within a specified window.</li>
+  </ul>
+  <p>Regulators also enforce anti-discrimination laws. For instance, the <strong>EU Gender Directive</strong> (2012) prohibits European insurers from using gender as a rating factor for pricing, forcing actuaries to find proxy variables (like car weight or occupation) to maintain risk segmentation.</p>
+
+  <h2>8. Diagrams Description</h2>
+  <p>While we omit plotted images here, visualizing GLM output is critical. A standard plot in ratemaking is the <strong>One-Way Lift Chart</strong>. The data is sorted into deciles by predicted pure premium. For each decile, the chart plots the actual pure premium vs. the predicted pure premium. A well-fitted model will show the predicted lines tracking the actual lines closely, with a steep slope from the 1st to the 10th decile, indicating strong segmentation power.</p>
+
+  <h2>9. Python Code: Poisson GLM</h2>
+  <p>We use <code>statsmodels</code> to fit a Poisson frequency model, illustrating the use of an offset for exposure.</p>
+
+  <pre><code class="language-python">
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+# Simulated dataset
+np.random.seed(42)
+data = pd.DataFrame({
+    'exposure': np.random.uniform(0.1, 1.0, 1000),
+    'driver_age': np.random.choice(['Young', 'Adult', 'Senior'], 1000),
+    'vehicle_type': np.random.choice(['Sedan', 'SUV', 'Sports'], 1000)
+})
+
+# True coefficients
+age_eff = {'Young': 1.5, 'Adult': 1.0, 'Senior': 1.2}
+veh_eff = {'Sedan': 1.0, 'SUV': 0.9, 'Sports': 1.8}
+
+# Simulate claims
+lambda_true = 0.1 * data['exposure'] * data['driver_age'].map(age_eff) * data['vehicle_type'].map(veh_eff)
+data['claim_count'] = np.random.poisson(lambda_true)
+
+# Fit Poisson GLM using statsmodels
+# We use log(exposure) as the offset. 
+# C() treats variables as categorical.
+formula = "claim_count ~ C(driver_age, Treatment('Adult')) + C(vehicle_type, Treatment('Sedan'))"
+
+model = smf.glm(formula=formula, data=data, 
+                family=sm.families.Poisson(), 
+                offset=np.log(data['exposure']))
+results = model.fit()
+
+print(results.summary())
+
+# Extracting relativities (exp(coefficients))
+relativities = np.exp(results.params)
+print("\nMultiplicative Relativities:")
+print(relativities)
+  </code></pre>
+  <p><em>Output note: The relativities for Adult and Sedan (the reference classes) are inherently 1.0. The exponentiated coefficients will closely approximate the true effects defined in the simulation code.</em></p>
+
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Forgetting the Offset:</strong> When modeling frequency with a Poisson GLM, failing to include <code>log(exposure)</code> as an offset will cause the model to confuse exposure duration with underlying risk.</li>
+        <li><strong>Double Counting Trend:</strong> If loss development factors (LDFs) already implicitly contain some inflation, applying a full economic trend factor on top may overstate future losses.</li>
+        <li><strong>Confusing Rate Adequacy with Profitability:</strong> Adequate rates mean the ex-ante pricing is mathematically sound. Ex-post, natural disasters or sudden inflation can still cause massive underwriting losses.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Telematics and Usage-Based Insurance (UBI)</div>
+    <div class="box-content">
+      <p>Modern auto insurers use IoT devices or smartphone apps to track driving behavior (harsh braking, cornering, nighttime driving). This high-frequency data is fed into Machine Learning models (like Gradient Boosting Machines) rather than traditional GLMs. However, regulatory constraints often require actuaries to translate these ML outputs back into transparent, tabular rating structures resembling GLM outputs so they can be filed and approved by state regulators.</p>
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <div class="box-title">Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Pure Premium (PP):</strong> \( PP = \E[\text{Freq}] \times \E[\text{Sev}] \)</li>
+        <li><strong>Indicated Rate (PP Method):</strong> \( \text{Rate} = \frac{PP + \text{Fixed Exp}}{1 - \text{Var Exp} - \text{Profit}} \)</li>
+        <li><strong>Indicated Change (Loss Ratio Method):</strong> \( \text{Change} = \frac{\text{ELR}}{\text{TLR}} - 1 \)</li>
+        <li><strong>Experience Mod:</strong> \( \text{Mod} = \frac{Z \cdot A + (1-Z) \cdot E}{E} \)</li>
+        <li><strong>Poisson GLM Linear Predictor:</strong> \( \ln(\mu) = \text{offset}(\ln(\text{Exposure})) + \beta_0 + \beta_1 x_1 + \dots \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>10. Exercises</h2>
+  <div class="exercises">
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>Exercise 33.1:</strong> An insurer has expected losses of $400, fixed expenses of $50, variable expenses of 15%, and a profit target of 5%. Calculate the gross rate using the Pure Premium method.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.2:</strong> An insurer's current experienced loss ratio is 82%. Their variable expenses are 20%, fixed expenses are 5%, and they want a 3% profit margin. What is the indicated rate change?
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.3:</strong> Explain the difference between rate adequacy and rate equity.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.4:</strong> Why is the Poisson distribution commonly used for claim frequency rather than the Normal distribution?
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>Exercise 33.5:</strong> A GLM for severity uses a Gamma distribution with a log link. The intercept is 7.5. The coefficient for "Male" is 0.2 and for "Sports Car" is 0.5. What is the expected severity for a Male driving a Sports Car?
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.6:</strong> A commercial client has an expected loss of $500,000 based on manual rates. Their actual losses were $800,000. If credibility \( Z = 0.45 \), calculate the Experience Modification Factor and the new modified premium.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.7:</strong> Calculate the trended and developed ultimate losses given: Reported Losses = $2,000,000; LDF = 1.30; Annual Trend = 5%; Trend Period = 2.5 years.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.8:</strong> In a regulatory environment that uses "File-and-Use", what risk does an insurer take when implementing a rate increase before explicit regulatory approval?
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>Exercise 33.9:</strong> Prove that if the experience modification factor Mod is applied to the expected losses, the resulting quantity is exactly equal to the credibility-weighted estimate of losses.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.10:</strong> A Tweedie GLM is fitted to pure premium data with variance function \( V(\mu) = \mu^p \). Explain the implications of choosing \( p=1 \), \( p=2 \), and \( 1 < p < 2 \) on the underlying data generation process.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.11:</strong> You are analyzing two GLMs for the same dataset. Model A has a Deviance of 1200 with 10 parameters. Model B has a Deviance of 1180 with 15 parameters. Using the AIC approximation \( \text{AIC} = \text{Deviance} + 2k \), which model should you prefer and why?
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 33.12:</strong> Derive the Loss Ratio Method indicated rate change formula starting from the requirement that Premium = Losses + Expenses + Profit. Assume fixed expenses are treated as a percentage of premium for simplicity.
+      </div>
+    </div>
+  </div>
+
+  <h2>11. Solutions to Selected Exercises</h2>
+  <div class="solutions">
+    <div class="solution-item">
+      <strong>Solution to 33.1:</strong> 
+      Rate = (Pure Premium + Fixed Exp) / (1 - Var Exp - Profit) <br>
+      Rate = (400 + 50) / (1 - 0.15 - 0.05) = 450 / 0.80 = $562.50.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 33.2:</strong>
+      Target Loss Ratio (TLR) = 1 - Var Exp - Fixed Exp - Profit = 1 - 0.20 - 0.05 - 0.03 = 0.72. <br>
+      Indicated Change = (ELR / TLR) - 1 = (0.82 / 0.72) - 1 = 1.1389 - 1 = +13.89%.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 33.5:</strong>
+      Linear predictor = 7.5 + 0.2 + 0.5 = 8.2. <br>
+      Expected Severity = \(\exp(8.2) = \$3,640.95\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 33.6:</strong>
+      Mod = (Z * A + (1-Z) * E) / E = (0.45 * 800,000 + 0.55 * 500,000) / 500,000 = (360,000 + 275,000) / 500,000 = 635,000 / 500,000 = 1.27. <br>
+      Modified Premium = Base Premium * Mod = $500,000 * 1.27 = $635,000.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 33.7:</strong>
+      Ultimate Losses = Reported * LDF = 2,000,000 * 1.30 = 2,600,000. <br>
+      Trend Factor = \((1.05)^{2.5} = 1.1297\). <br>
+      Trended Ultimate = 2,600,000 * 1.1297 = $2,937,220.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 33.9:</strong>
+      Let \(E\) be expected losses and \(A\) actual losses. <br>
+      Credibility Estimate = \(Z \cdot A + (1-Z) \cdot E\). <br>
+      By definition, Mod = \((Z \cdot A + (1-Z) \cdot E) / E\). <br>
+      Applying Mod to Expected Losses: \(E \cdot \text{Mod} = E \cdot \frac{Z \cdot A + (1-Z) \cdot E}{E} = Z \cdot A + (1-Z) \cdot E\), which is exactly the credibility estimate.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 33.11:</strong>
+      AIC for Model A = \(1200 + 2(10) = 1220\). <br>
+      AIC for Model B = \(1180 + 2(15) = 1210\). <br>
+      We prefer Model B because it has a lower AIC, indicating that the reduction in deviance (better fit) outweighs the penalty for adding 5 more parameters.
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Werner, G., & Modlin, C. (2010). <em>Basic Ratemaking</em>. Casualty Actuarial Society.</li>
+        <li>Goldburd, M., Khare, A., & Tevet, D. (2016). <em>Generalized Linear Models for Insurance Rating</em>. CAS Monograph Series.</li>
+        <li>Ohlsson, E., & Johansson, B. (2010). <em>Non-Life Insurance Pricing with Generalized Linear Models</em>. Springer.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch32_credibility.html">← Previous: Chapter 32</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch34_loss_reserving.html">Next: Chapter 34 →</a>
+  </nav>
+</body>
+</html>

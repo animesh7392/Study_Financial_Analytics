@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 49: Excel Workshop — Goal Programming & Dividend Optimization Models</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          Z: ['\\mathbb{Z}'],
+          Q: ['\\mathbb{Q}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  <h1>Chapter 49: Excel Workshop — Goal Programming & Dividend Optimization Models</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">1. Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Implement Single-Objective Dividend Optimization using Excel Solver (LP).</li>
+        <li>Build robust Weighted Goal Programming models for multiple conflicting regulatory and business goals.</li>
+        <li>Expand goal programming into multi-scenario paradigms for stress-testing.</li>
+        <li>Simulate interest rate paths (Vasicek) in Excel using Data Tables for Monte Carlo analysis.</li>
+        <li>Construct a Pareto Frontier dashboard to clearly present the trade-offs between hedge costs and dividend variance.</li>
+        <li>Effectively communicate optimization results to stakeholders using standard Excel outputs and Solver Sensitivity Reports.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">2. Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>Before proceeding, ensure you have completed <a href="ch48_excel_ir_workshop.html">Chapter 48</a>, which covers the foundational interest rate models in Excel. You will need:</p>
+      <ul>
+        <li><strong>Excel Solver Add-in:</strong> Enabled in File > Options > Add-ins.</li>
+        <li><strong>Linear Programming (LP) Fundamentals:</strong> Covered in Chapter 20.</li>
+        <li><strong>Mathematical knowledge:</strong> Basic understanding of stochastic calculus and Monte Carlo methods (Chapter 15).</li>
+      </ul>
+      <p><em>Roadmap:</em> We begin with single-objective optimization, transition to goal programming for handling multiple constraints gracefully, introduce stochastic capabilities, and end with executive dashboard creation.</p>
+    </div>
+  </div>
+
+  <div class="intuition">
+    <div class="box-title">3. Intuition & Motivation</div>
+    <div class="box-content">
+      <p>At Scottish Widows and Lloyds Banking Group, dividend decisions are never as simple as "maximize payouts." Actuaries and risk managers sit in a boardroom balancing conflicting priorities: shareholders demand high dividends; the PRA demands high solvency coverage ratios (SCR); treasury demands liquidity; and the accounting team scrutinizes IFRS profit figures.</p>
+      <p>A standard Linear Program (LP) often fails here. If you mandate an SCR of 160% and a dividend of £1.5bn, the model might just say "Infeasible." But in the real world, management negotiates. They might accept 158% SCR if it means maintaining the dividend, or they might cut the dividend by £100m to boost liquidity. This is where <strong>Goal Programming</strong> shines. Instead of rigid constraints, we have <em>targets</em> and we penalize deviations based on priority.</p>
+      <p>This chapter provides the hands-on Excel architecture to build exactly these robust, boardroom-ready optimization models.</p>
+    </div>
+  </div>
+
+  <div class="formal-theory">
+    <div class="box-title">4. Formal Theory</div>
+    <div class="box-content">
+      <h3>Standard Linear Programming (Single Objective)</h3>
+      <p>The standard LP formulation for our dividend optimizer is:</p>
+      \[
+      \max_{x} \quad c^T x
+      \]
+      \[
+      \text{s.t.} \quad Ax \leq b, \quad x \geq 0
+      \]
+      <p>Where \(x\) contains our decision variables (e.g., Dividend Amount, Hedge Ratio).</p>
+      
+      <h3>Goal Programming (Weighted)</h3>
+      <p>In goal programming, hard constraints become soft targets. We introduce deviational variables \(d_i^-\) (under-achievement) and \(d_i^+\) (over-achievement). The objective is to minimize a weighted sum of unwanted deviations:</p>
+      \[
+      \min \quad \sum_{i=1}^n (w_i^- d_i^- + w_i^+ d_i^+)
+      \]
+      \[
+      \text{s.t.} \quad f_i(x) + d_i^- - d_i^+ = T_i \quad \forall i
+      \]
+      \[
+      x, d_i^-, d_i^+ \geq 0
+      \]
+      <p>For a target where "more is better" (e.g., Dividend, Solvency), we want to minimize \(d_i^-\). For a target where "less is better" (e.g., Hedge Cost), we minimize \(d_i^+\).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">5. Worked Examples</div>
+    <div class="box-content">
+      <p><strong>Example 1: Single-Objective Optimization</strong><br>
+      Scottish Widows aims to maximize dividends. The initial unhedged solvency is 140%. Every 10% increase in hedge ratio increases solvency by 3% but costs £20m in liquidity. A minimum solvency of 150% is required. By setting this up as an LP, Solver finds that a 33.3% hedge ratio achieves exactly 150% solvency, maximizing the remaining liquidity for dividends.</p>
+
+      <p><strong>Example 2: Goal Programming Conflict Resolution</strong><br>
+      Targets: Dividend = £1.0bn, Solvency = 160%. But current capacity only allows £0.8bn at 160% solvency, or £1.0bn at 155% solvency. If the weight on dividend shortfall is 10 and the weight on solvency shortfall is 1, the model will output £1.0bn dividend and 155% solvency. If weights are reversed, it prioritizes solvency.</p>
+
+      <p><strong>Example 3: Monte Carlo Impact</strong><br>
+      If rates drop 100bps, the hedge pays off, but unhedged liabilities spike. In a 1000-path Monte Carlo simulation, we measure the 5th percentile (P5) of dividend capacity. A 50% hedge ratio might show an expected dividend of £900m but a P5 of £200m. A 100% hedge ratio might lower the expected dividend to £800m but raise the P5 to £700m, proving the value of the hedge in tail scenarios.</p>
+    </div>
+  </div>
+
+  <div class="python">
+    <div class="box-title">6. Python Code (Goal Programming with PuLP)</div>
+    <div class="box-content">
+      <p>While this chapter focuses on Excel, here is the Python equivalent using the <code>PuLP</code> library for Weighted Goal Programming:</p>
+<pre><code class="language-python">import pulp
+
+# 1. Initialize Model
+prob = pulp.LpProblem("Dividend_Goal_Programming", pulp.LpMinimize)
+
+# 2. Decision Variables
+div = pulp.LpVariable("Dividend_bn", lowBound=0, upBound=2.0)
+hedge = pulp.LpVariable("Hedge_Ratio", lowBound=0, upBound=1.0)
+
+# Deviational Variables (Under-achievement)
+d_div_minus = pulp.LpVariable("d_div_minus", lowBound=0)
+d_solv_minus = pulp.LpVariable("d_solv_minus", lowBound=0)
+
+# Deviational Variables (Over-achievement - not penalized here, but needed for equality)
+d_div_plus = pulp.LpVariable("d_div_plus", lowBound=0)
+d_solv_plus = pulp.LpVariable("d_solv_plus", lowBound=0)
+
+# 3. Objective (Minimize Weighted Under-achievements)
+# Weights: 0.4 for Dividend, 0.6 for Solvency
+prob += 0.4 * d_div_minus + 0.6 * d_solv_minus
+
+# 4. Goals (Constraints)
+# G1: Dividend >= 1.0bn
+prob += div + d_div_minus - d_div_plus == 1.0
+
+# G2: Solvency >= 160% 
+# Assume Base Solvency = 140%, + 30% per full hedge, - 10% per 1bn dividend
+prob += 1.40 + 0.30 * hedge - 0.10 * div + d_solv_minus - d_solv_plus == 1.60
+
+# 5. Solve
+prob.solve()
+
+print(f"Status: {pulp.LpStatus[prob.status]}")
+print(f"Optimal Dividend: £{pulp.value(div):.2f} bn")
+print(f"Optimal Hedge: {pulp.value(hedge):.1%}")
+</code></pre>
+    </div>
+  </div>
+
+  <div class="excel-implementation">
+    <div class="box-title">7. Excel Implementation (Step-by-Step)</div>
+    <div class="box-content">
+      
+      <h3>Model 7: Single-Objective Dividend Optimizer (LP)</h3>
+      <p><strong>Setup:</strong></p>
+      <ul>
+        <li><strong>B3:</strong> <code>0</code> (Decision Variable: Dividend Amount £bn)</li>
+        <li><strong>B4:</strong> <code>0</code> (Decision Variable: Hedge Ratio %)</li>
+        <li><strong>B7:</strong> <code>=B3</code> (Objective: Maximize Dividend)</li>
+      </ul>
+      <p><strong>Constraint Formulas (Row 10-12):</strong></p>
+      <ul>
+        <li><strong>B10 (Solvency Calc):</strong> <code>=1.40 + 0.30*B4 - 0.10*B3</code> | <strong>D10 (Limit):</strong> <code>1.50</code></li>
+        <li><strong>B11 (Liquidity Calc):</strong> <code>=1.50 - 0.15*B4 - 0.20*B3</code> | <strong>D11 (Limit):</strong> <code>1.00</code></li>
+        <li><strong>B12 (IFRS Earnings):</strong> <code>=800 - 50*B4 - 100*B3</code> | <strong>D12 (Limit):</strong> <code>0</code></li>
+      </ul>
+      <p><strong>Solver Config:</strong> Data > Solver.<br>
+      Set Objective: <code>$B$7</code> to <strong>Max</strong>.<br>
+      By Changing: <code>$B$3:$B$4</code>.<br>
+      Constraints: Add <code>$B$10:$B$12 >= $D$10:$D$12</code>, Add <code>$B$4 <= 1</code>.<br>
+      Select Solving Method: <strong>Simplex LP</strong>. Check "Make Unconstrained Variables Non-Negative".<br>
+      <strong>Action:</strong> Click Solve. Generate Answer and Sensitivity Reports.</p>
+      <p><em>Interpretation:</em> Look at the Sensitivity Report "Shadow Price" for the Solvency constraint. If it reads 2.0, relaxing the 1.50 limit to 1.49 allows £20m more dividend.</p>
+
+      <hr>
+
+      <h3>Model 8: Weighted Goal Programming Dividend Optimizer</h3>
+      <p><strong>Setup:</strong></p>
+      <ul>
+        <li><strong>B3, B4:</strong> Decision Variables (Dividend, Hedge)</li>
+        <li><strong>Targets (C8:C11):</strong> <code>1.0</code> (Div), <code>1.60</code> (Solv), <code>1.20</code> (Liq), <code>500</code> (IFRS)</li>
+        <li><strong>Deviational Variables (Under d⁻ D8:D11, Over d⁺ E8:E11):</strong> Enter 0 in all.</li>
+        <li><strong>Weights (F8:F11):</strong> <code>0.4</code>, <code>0.3</code>, <code>0.2</code>, <code>0.1</code></li>
+      </ul>
+      <p><strong>Goal Equations (G8:G11):</strong></p>
+      <ul>
+        <li><strong>G8 (Div Goal):</strong> <code>=B3 + D8 - E8</code></li>
+        <li><strong>G9 (Solv Goal):</strong> <code>=(1.40+0.30*B4-0.10*B3) + D9 - E9</code></li>
+        <li><strong>G10 (Liq Goal):</strong> <code>=(1.50-0.15*B4-0.20*B3) + D10 - E10</code></li>
+        <li><strong>G11 (IFRS Goal):</strong> <code>=(800-50*B4-100*B3) + D11 - E11</code></li>
+      </ul>
+      <p><strong>Objective:</strong> <strong>B15:</strong> <code>=SUMPRODUCT(F8:F11, D8:D11)</code></p>
+      <p><strong>Solver Config:</strong> Set Objective <code>$B$15</code> to <strong>Min</strong>. Changing cells: <code>$B$3:$B$4, $D$8:$E$11</code>. Constraints: <code>$G$8:$G$11 = $C$8:$C$11</code> (Equations must equal targets). Method: Simplex LP.</p>
+
+      <hr>
+
+      <h3>Model 9: Scenario-Based Goal Programming</h3>
+      <p>Expand Model 8. Instead of one set of formulas in G8:G11, create columns for Base, +100bp, -100bp. <br>
+      Example for -100bp Solvency: The formula changes to reflect higher liabilities: <code>=(1.20+0.50*B4-0.10*B3) + D_scenario - E_scenario</code>.<br>
+      The objective cell becomes the SUM of all weighted deviations across all scenarios. This yields a robust hedge/dividend combo that survives multiple stress tests.</p>
+
+      <hr>
+
+      <h3>Model 10: Monte Carlo Interest Rate Simulation</h3>
+      <p><strong>Vasicek Parameters:</strong> B1(a)=0.3, B2(b)=0.04, B3(σ)=0.01, B4(dt)=1, B5(r₀)=0.035</p>
+      <p><strong>Path Generator (One Step):</strong><br>
+      Cell <strong>E2</strong>: <code>=$B$5 + $B$1*($B$2-$B$5)*$B$4 + $B$3*NORMINV(RAND(),0,1)*SQRT($B$4)</code></p>
+      <p><strong>Data Table Trick:</strong></p>
+      <ul>
+        <li>In G2:G1001, enter numbers 1 to 1000.</li>
+        <li>In H1, link to the output you want (e.g., Solvency Ratio dependent on E2). <code>=H10</code> (assuming H10 calculates solvency based on rate in E2).</li>
+        <li>Highlight G1:H1001. Go to Data > What-If Analysis > Data Table.</li>
+        <li>Column input cell: pick any blank cell (e.g., Z1). Click OK.</li>
+        <li>Press F9. Excel recalculates RAND() 1000 times and stores the results!</li>
+      </ul>
+      <p>Calculate <code>=PERCENTILE(H2:H1001, 0.05)</code> to find the P5 Worst-Case Solvency.</p>
+
+      <hr>
+
+      <h3>Model 11: Pareto Frontier Dashboard</h3>
+      <p><strong>Setup:</strong> Create a summary table.</p>
+      <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse; margin-bottom: 1em;">
+        <tr>
+          <th>Hedge Strategy</th><th>Exp Dividend (X)</th><th>Div StdDev (Y)</th><th>Worst-Case Solvency</th>
+        </tr>
+        <tr><td>0%</td><td>£1.5bn</td><td>£0.4bn</td><td>120%</td></tr>
+        <tr><td>25%</td><td>£1.4bn</td><td>£0.3bn</td><td>135%</td></tr>
+        <tr><td>50%</td><td>£1.3bn</td><td>£0.2bn</td><td>150%</td></tr>
+        <tr><td>100%</td><td>£1.1bn</td><td>£0.05bn</td><td>170%</td></tr>
+      </table>
+      <p><strong>Chart:</strong> Highlight the Exp Dividend and Div StdDev columns. Insert > Scatter > Scatter with Smooth Lines and Markers. Right-click points > Add Data Labels (use strategy names). Stakeholders can now visually see the trade-off: losing £400m in expected dividend completely neutralizes volatility and secures a 170% worst-case solvency.</p>
+
+    </div>
+  </div>
+
+  <div class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Missing Deviational Variables:</strong> In GP, failing to include both \(d^-\) and \(d^+\) will break the equality constraint. Even if you only penalize one side, both must exist in the model.</li>
+        <li><strong>Non-Linear Solver:</strong> Using GRG Nonlinear when Simplex LP is sufficient. Goal programming with absolute deviations can always be linearized using deviational variables. Simplex LP guarantees a global optimum and provides useful Shadow Prices.</li>
+        <li><strong>Scaling Issues:</strong> If Dividend target is 1,000,000,000 and Solvency is 1.60, the solver will heavily skew towards solving the dividend because the absolute numerical deviation is huge. <strong>Always normalize targets</strong> (e.g., express dividends in £ billions so targets are ~1.0).</li>
+        <li><strong>Data Table Recalculation:</strong> 10,000 path Data Tables can freeze Excel. Set formulas to "Automatic except for Data Tables" (Formulas > Calculation Options) while building.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">9. Industry Application Box: Scottish Widows & PRA Stress Tests</div>
+    <div class="box-content">
+      <p>At Lloyds Banking Group, dividend decisions from insurance subsidiaries like Scottish Widows to the Group centre are highly scrutinized by the Prudential Regulation Authority (PRA). The PRA doesn't just look at the base case; they look at the 1-in-200 year stress scenarios.</p>
+      <p>Using <strong>Scenario-Based Goal Programming (Model 9)</strong> is industry standard. The optimizer runs across Base, Interest Rate Up, Interest Rate Down, Credit Spread Widening, and Equity Crash simultaneously. A proposed dividend of £1bn might look great in the base case, but if it causes Solvency to breach 120% in the "Rate Down" scenario, the goal programming weights will force the model to either recommend a higher Hedge Ratio or a lower Dividend to balance the risk across all scenarios.</p>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="box-title">10. Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Goal Equation:</strong> <code>Formula_Cell + Under_Dev_Cell - Over_Dev_Cell = Target_Cell</code></li>
+        <li><strong>Objective Function:</strong> <code>=SUMPRODUCT(Weights_Range, Under_Dev_Range)</code> (assuming targets are 'larger is better').</li>
+        <li><strong>Data Table Output:</strong> <code>=PERCENTILE(DataRange, 0.05)</code> for Value-at-Risk / P5 metrics.</li>
+        <li><strong>Solver Method:</strong> Always <em>Simplex LP</em> for linear goal programming.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="exercises">
+    <div class="box-title">11. Exercises</div>
+    <div class="box-content">
+      <p><strong>Basic:</strong></p>
+      <ol>
+        <li>Recreate Model 7. Change the Solvency limit (D10) from 1.50 to 1.60. Re-run Solver. What happens to the optimal Dividend and Hedge Ratio?</li>
+        <li>In Model 8, change the weight of the IFRS Earnings goal (F11) to 1.0 (highest priority). How does this alter the deviational variables?</li>
+      </ol>
+      <p><strong>Intermediate:</strong></p>
+      <ol start="3">
+        <li>Build a 2-Scenario Goal Program. Scenario A (Base) weights = 0.5. Scenario B (Stress) weights = 0.5. In Scenario B, the solvency calculation formula decreases by 0.20 across the board. Find the optimal dividend.</li>
+        <li>Use the Data Table trick to generate 500 paths for a Vasicek model where \(a=0.5\), \(b=0.05\), \(\sigma=0.015\). Calculate the P10 and P90 rates.</li>
+        <li>Add a new constraint to Model 7: Hedge Ratio must be an integer (0 or 1). Use the Integer constraint in Solver.</li>
+      </ol>
+      <p><strong>Advanced:</strong></p>
+      <ol start="6">
+        <li><strong>The Boardroom Negotiation:</strong> Build a complete dashboard linking a Goal Programming Solver to a Pareto Frontier chart. Create a macro button that runs Solver automatically when a user changes the weights in cells F8:F11, updating the chart instantly.</li>
+        <li>In Python, use PuLP to write the Scenario-Based Goal Program (Model 9). Compare execution speed to Excel Solver for 100 scenarios.</li>
+        <li>Implement a Penalty Function in Excel for Solvency breaches (e.g., deviation costs \(x^2\) instead of \(x\)). Note: You must now use the GRG Nonlinear solver. How does the solution change?</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">12. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Ragsdale, C. (2014). <em>Spreadsheet Modeling and Decision Analysis: A Practical Introduction to Business Analytics</em>. Cengage Learning. (Excellent text on Excel Solver and Goal Programming).</li>
+        <li>Charnes, A., & Cooper, W. W. (1961). <em>Management Models and Industrial Applications of Linear Programming</em>. Wiley. (The foundational text on Goal Programming).</li>
+        <li>Bank of England / PRA (2023). <em>Stress testing the UK banking system: guidance and manuals</em>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch48_excel_ir_workshop.html">← Previous Chapter</a> |
+    <a href="ch50_best_practices.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

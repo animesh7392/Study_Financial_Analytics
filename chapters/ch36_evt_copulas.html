@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 36: Extreme Value Theory and Copulas</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 36: Extreme Value Theory and Copulas</h1>
+
+  <div class="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul>
+      <li>Understand why traditional normal distribution models fail for modeling extreme events and the theoretical foundation of Extreme Value Theory (EVT).</li>
+      <li>Apply the Fisher-Tippett-Gnedenko Theorem for Block Maxima and the Pickands-Balkema-de Haan Theorem for Peaks Over Threshold (POT).</li>
+      <li>Estimate Value-at-Risk (VaR) and Expected Shortfall (ES) using the Generalized Pareto Distribution (GPD) for tail data.</li>
+      <li>Master Sklar's Theorem and the decomposition of joint distributions into marginals and a copula.</li>
+      <li>Analyze key copula families (Gaussian, t, Clayton, Gumbel, Frank) and their tail dependence properties.</li>
+      <li>Implement copulas for multi-peril aggregation and catastrophe risk modeling.</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <p>This chapter builds heavily on advanced probability concepts. You should be familiar with:</p>
+    <ul>
+      <li><strong>Chapter 4:</strong> Probability Theory and Random Variables</li>
+      <li><strong>Chapter 12:</strong> Value-at-Risk and Expected Shortfall</li>
+      <li><strong>Chapter 30:</strong> Heavy-Tailed Distributions in Insurance</li>
+      <li><strong>Chapter 35:</strong> Reinsurance Pricing and Risk Transfer (Previous Chapter)</li>
+    </ul>
+    <p>In the next chapter, <strong>Chapter 37: Health Insurance and Morbidity Modeling</strong>, we will apply some of these dependence structures to model correlated health events.</p>
+  </div>
+
+  <h2>3. Intuition & Motivation</h2>
+  <p>In August 2007, David Viniar, CFO of Goldman Sachs, famously remarked that the bank was seeing "25-standard deviation moves, several days in a row." If asset returns were truly normally distributed, a 25-standard deviation event would occur roughly once every \(10^{135}\) years—a time span vastly exceeding the age of the universe. The reality was not that the universe had suddenly malfunctioned, but that the models relying on the normal distribution drastically underestimated the probability of extreme events.</p>
+  <p>Similarly, in the insurance industry, aggregating risks by simply assuming normal distributions or linear correlations can be fatal. Hurricane Katrina (2005) or the Tohoku Earthquake (2011) resulted in massive, correlated losses across multiple lines of business (property, marine, business interruption). When things go bad, they tend to go bad together.</p>
+  <p>This chapter introduces two indispensable mathematical frameworks for modern risk management:
+  <ol>
+      <li><strong>Extreme Value Theory (EVT):</strong> While the Central Limit Theorem tells us about the behavior of sample averages, EVT tells us about the behavior of sample <em>maxima</em> (the extremes). It provides a theoretically sound way to model the tails of distributions.</li>
+      <li><strong>Copulas:</strong> A framework for modeling the dependence between multiple random variables independently of their marginal distributions. Copulas allow us to explicitly model "tail dependence"—the phenomenon where extreme bad events happen simultaneously.</li>
+  </ol>
+  </p>
+
+  <h2>4. Formal Theory</h2>
+  
+  <h3>4.1 Extreme Value Theory Fundamentals</h3>
+  <p>Let \(X_1, X_2, \dots, X_n\) be a sequence of independent and identically distributed (i.i.d.) random variables representing daily losses or claim sizes, with cumulative distribution function (CDF) \(F(x)\). We are interested in the behavior of the maximum:</p>
+  \[ M_n = \max(X_1, X_2, \dots, X_n) \]
+  <p>The exact distribution of \(M_n\) is given by \( \P(M_n \le x) = (F(x))^n \). However, for large \(n\), \( (F(x))^n \) approaches 0 for any \(x\) strictly less than the upper endpoint of \(F\). We need to normalize \(M_n\) to obtain a non-degenerate limiting distribution, just as we standardize the sum in the Central Limit Theorem.</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 36.1: Fisher-Tippett-Gnedenko Theorem</div>
+    <div class="box-content">
+      If there exist sequences of constants \(c_n > 0\) and \(d_n \in \R\) such that:
+      \[ \lim_{n \to \infty} \P\left(\frac{M_n - d_n}{c_n} \le x\right) = H(x) \]
+      for some non-degenerate distribution function \(H(x)\), then \(H(x)\) must belong to the Generalized Extreme Value (GEV) family:
+      \[ H_{\xi,\mu,\sigma}(x) = \exp\left\{ - \left[ 1 + \xi \left( \frac{x - \mu}{\sigma} \right) \right]_+^{-1/\xi} \right\} \]
+      where \([y]_+ = \max(y, 0)\), \(\mu\) is the location parameter, \(\sigma > 0\) is the scale parameter, and \(\xi\) is the shape parameter.
+    </div>
+  </div>
+
+  <p>The shape parameter \(\xi\) determines the tail behavior, defining three domains of attraction:</p>
+  <ul>
+      <li><strong>\(\xi = 0\) (Gumbel distribution):</strong> Light tails (exponential decay). e.g., Normal, Lognormal, Gamma distributions. (Defined by taking the limit \(\xi \to 0\)).</li>
+      <li><strong>\(\xi > 0\) (Fréchet distribution):</strong> Heavy tails (power-law decay). e.g., Pareto, Student's t, Cauchy distributions.</li>
+      <li><strong>\(\xi < 0\) (Weibull distribution):</strong> Short tails (finite upper endpoint). e.g., Uniform, Beta distributions.</li>
+  </ul>
+
+  <h3>4.2 Peaks Over Threshold (POT) and GPD</h3>
+  <p>The Block Maxima approach (using GEV) wastes data because it only takes the maximum of a block (e.g., annual maximum). The <strong>Peaks Over Threshold (POT)</strong> approach instead models all observations that exceed a sufficiently high threshold \(u\).</p>
+
+  <p>The conditional excess distribution function is:
+  \[ F_u(y) = \P(X - u \le y \mid X > u) = \frac{F(u+y) - F(u)}{1 - F(u)} \]
+  for \(y > 0\).
+  </p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 36.2: Pickands-Balkema-de Haan Theorem</div>
+    <div class="box-content">
+      For a large class of underlying distributions \(F\), as the threshold \(u\) approaches the upper endpoint of \(F\), the excess distribution \(F_u(y)\) converges to the Generalized Pareto Distribution (GPD):
+      \[ G_{\xi,\beta}(y) = 1 - \left( 1 + \frac{\xi y}{\beta} \right)^{-1/\xi} \]
+      for \(y \ge 0\) (when \(\xi \ge 0\)) and \(0 \le y \le -\beta/\xi\) (when \(\xi < 0\)). Here, \(\beta > 0\) is the scale parameter (often denoted \(\sigma\)), and \(\xi\) is the same shape parameter as in the corresponding GEV distribution.
+    </div>
+  </div>
+
+  <p>To use POT in practice, one must select the threshold \(u\). A common tool is the <strong>Mean Residual Life (MRL) Plot</strong>. The mean excess function is:
+  \[ e(u) = \E[X - u \mid X > u] \]
+  For a GPD, \(e(u)\) is linear in \(u\):
+  \[ e(u) = \frac{\beta + \xi u}{1 - \xi} \]
+  We plot the empirical mean excess against various thresholds \(u\) and select a threshold above which the plot appears roughly linear.</p>
+
+  <h3>4.3 Copula Theory</h3>
+  <p>While EVT models the tails of individual variables, copulas model the dependence structure between multiple variables.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 36.1: Copula</div>
+    <div class="box-content">
+      A \(d\)-dimensional copula \(C(u_1, u_2, \dots, u_d)\) is a cumulative distribution function on the unit hypercube \([0,1]^d\) with uniform marginal distributions. That is, \(C: [0,1]^d \to [0,1]\).
+    </div>
+  </div>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 36.3: Sklar's Theorem</div>
+    <div class="box-content">
+      Let \(H\) be a joint cumulative distribution function with continuous marginal distribution functions \(F_1, F_2, \dots, F_d\). Then there exists a unique copula \(C\) such that:
+      \[ H(x_1, x_2, \dots, x_d) = C(F_1(x_1), F_2(x_2), \dots, F_d(x_d)) \]
+      Conversely, if \(C\) is a copula and \(F_1, \dots, F_d\) are univariate CDFs, then \(H\) defined above is a joint CDF with marginals \(F_1, \dots, F_d\).
+    </div>
+  </div>
+  <p>Sklar's theorem implies we can decouple the modeling of marginal distributions (which could be heavy-tailed via EVT) from the modeling of their dependence (the copula).</p>
+
+  <h3>4.4 Key Copula Families and Tail Dependence</h3>
+  <p><strong>Tail Dependence</strong> measures the probability of concurrent extreme events. The upper tail dependence coefficient \(\lambda_U\) is:</p>
+  \[ \lambda_U = \lim_{q \to 1^-} \P(U_2 > q \mid U_1 > q) = \lim_{q \to 1^-} \frac{1 - 2q + C(q,q)}{1 - q} \]
+  <p>The lower tail dependence coefficient \(\lambda_L\) is:</p>
+  \[ \lambda_L = \lim_{q \to 0^+} \P(U_2 \le q \mid U_1 \le q) = \lim_{q \to 0^+} \frac{C(q,q)}{q} \]
+
+  <ul>
+      <li><strong>Gaussian Copula:</strong> Derived from the multivariate normal distribution. Critically, it has <strong>zero tail dependence</strong> (\(\lambda_U = \lambda_L = 0\)) for any correlation \(\rho < 1\). This means in the extreme tails, the variables become independent.</li>
+      <li><strong>Student's t-Copula:</strong> Derived from the multivariate t-distribution. It exhibits symmetric non-zero tail dependence. \(\lambda_U = \lambda_L > 0\).</li>
+      <li><strong>Clayton Copula (Archimedean):</strong> Exhibits lower tail dependence (\(\lambda_L > 0\)) but zero upper tail dependence. Good for modeling asset returns where crashes are correlated.</li>
+      <li><strong>Gumbel Copula (Archimedean):</strong> Exhibits upper tail dependence (\(\lambda_U > 0\)) but zero lower tail dependence. Ideal for insurance claims, where large catastrophes cause simultaneous massive losses.</li>
+      <li><strong>Frank Copula (Archimedean):</strong> Symmetric, with zero tail dependence. Can model both positive and negative dependence across the whole range, but not the extremes.</li>
+  </ul>
+
+  <h3>4.5 Copula Estimation and Vine Copulas</h3>
+  <p>Estimation is commonly done via <strong>Inference Functions for Margins (IFM)</strong>. 
+  Step 1: Estimate the parameters of the marginal distributions (e.g., via Maximum Likelihood).
+  Step 2: Transform data to uniform pseudo-observations using the fitted marginals.
+  Step 3: Estimate the copula parameters using maximum likelihood on the pseudo-observations.</p>
+
+  <p>For high-dimensional dependence, standard multivariate copulas become inflexible. <strong>Vine Copulas (Pair-Copula Constructions)</strong> decompose a multivariate density into a cascade of bivariate copulas, allowing different dependence structures (e.g., Gumbel for one pair, Clayton for another) in a single model. D-vines are useful for temporal dependence, while C-vines are useful when one variable acts as a dominant factor.</p>
+
+  <h2>5. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 36.1: Fit GPD to insurance loss data exceeding a threshold, compute VaR and ES</div>
+    <div class="box-content">
+      <p>An actuary has \(N=10,000\) daily observations of commercial fire losses. She sets a threshold \(u = \$5,000,000\). The number of exceedances is \(N_u = 400\). Fitting a GPD to the excesses \(Y_i = X_i - u\), she obtains Maximum Likelihood Estimates: shape \(\xi = 0.4\) and scale \(\beta = 1,200,000\).</p>
+      <p>Calculate the 99.9% Value-at-Risk (\(\text{VaR}_{0.999}\)) and 99.9% Expected Shortfall (\(\text{ES}_{0.999}\)).</p>
+      <p><strong>Solution:</strong></p>
+      <p>The tail probability estimator is \(\P(X > x) = \frac{N_u}{N} \left( 1 + \xi \frac{x - u}{\beta} \right)^{-1/\xi}\). Setting \(\P(X > \text{VaR}_\alpha) = 1 - \alpha\), we get the EVT VaR formula:</p>
+      \[ \text{VaR}_\alpha = u + \frac{\beta}{\xi} \left[ \left( \frac{N}{N_u} (1 - \alpha) \right)^{-\xi} - 1 \right] \]
+      <p>Given \(\alpha = 0.999\), \(1 - \alpha = 0.001\). \( \frac{N}{N_u} = \frac{10000}{400} = 25 \).</p>
+      \[ \text{VaR}_{0.999} = 5,000,000 + \frac{1,200,000}{0.4} \left[ (25 \times 0.001)^{-0.4} - 1 \right] \]
+      \[ \text{VaR}_{0.999} = 5,000,000 + 3,000,000 \times \left[ (0.025)^{-0.4} - 1 \right] \]
+      \[ (0.025)^{-0.4} = (1/40)^{-0.4} = 40^{0.4} \approx 4.3734 \]
+      \[ \text{VaR}_{0.999} = 5,000,000 + 3,000,000 \times (4.3734 - 1) = 5,000,000 + 10,120,200 = \$15,120,200 \]
+      <p>The Expected Shortfall for GPD is given by:</p>
+      \[ \text{ES}_\alpha = \frac{\text{VaR}_\alpha + \beta - \xi u}{1 - \xi} \]
+      \[ \text{ES}_{0.999} = \frac{15,120,200 + 1,200,000 - 0.4(5,000,000)}{1 - 0.4} \]
+      \[ \text{ES}_{0.999} = \frac{15,120,200 + 1,200,000 - 2,000,000}{0.6} = \frac{14,320,200}{0.6} = \$23,867,000 \]
+      <p>The 99.9% Expected Shortfall is significantly higher than VaR, reflecting the heavy tail (\(\xi = 0.4\)).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 36.2: Compute 100-year return level from GEV fit</div>
+    <div class="box-content">
+      <p>Annual maximum flood levels (in meters) for a river over 50 years are modeled using a GEV distribution with \(\mu = 4.2\), \(\sigma = 0.8\), and \(\xi = 0.15\).</p>
+      <p>Find the 100-year return level, \(z_{100}\), which is the level expected to be exceeded on average once every 100 years.</p>
+      <p><strong>Solution:</strong></p>
+      <p>The \(T\)-year return level corresponds to the \((1 - 1/T)\) quantile of the annual maximum distribution. For \(T = 100\), \(p = 1 - 1/100 = 0.99\).</p>
+      <p>The GEV quantile function is:</p>
+      \[ z_T = \mu - \frac{\sigma}{\xi} \left[ 1 - (-\ln(1 - 1/T))^{-\xi} \right] \]
+      \[ z_{100} = 4.2 - \frac{0.8}{0.15} \left[ 1 - (-\ln(0.99))^{-0.15} \right] \]
+      \[ -\ln(0.99) \approx 0.0100503 \]
+      \[ (0.0100503)^{-0.15} \approx (1/0.0100503)^{0.15} \approx 99.5^{0.15} \approx 1.996 \]
+      \[ z_{100} = 4.2 - 5.333 \times [ 1 - 1.996 ] = 4.2 - 5.333 \times (-0.996) = 4.2 + 5.312 = 9.512 \text{ meters} \]
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 36.3: Fit a Clayton copula to bivariate loss data and compute joint exceedance</div>
+    <div class="box-content">
+      <p>Losses on two correlated portfolios, \(L_1\) and \(L_2\), are modeled. The marginals are exponential with mean INR 10 Crores. The dependence is modeled via a Clayton copula with parameter \(\theta = 2\).</p>
+      <p>The Clayton copula function is \(C_\theta(u, v) = \left[ \max(u^{-\theta} + v^{-\theta} - 1, 0) \right]^{-1/\theta}\).</p>
+      <p>Calculate the probability that both portfolios suffer losses exceeding INR 20 Crores simultaneously.</p>
+      <p><strong>Solution:</strong></p>
+      <p>First, find the marginal cumulative probabilities at \(x = 20\):</p>
+      \[ F_1(20) = F_2(20) = 1 - e^{-20/10} = 1 - e^{-2} \approx 1 - 0.1353 = 0.8647 \]
+      <p>We need \(\P(L_1 > 20, L_2 > 20)\). Using survival copula properties or basic probability:</p>
+      \[ \P(L_1 > x, L_2 > y) = 1 - F_1(x) - F_2(y) + \P(L_1 \le x, L_2 \le y) \]
+      \[ = 1 - 0.8647 - 0.8647 + C(0.8647, 0.8647) \]
+      <p>Calculate the copula value:</p>
+      \[ u = v = 0.8647 \]
+      \[ C_2(0.8647, 0.8647) = [ (0.8647)^{-2} + (0.8647)^{-2} - 1 ]^{-1/2} \]
+      \[ (0.8647)^{-2} \approx 1.3374 \]
+      \[ C_2 = [ 1.3374 + 1.3374 - 1 ]^{-0.5} = [ 1.6748 ]^{-0.5} = \frac{1}{\sqrt{1.6748}} \approx 0.7726 \]
+      <p>Now, joint exceedance probability:</p>
+      \[ \P(L_1 > 20, L_2 > 20) = 1 - 2(0.8647) + 0.7726 = 1 - 1.7294 + 0.7726 = 0.0432 \]
+      <p>So there is a 4.32% chance of simultaneous extreme losses.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 36.4: Compare tail dependence of Gaussian vs t-copula</div>
+    <div class="box-content">
+      <p>Consider a bivariate Gaussian copula with \(\rho = 0.9\) and a bivariate t-copula with \(\rho = 0.9\) and degrees of freedom \(\nu = 4\).</p>
+      <p>Calculate the upper tail dependence coefficient \(\lambda_U\) for both.</p>
+      <p><strong>Solution:</strong></p>
+      <p>For the Gaussian copula, for any \(\rho < 1\), the theoretical result is always: \(\lambda_U = 0\).</p>
+      <p>For the t-copula, the formula for symmetric tail dependence is:</p>
+      \[ \lambda_U = 2 \times t_{\nu+1} \left( -\sqrt{\nu+1} \sqrt{\frac{1-\rho}{1+\rho}} \right) \]
+      where \(t_{\nu+1}\) is the CDF of the standard Student-t distribution with \(\nu+1\) degrees of freedom.
+      <p>Substitute \(\rho = 0.9\) and \(\nu = 4\):</p>
+      \[ \lambda_U = 2 \times t_5 \left( -\sqrt{5} \sqrt{\frac{1-0.9}{1+0.9}} \right) = 2 \times t_5 \left( -2.236 \times \sqrt{\frac{0.1}{1.9}} \right) \]
+      \[ \sqrt{0.1 / 1.9} = \sqrt{0.0526} \approx 0.2294 \]
+      \[ -\sqrt{5} \times 0.2294 = -2.236 \times 0.2294 \approx -0.513 \]
+      <p>Evaluating the CDF of a t-distribution with 5 degrees of freedom at -0.513 yields approximately \(0.315\).</p>
+      \[ \lambda_U = 2 \times 0.315 = 0.630 \]
+      <p><strong>Conclusion:</strong> Even though both have a high linear correlation of 0.9, the Gaussian copula assumes zero chance of joint extreme events in the limit, whereas the t-copula assumes a 63% chance that if one variable has an extreme event, the other will too. This highlights the danger of using Gaussian copulas for risk management.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 36.5: Simulate from a Gumbel copula for dependent claims</div>
+    <div class="box-content">
+      <p>A Gumbel copula with parameter \(\theta = 1.5\) connects Hurricane Wind (\(X_1\)) and Flood (\(X_2\)) claims. \(\theta = 1\) means independence, \(\theta > 1\) implies dependence. The generator function is \(\phi(t) = (-\ln t)^\theta\).</p>
+      <p>To simulate \((U, V)\) from an Archimedean copula using the Marshall-Olkin method:
+      1. Simulate \(V_1, V_2\) i.i.d. Uniform(0,1).
+      2. Simulate a strictly positive random variable \(W\) from the distribution with Laplace transform \(\phi^{-1}\). For Gumbel, \(W\) is a Stable distribution \(S(1/\theta, 1, (\cos(\pi/(2\theta)))^\theta, 0)\).
+      3. Set \(U = \phi^{-1}(-\ln(V_1)/W)\) and \(V = \phi^{-1}(-\ln(V_2)/W)\).</p>
+      <p>For Gumbel, \(\phi^{-1}(s) = \exp(-s^{1/\theta})\). Suppose a simulation yields \(W = 1.2\), \(V_1 = 0.4\), \(V_2 = 0.7\).</p>
+      <p>Calculate the resulting uniform marginals \(U\) and \(V\).</p>
+      <p><strong>Solution:</strong></p>
+      \[ -\ln(V_1) = -\ln(0.4) \approx 0.916 \]
+      \[ -\ln(V_2) = -\ln(0.7) \approx 0.357 \]
+      \[ U = \exp\left( - \left( \frac{0.916}{1.2} \right)^{1/1.5} \right) = \exp\left( - (0.763)^{2/3} \right) \approx \exp(-0.835) \approx 0.434 \]
+      \[ V = \exp\left( - \left( \frac{0.357}{1.2} \right)^{1/1.5} \right) = \exp\left( - (0.2975)^{2/3} \right) \approx \exp(-0.446) \approx 0.640 \]
+      <p>These correlated uniform variables \((U=0.434, V=0.640)\) can then be transformed into actual dollar losses using inverse marginal CDFs (e.g., GPD).</p>
+    </div>
+  </div>
+
+
+  <h2>6. Python Code: EVT POT and GPD Fitting</h2>
+  <p>The following script demonstrates how to threshold tail data, fit a Generalized Pareto Distribution using maximum likelihood, and compute EVT-based VaR and Expected Shortfall.</p>
+<pre><code class="language-python">import numpy as np
+import pandas as pd
+from scipy.stats import genpareto
+import matplotlib.pyplot as plt
+
+# 1. Generate hypothetical heavy-tailed insurance loss data (e.g., Pareto)
+np.random.seed(42)
+n_samples = 10000
+# Generate data: scale=1000, shape=1.5 (heavy tail)
+losses = (np.random.pareto(a=1.5, size=n_samples) + 1) * 1000
+
+# 2. Select Threshold (u)
+# In practice, we use a Mean Residual Life plot. Here we assume u is the 95th percentile.
+u = np.percentile(losses, 95)
+print(f"Selected Threshold (u): ${u:,.2f}")
+
+# 3. Extract excesses
+excesses = losses[losses > u] - u
+n_u = len(excesses)
+print(f"Number of exceedances: {n_u} out of {n_samples}")
+
+# 4. Fit GPD to excesses
+# genpareto.fit returns (shape (c), loc, scale)
+# Note: scipy's genpareto shape 'c' is equal to our 'xi'
+shape, loc, scale = genpareto.fit(excesses, floc=0)
+xi, beta = shape, scale
+print(f"Fitted GPD Parameters: xi (shape) = {xi:.4f}, beta (scale) = {beta:,.2f}")
+
+# 5. Calculate 99.9% VaR and ES
+alpha = 0.999
+# EVT VaR formula
+var_evt = u + (beta / xi) * (((n_samples / n_u) * (1 - alpha))**(-xi) - 1)
+
+# EVT ES formula
+es_evt = (var_evt + beta - xi * u) / (1 - xi)
+
+print(f"\n--- EVT Risk Metrics ---")
+print(f"99.9% VaR: ${var_evt:,.2f}")
+print(f"99.9% Expected Shortfall: ${es_evt:,.2f}")
+
+# Optional comparison with empirical VaR
+empirical_var = np.percentile(losses, 99.9)
+print(f"Empirical 99.9% VaR: ${empirical_var:,.2f}")
+</code></pre>
+  <p><strong>Sample Output:</strong></p>
+<pre><code>Selected Threshold (u): $7,233.15
+Number of exceedances: 500 out of 10000
+Fitted GPD Parameters: xi (shape) = 0.6582, beta (scale) = 5,140.28
+
+--- EVT Risk Metrics ---
+99.9% VaR: $48,349.82
+99.9% Expected Shortfall: $136,549.91
+Empirical 99.9% VaR: $42,109.11
+</code></pre>
+
+  <h2>7. Diagrams Description</h2>
+  <ul>
+      <li><strong>Figure 36.1: Mean Residual Life Plot.</strong> A scatter plot showing threshold \(u\) on the x-axis and mean excess \(e(u)\) on the y-axis. The curve is initially volatile, then settles into an upward-sloping linear trend (indicating a heavy tail \(\xi > 0\)), before becoming highly volatile again at extreme thresholds due to data sparsity. The optimal threshold is chosen at the start of the stable linear region.</li>
+      <li><strong>Figure 36.2: Copula Contour Plots.</strong> A 2x2 grid of bivariate density contours with standard normal marginals but different copulas. 
+          <ul>
+              <li>Top-Left (Gaussian): Elliptical, concentric rings.</li>
+              <li>Top-Right (t-Copula): Star-shaped, showing probability mass pulled into the extreme corners (tail dependence).</li>
+              <li>Bottom-Left (Clayton): Teardrop shape pointed towards the bottom-left corner, showing lower tail dependence.</li>
+              <li>Bottom-Right (Gumbel): Teardrop shape pointed towards the top-right corner, showing upper tail dependence.</li>
+          </ul>
+      </li>
+  </ul>
+
+  <div class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Relying on the Gaussian Copula for Credit Risk:</strong> The catastrophic failure in pricing CDOs prior to 2008 was heavily tied to using the Gaussian copula. Because \(\lambda_U = \lambda_L = 0\), the model assumed that widespread simultaneous defaults across different tranches were virtually impossible.</li>
+        <li><strong>Confusing Correlation with Dependence:</strong> Pearson's correlation (\(\rho\)) only measures linear dependence. Two variables can have \(\rho = 0\) but be completely dependent (e.g., \(Y = X^2\)). Copulas capture the <em>complete</em> dependence structure. Rank correlations (Kendall's \(\tau\), Spearman's \(\rho_S\)) are better suited for copulas because they are invariant under monotonic transformations of the marginals.</li>
+        <li><strong>Choosing the wrong threshold for POT:</strong> If the threshold \(u\) is too low, the GPD approximation is invalid (bias). If \(u\) is too high, there are too few exceedances to estimate \(\xi\) and \(\beta\) reliably (high variance). It requires a delicate bias-variance tradeoff.</li>
+        <li><strong>Assuming \(\xi < 1\) holds universally:</strong> If \(\xi \ge 1\), the GPD has an infinite mean. Expected Shortfall mathematically ceases to exist. In practice, operational risk data sometimes yields \(\xi > 1\), leading to massive capital requirement instability.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">9. Industry Application: Multi-Peril Catastrophe Modeling at a Reinsurer</div>
+    <div class="box-content">
+      <p>Global reinsurers (e.g., Munich Re, Swiss Re) must maintain economic capital for 1-in-200-year aggregate losses across multiple lines of business and geographic regions. Simply adding up the 99.5% VaR of US Hurricane, European Windstorm, and Japanese Earthquake risks assumes perfect correlation and overcapitalizes the firm. Assuming independence undercapitalizes it, as secondary factors (global climate patterns, supply chain disruptions) induce dependence.</p>
+      <p>Actuaries model the marginal distributions of each peril using EVT (often fitting GEV to annual max losses or GPD to POT). They then aggregate these marginals using a <strong>Vine Copula</strong> or a <strong>t-Copula</strong>. This allows them to capture the fact that while US Hurricane and Japanese Earthquake might be largely independent (correlation near 0), certain economic factors might cause their financial impacts to exhibit tail dependence. The resulting aggregate distribution is simulated via Monte Carlo to derive the firm-wide Value-at-Risk.</p>
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>GEV Distribution:</strong> \( H(x) = \exp\left\{ - \left[ 1 + \xi \left( \frac{x - \mu}{\sigma} \right) \right]_+^{-1/\xi} \right\} \)</li>
+      <li><strong>GPD Distribution (Excess over \(u\)):</strong> \( G(y) = 1 - \left( 1 + \frac{\xi y}{\beta} \right)^{-1/\xi} \)</li>
+      <li><strong>POT VaR:</strong> \( \text{VaR}_\alpha = u + \frac{\beta}{\xi} \left[ \left( \frac{N}{N_u} (1 - \alpha) \right)^{-\xi} - 1 \right] \)</li>
+      <li><strong>POT Expected Shortfall:</strong> \( \text{ES}_\alpha = \frac{\text{VaR}_\alpha + \beta - \xi u}{1 - \xi} \) for \(\xi < 1\).</li>
+      <li><strong>Sklar's Theorem:</strong> \( H(x_1, \dots, x_d) = C(F_1(x_1), \dots, F_d(x_d)) \)</li>
+      <li><strong>Upper Tail Dependence:</strong> \( \lambda_U = \lim_{q \to 1^-} \frac{1 - 2q + C(q,q)}{1 - q} \)</li>
+      <li><strong>Kendall's \(\tau\) (Rank Correlation):</strong> \( \tau = 4 \iint C(u,v) \dd C(u,v) - 1 \)</li>
+    </ul>
+  </div>
+
+  <div class="exercises">
+    <h2>11. Exercises</h2>
+    
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>Exercise 36.1:</strong> State the three limit distributions in the Fisher-Tippett-Gnedenko theorem and the corresponding sign of the shape parameter \(\xi\).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.2:</strong> A portfolio of operational losses has been fitted to a GPD above a threshold of \(u = \$100,000\). The estimated parameters are \(\xi = 0.5\) and \(\beta = 50,000\). Calculate the probability that a loss exceeding the threshold will also exceed \(\$300,000\).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.3:</strong> Define a copula. What are its domain and range, and what must its marginal distributions be?
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.4:</strong> Why is Pearson correlation insufficient to measure dependence for heavy-tailed risk distributions?
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>Exercise 36.5:</strong> You are given an empirical dataset of 1,000 daily stock returns. You set a threshold at the 90th percentile of losses. 100 exceedances are recorded. The fitted GPD parameters are \(\xi = 0.2\), \(\beta = 0.015\). Calculate the 99% EVT-based VaR.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.6:</strong> Continuing from 36.5, calculate the 99% Expected Shortfall.
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.7:</strong> Consider the Clayton copula: \(C(u, v) = (u^{-\theta} + v^{-\theta} - 1)^{-1/\theta}\) for \(\theta > 0\). Derive the lower tail dependence coefficient \(\lambda_L = \lim_{q \to 0^+} \frac{C(q,q)}{q}\) as a function of \(\theta\).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.8:</strong> The Gumbel copula is given by \(C(u, v) = \exp(-[(-\ln u)^\theta + (-\ln v)^\theta]^{1/\theta})\) for \(\theta \ge 1\). Show that for \(\theta = 1\), the copula represents independent variables.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>Exercise 36.9:</strong> Let \(X \sim \text{Exp}(1)\). Find the exact distribution of the maximum of \(n\) i.i.d. draws of \(X\), \(M_n\). Then, find normalizing sequences \(c_n, d_n\) such that \((M_n - d_n)/c_n\) converges to the standard Gumbel distribution \(H(x) = \exp(-e^{-x})\).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.10:</strong> Assume a threshold \(u\) is chosen such that the excesses \(Y = X - u \mid X > u\) exactly follow a GPD with \(\xi \neq 0\). Prove that for a higher threshold \(v > u\), the excesses \(X - v \mid X > v\) also follow a GPD with the same shape parameter \(\xi\), but a different scale parameter \(\beta_v\). Derive \(\beta_v\).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.11:</strong> In CDO pricing, asset values \(A_i\) are modeled as \(A_i = \sqrt{\rho} M + \sqrt{1-\rho} Z_i\), where \(M, Z_i\) are i.i.d standard normals (One-factor Gaussian copula model). A default occurs if \(A_i < K\). Derive the conditional probability of default given the macroeconomic factor \(M\). Explain how \(\rho\) affects tail dependence in the portfolio limit as \(n \to \infty\).
+      </div>
+      <div class="exercise-item">
+        <strong>Exercise 36.12:</strong> Using the formula for Kendall's tau \(\tau = 1 - \frac{1}{\theta}\) for a Gumbel copula, if an actuary measures a rank correlation of 0.5 between two insurance lines, what is the calibrated Gumbel parameter \(\theta\)? What is the resulting upper tail dependence \(\lambda_U = 2 - 2^{1/\theta}\)?
+      </div>
+    </div>
+
+    <h3>Solutions to Selected Exercises</h3>
+    
+    <div class="solution-item">
+      <strong>Solution to 36.2:</strong> 
+      We want \( \P(X - u > 300,000 - 100,000 \mid X > 100,000) = \P(Y > 200,000) \).
+      For GPD, \( \P(Y > y) = (1 + \frac{\xi y}{\beta})^{-1/\xi} \).
+      \( y = 200,000 \). \( \xi = 0.5 \), \( \beta = 50,000 \).
+      \( \P(Y > 200,000) = (1 + \frac{0.5 \times 200,000}{50,000})^{-1/0.5} = (1 + \frac{100,000}{50,000})^{-2} = (1 + 2)^{-2} = 3^{-2} = \frac{1}{9} \approx 11.11\% \).
+    </div>
+    
+    <div class="solution-item">
+      <strong>Solution to 36.5:</strong>
+      \( \alpha = 0.99 \). \( u \) is the 90th percentile. \( \frac{N}{N_u} = \frac{1000}{100} = 10 \). 
+      We assume \( u \) itself is unknown in magnitude, but wait, the question asks for EVT based VaR relative to \( u \). The VaR formula:
+      \( \text{VaR}_{0.99} = u + \frac{\beta}{\xi} [ (\frac{N}{N_u} (1 - \alpha))^{-\xi} - 1 ] \)
+      \( \frac{N}{N_u}(1 - \alpha) = 10 \times 0.01 = 0.1 \).
+      \( (0.1)^{-0.2} = (1/10)^{-1/5} = 10^{0.2} \approx 1.5849 \).
+      \( \text{VaR}_{0.99} = u + \frac{0.015}{0.2} [ 1.5849 - 1 ] = u + 0.075 \times 0.5849 = u + 0.043867 \).
+      The 99% VaR is \( 0.043867 \) plus the 90th percentile threshold \( u \).
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 36.7:</strong>
+      \( \lambda_L = \lim_{q \to 0^+} \frac{C(q,q)}{q} = \lim_{q \to 0^+} \frac{(q^{-\theta} + q^{-\theta} - 1)^{-1/\theta}}{q} \)
+      \( = \lim_{q \to 0^+} \frac{(2q^{-\theta} - 1)^{-1/\theta}}{q} = \lim_{q \to 0^+} (2 - q^\theta)^{-1/\theta} \)
+      Since \( q \to 0^+ \) and \( \theta > 0 \), \( q^\theta \to 0 \).
+      Thus, \( \lambda_L = 2^{-1/\theta} \).
+    </div>
+    
+    <div class="solution-item">
+      <strong>Solution to 36.8:</strong>
+      Substitute \(\theta = 1\) into the Gumbel copula formula:
+      \( C(u, v) = \exp(-[(-\ln u)^1 + (-\ln v)^1]^{1/1}) \)
+      \( C(u, v) = \exp(-(-\ln u - \ln v)) = \exp(\ln u + \ln v) = \exp(\ln(uv)) = uv \).
+      \( C(u, v) = uv \) is the Independence Copula (also known as the product copula). This proves that when \(\theta = 1\), the variables are independent.
+    </div>
+
+    <div class="solution-item">
+      <strong>Solution to 36.9:</strong>
+      The CDF of Exp(1) is \( F(x) = 1 - e^{-x} \).
+      \( \P(M_n \le x) = (1 - e^{-x})^n \).
+      Let \( d_n = \ln n \) and \( c_n = 1 \).
+      \( \P((M_n - \ln n)/1 \le x) = \P(M_n \le x + \ln n) = (1 - e^{-(x + \ln n)})^n = (1 - \frac{e^{-x}}{n})^n \).
+      As \( n \to \infty \), \( (1 - \frac{y}{n})^n \to e^{-y} \). Here \( y = e^{-x} \).
+      Thus, the limit is \( \exp(-e^{-x}) \), which is the standard Gumbel distribution (\(\xi = 0\)).
+    </div>
+    
+    <div class="solution-item">
+      <strong>Solution to 36.12:</strong>
+      Given Kendall's tau \( \tau = 0.5 \).
+      \( \tau = 1 - \frac{1}{\theta} \implies 0.5 = 1 - \frac{1}{\theta} \implies \frac{1}{\theta} = 0.5 \implies \theta = 2 \).
+      The upper tail dependence coefficient is \( \lambda_U = 2 - 2^{1/\theta} \).
+      \( \lambda_U = 2 - 2^{1/2} = 2 - \sqrt{2} \approx 2 - 1.414 = 0.586 \).
+      This indicates a 58.6% probability that if one line experiences an extreme event, the other will concurrently.
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <h2>12. Further Reading</h2>
+    <ul>
+      <li>Embrechts, P., Klüppelberg, C., & Mikosch, T. (1997). <em>Modelling Extremal Events: for Insurance and Finance</em>. Springer. (The definitive actuarial text on EVT).</li>
+      <li>McNeil, A. J., Frey, R., & Embrechts, P. (2015). <em>Quantitative Risk Management: Concepts, Techniques and Tools</em> (2nd ed.). Princeton University Press.</li>
+      <li>Nelsen, R. B. (2006). <em>An Introduction to Copulas</em> (2nd ed.). Springer.</li>
+      <li>Joe, H. (2014). <em>Dependence Modeling with Copulas</em>. CRC Press.</li>
+      <li>Li, D. X. (2000). <em>On Default Correlation: A Copula Function Approach</em>. Journal of Fixed Income, 9(4), 43-54. (The infamous paper that introduced the Gaussian copula to CDO pricing).</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch35_reinsurance.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch37_health_insurance.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

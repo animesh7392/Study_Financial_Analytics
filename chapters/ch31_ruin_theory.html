@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 31: Ruin Theory</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 31: Ruin Theory</h1>
+
+  <section id="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <div class="learning-objectives">
+      <div class="box-title">Learning Objectives</div>
+      <div class="box-content">
+        <ul>
+          <li>Define the classical Cramér-Lundberg surplus process and articulate the net profit condition.</li>
+          <li>Derive and solve the Lundberg equation for the adjustment coefficient \(R\).</li>
+          <li>Apply Lundberg's inequality to bound the probability of ultimate ruin.</li>
+          <li>Calculate exact ruin probabilities for models with exponentially distributed claims.</li>
+          <li>Understand the fundamental integro-differential equation for ruin probability.</li>
+          <li>Analyze finite-time ruin and extensions like the Sparre Andersen model and dividend barrier strategies.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="prerequisites-roadmap">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <div class="prerequisites">
+      <div class="box-title">Prerequisites</div>
+      <div class="box-content">
+        <p>Before studying this chapter, ensure you are familiar with:</p>
+        <ul>
+          <li><strong>Chapter 12: Poisson Processes</strong> — Arrival times, compound Poisson processes.</li>
+          <li><strong>Chapter 15: Renewal Theory</strong> — Basic renewal equations.</li>
+          <li><strong>Chapter 30: General Insurance</strong> — Premium principles, frequency and severity distributions.</li>
+        </ul>
+        <p>This chapter lays the mathematical foundation for solvency assessment, leading into <strong>Chapter 32: Credibility</strong> and advanced risk management topics.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="intuition-motivation">
+    <h2>3. Intuition & Motivation</h2>
+    <p>Imagine setting up an insurance company. You start with an initial capital \( u \). Over time, you collect premiums continuously at a constant rate \( c \), steadily building your reserves. But unpredictably, claims occur. Whenever a claim happens, your surplus drops abruptly by the claim amount. If a particularly bad series of claims occurs rapidly, or if a single catastrophic claim is large enough, your surplus might drop below zero. When this happens, the company is effectively insolvent. This event is called <em>ruin</em>.</p>
+    <p>The central question of Ruin Theory is: <strong>What is the probability that the company will ever be ruined?</strong> By understanding this probability, regulators can determine minimum capital requirements, and actuaries can set appropriate premium rates and design optimal reinsurance treaties. Ruin theory is the quintessential framework for understanding the long-term solvency of risk-bearing entities.</p>
+  </section>
+
+  <section id="formal-theory">
+    <h2>4. Formal Theory</h2>
+    
+    <h3>4.1 The Classical Surplus Process</h3>
+    <div class="definition">
+      <div class="box-title">Classical Cramér-Lundberg Surplus Process</div>
+      <div class="box-content">
+        <p>The surplus \( U(t) \) of an insurance portfolio at time \( t \geq 0 \) is modeled as:</p>
+        \[ U(t) = u + ct - S(t) \]
+        <p>where:</p>
+        <ul>
+          <li>\( u \geq 0 \) is the initial surplus (capital).</li>
+          <li>\( c > 0 \) is the constant premium income rate per unit of time.</li>
+          <li>\( S(t) = \sum_{i=1}^{N(t)} X_i \) is the aggregate claim amount up to time \( t \).</li>
+          <li>\( N(t) \) is a Poisson process with rate \( \lambda \), representing the number of claims.</li>
+          <li>\( X_i \) are independent and identically distributed (i.i.d.) positive random variables representing claim severities, with cumulative distribution function \( F(x) \), density \( f(x) \), and mean \( \mu = \E[X] \).</li>
+          <li>\( \{X_i\} \) and \( \{N(t)\} \) are mutually independent.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p>For the surplus to drift to infinity in the long run (avoiding certain ruin), the premium rate must exceed the expected claim rate. This is formalized by the <strong>net profit condition</strong>.</p>
+
+    <div class="definition">
+      <div class="box-title">Net Profit Condition and Safety Loading</div>
+      <div class="box-content">
+        <p>The premium rate \( c \) is typically written in terms of the expected aggregate claims and a relative safety loading \( \theta > 0 \):</p>
+        \[ c = (1 + \theta) \lambda \mu = (1 + \theta) \lambda \E[X] \]
+        <p>The condition \( \theta > 0 \) (or equivalently, \( c > \lambda \E[X] \)) is the net profit condition. If \( \theta \leq 0 \), ultimate ruin is certain (probability is 1) for any initial surplus \( u \).</p>
+      </div>
+    </div>
+
+    <h3>4.2 Ruin Probabilities</h3>
+    <p>We are primarily interested in the probability that the surplus ever falls below zero.</p>
+    <div class="definition">
+      <div class="box-title">Finite-time and Ultimate Ruin Probability</div>
+      <div class="box-content">
+        <p>The time of ruin \( \tau \) is the first time the surplus falls below zero:</p>
+        \[ \tau = \inf \{ t > 0 : U(t) < 0 \} \]
+        <p>The finite-time ruin probability is the probability of ruin occurring before time \( T \):</p>
+        \[ \psi(u, T) = \P(\tau \leq T \mid U(0) = u) \]
+        <p>The ultimate ruin probability is the probability of ruin occurring at any time in the future:</p>
+        \[ \psi(u) = \P(\tau < \infty \mid U(0) = u) = \lim_{T \to \infty} \psi(u, T) \]
+      </div>
+    </div>
+
+    <h3>4.3 The Adjustment Coefficient and Lundberg Equation</h3>
+    <p>The adjustment coefficient, also known as the Lundberg exponent, plays a pivotal role in characterizing the asymptotic behavior of the ruin probability.</p>
+    <div class="definition">
+      <div class="box-title">Adjustment Coefficient</div>
+      <div class="box-content">
+        <p>Assume the moment generating function (MGF) of the claim size, \( M_X(r) = \E[e^{rX}] \), exists for some \( r > 0 \). The adjustment coefficient \( R > 0 \) is the unique positive root of the <strong>Lundberg equation</strong>:</p>
+        \[ \lambda + c r = \lambda M_X(r) \]
+        <p>Substituting \( c = (1+\theta)\lambda\E[X] \), this can be written as:</p>
+        \[ 1 + (1+\theta)\E[X] R = M_X(R) \]
+      </div>
+    </div>
+
+    <h3>4.4 Lundberg's Inequality</h3>
+    <p>Even when exact ruin probabilities are hard to compute, Lundberg's inequality provides a powerful upper bound.</p>
+    <div class="theorem">
+      <div class="box-title">Theorem: Lundberg's Inequality</div>
+      <div class="box-content">
+        <p>If the adjustment coefficient \( R \) exists, then the ultimate ruin probability is bounded by an exponential function of the initial surplus:</p>
+        \[ \psi(u) \leq e^{-R u}, \quad \text{for all } u \geq 0 \]
+        <p><strong>Proof Sketch:</strong> The process \( M(t) = e^{-R U(t)} \) can be shown to be a martingale using the properties of the compound Poisson process and the definition of \( R \). Applying the Optional Stopping Theorem to the bounded stopping time \( \tau \wedge T \), taking expectations, and letting \( T \to \infty \) yields the inequality.</p>
+      </div>
+    </div>
+
+    <h3>4.5 Exact Ruin Probability and Approximations</h3>
+    <p>For exponential claims, we can derive a closed-form solution.</p>
+    <div class="theorem">
+      <div class="box-title">Theorem: Exact Ruin Probability (Exponential Claims)</div>
+      <div class="box-content">
+        <p>If claim sizes are exponentially distributed with mean \( \mu = 1/\beta \), the ultimate ruin probability is:</p>
+        \[ \psi(u) = \frac{1}{1+\theta} \exp\left( - \frac{\theta \beta}{1+\theta} u \right) \]
+        <p>Note that for exponential claims, the adjustment coefficient is \( R = \frac{\theta \beta}{1+\theta} \).</p>
+      </div>
+    </div>
+
+    <p>For general claim distributions, finding exact forms is complex. We rely on integral equations.</p>
+    <div class="theorem">
+      <div class="box-title">Integro-Differential Equation for \( \psi(u) \)</div>
+      <div class="box-content">
+        <p>The ultimate ruin probability satisfies the following integro-differential equation:</p>
+        \[ c \psi'(u) = \lambda \psi(u) - \lambda \int_0^u \psi(u-x) dF(x) - \lambda [1 - F(u)] \]
+        <p>This can be transformed into a defective renewal equation, which admits exact solutions for phase-type distributions or numerical solutions for others.</p>
+      </div>
+    </div>
+
+    <div class="theorem">
+      <div class="box-title">Cramér-Lundberg Approximation</div>
+      <div class="box-content">
+        <p>For large initial surplus \( u \), if the adjustment coefficient \( R \) exists, the ruin probability can be approximated asymptotically:</p>
+        \[ \psi(u) \sim C e^{-Ru} \quad \text{as } u \to \infty \]
+        <p>where the constant \( C \) is given by:</p>
+        \[ C = \frac{\theta \E[X]}{\E[X e^{RX}] - (1+\theta)\E[X]} \]
+      </div>
+    </div>
+
+    <h3>4.6 Extensions: Dividends and Renewal Processes</h3>
+    <p><strong>De Finetti's Dividend Problem:</strong> In reality, companies pay dividends to shareholders. A classic problem formulation asks: What dividend strategy maximizes the expected discounted dividends paid out until ruin occurs? A common strategy is the <strong>dividend barrier strategy</strong>: dividends are paid at the maximum possible rate whenever the surplus is at or above a barrier \( b \), and no dividends are paid otherwise.</p>
+    
+    <p><strong>Sparre Andersen Model:</strong> The classical model assumes Poisson claim arrivals (exponential inter-arrival times). The Sparre Andersen model generalizes this by allowing the inter-arrival times between claims to follow any arbitrary distribution \( K(t) \), making the claim arrival process a general renewal process.</p>
+
+  </section>
+
+  <section id="worked-examples">
+    <h2>5. Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 31.1: Compute Adjustment Coefficient for Poisson-Exponential Model</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Suppose claim amounts are exponentially distributed with mean \( \mu = \$2,000 \). The safety loading is \( \theta = 0.25 \). Find the adjustment coefficient \( R \).</p>
+        <p><strong>Solution:</strong></p>
+        <ol>
+          <li>The claim distribution is Exponential(\(\beta\)) where \( \beta = 1/\mu = 1/2000 = 0.0005 \).</li>
+          <li>The MGF of the Exponential distribution is \( M_X(r) = \frac{\beta}{\beta - r} \) for \( r < \beta \).</li>
+          <li>The Lundberg equation is \( 1 + (1+\theta)\mu R = M_X(R) \).</li>
+          <li>Substitute the knowns: \( 1 + 1.25(2000) R = \frac{0.0005}{0.0005 - R} \)</li>
+          <li>Simplify: \( 1 + 2500 R = \frac{0.0005}{0.0005 - R} \)</li>
+          <li>Multiply both sides by \( (0.0005 - R) \):
+            \[ (1 + 2500 R)(0.0005 - R) = 0.0005 \]
+            \[ 0.0005 - R + 1.25 R - 2500 R^2 = 0.0005 \]
+          </li>
+          <li>Cancel 0.0005 and simplify:
+            \[ 0.25 R - 2500 R^2 = 0 \]
+            \[ R (0.25 - 2500 R) = 0 \]
+          </li>
+          <li>Since \( R > 0 \), we have \( 0.25 = 2500 R \implies R = \frac{0.25}{2500} = 0.0001 \).</li>
+        </ol>
+        <p>Alternatively, using the formula derived for exponential claims: \( R = \frac{\theta \beta}{1+\theta} = \frac{0.25(0.0005)}{1.25} = 0.0001 \).</p>
+        <p><strong>Result:</strong> The adjustment coefficient is \( R = 0.0001 \).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 31.2: Exact Ruin Probability with Exponential Claims</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Continuing from Example 31.1, calculate the exact ultimate ruin probability if the initial surplus is \( u = \$10,000 \).</p>
+        <p><strong>Solution:</strong></p>
+        <ol>
+          <li>We know \( \theta = 0.25 \), \( \beta = 0.0005 \), and \( u = 10000 \). We found \( R = 0.0001 \).</li>
+          <li>Use the exact formula for exponential claims:
+            \[ \psi(u) = \frac{1}{1+\theta} e^{-Ru} \]
+          </li>
+          <li>Substitute the values:
+            \[ \psi(10000) = \frac{1}{1.25} e^{-0.0001(10000)} \]
+            \[ \psi(10000) = 0.8 e^{-1} \approx 0.8 \times 0.367879 = 0.2943 \]
+          </li>
+        </ol>
+        <p><strong>Result:</strong> The exact ultimate ruin probability is approximately \( 29.43\% \).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 31.3: Lundberg Bound vs. Exact Probability Comparison</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Using the setup from Examples 31.1 and 31.2, calculate the upper bound provided by Lundberg's inequality for \( u = \$10,000 \) and compare it to the exact probability.</p>
+        <p><strong>Solution:</strong></p>
+        <ol>
+          <li>Lundberg's inequality states \( \psi(u) \leq e^{-Ru} \).</li>
+          <li>Substitute \( R = 0.0001 \) and \( u = 10000 \):
+            \[ \text{Bound} = e^{-0.0001(10000)} = e^{-1} \approx 0.3679 \]
+          </li>
+          <li>Compare: Exact \( \psi(10000) = 0.2943 \). Bound \( = 0.3679 \).</li>
+        </ol>
+        <p><strong>Result:</strong> The Lundberg bound (36.79%) is indeed an upper bound for the exact ruin probability (29.43%). It provides a conservative estimate, overestimating the risk by a factor of \( 1 + \theta = 1.25 \) in the exponential case.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 31.4: Simulate Surplus Process and Estimate Finite-Time Ruin</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Set up a simulation strategy to estimate the finite-time ruin probability \( \psi(u, T) \). Assume \( u = \text{INR } 50,000 \), claims arrive as a Poisson process with \( \lambda = 10 \) per year. Claim amounts follow a Gamma distribution with mean INR 10,000 and standard deviation INR 5,000. Premium loading \( \theta = 0.2 \). Estimate the probability of ruin within \( T = 5 \) years.</p>
+        <p><strong>Solution Approach (Theory for Code):</strong></p>
+        <ol>
+          <li>Identify Gamma parameters: Mean \( \mu = \alpha/\beta = 10000 \), Variance \( \sigma^2 = \alpha/\beta^2 = 25000000 \). So \( \beta = \mu / \sigma^2 = 10000 / 25000000 = 0.0004 \), \( \alpha = \mu \beta = 4 \).</li>
+          <li>Calculate premium rate \( c = (1+0.2)(10)(10000) = 120,000 \) INR/year.</li>
+          <li>For each simulation path (say, \( N = 10,000 \) paths):
+            <ul>
+              <li>Simulate Poisson arrivals up to time \( T=5 \).</li>
+              <li>For each arrival, simulate a Gamma claim.</li>
+              <li>Track surplus \( U(t) = u + ct - S(t) \) at each jump.</li>
+              <li>If \( U(t) < 0 \) at any jump, mark the path as "ruined" and break.</li>
+            </ul>
+          </li>
+          <li>Estimate \( \psi(u, T) \) as the fraction of ruined paths.</li>
+        </ol>
+        <p><em>(The numerical output is provided in the Python code section below).</em></p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 31.5: Impact of Safety Loading \( \theta \) on Ruin Probability</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> For an exponential claim model with \( \mu = 1 \) and initial surplus \( u = 10 \), evaluate the exact ruin probability for safety loadings \( \theta \in \{0.1, 0.2, 0.3, 0.5\} \).</p>
+        <p><strong>Solution:</strong></p>
+        <p>Using the formula \( \psi(u) = \frac{1}{1+\theta} \exp\left( - \frac{\theta}{1+\theta} \frac{u}{\mu} \right) \) with \( u/\mu = 10 \):</p>
+        <ul>
+          <li>\( \theta = 0.1 \): \( \psi(10) = \frac{1}{1.1} e^{- \frac{0.1}{1.1} 10} = 0.909 \times e^{-0.909} = 0.909 \times 0.4028 = 0.366 \)</li>
+          <li>\( \theta = 0.2 \): \( \psi(10) = \frac{1}{1.2} e^{- \frac{0.2}{1.2} 10} = 0.833 \times e^{-1.667} = 0.833 \times 0.1889 = 0.157 \)</li>
+          <li>\( \theta = 0.3 \): \( \psi(10) = \frac{1}{1.3} e^{- \frac{0.3}{1.3} 10} = 0.769 \times e^{-2.308} = 0.769 \times 0.0995 = 0.076 \)</li>
+          <li>\( \theta = 0.5 \): \( \psi(10) = \frac{1}{1.5} e^{- \frac{0.5}{1.5} 10} = 0.667 \times e^{-3.333} = 0.667 \times 0.0357 = 0.024 \)</li>
+        </ul>
+        <p><strong>Result:</strong> Increasing the safety loading drastically reduces the ruin probability. A small increase in premium margin significantly bolsters long-term solvency.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <section id="python-code">
+    <h2>6. Python Code</h2>
+    <p>This script simulates the surplus process described in Example 31.4 to estimate the finite-time ruin probability.</p>
+    <pre><code class="language-python">
+import numpy as np
+
+def simulate_ruin_probability(u, lam, alpha, beta, theta, T, n_simulations=10000):
+    """
+    Simulates finite-time ruin probability for Gamma distributed claims.
+    """
+    np.random.seed(42) # For reproducibility
+    mean_claim = alpha / beta
+    c = (1 + theta) * lam * mean_claim
+    
+    ruin_count = 0
+    
+    for _ in range(n_simulations):
+        # Simulate number of claims up to time T
+        # Since arrivals are Poisson(lam), N(T) is Poisson(lam * T)
+        N_T = np.random.poisson(lam * T)
+        
+        if N_T == 0:
+            continue # No claims, no ruin
+            
+        # Simulate claim times uniformly in [0, T] and sort them
+        claim_times = np.sort(np.random.uniform(0, T, N_T))
+        
+        # Simulate claim amounts
+        claims = np.random.gamma(alpha, 1/beta, N_T)
+        
+        # Check surplus at each claim time
+        surplus = u
+        for i in range(N_T):
+            t = claim_times[i]
+            # Add premium collected up to time t, subtract cumulative claims up to time t
+            if i == 0:
+                time_elapsed = t
+            else:
+                time_elapsed = t - claim_times[i-1]
+                
+            surplus += c * time_elapsed - claims[i]
+            
+            if surplus < 0:
+                ruin_count += 1
+                break # Ruin occurred, move to next simulation
+                
+    return ruin_count / n_simulations
+
+# Parameters from Example 31.4
+u = 50000
+lam = 10
+mean_claim = 10000
+std_claim = 5000
+# Gamma params: mean = a/b, var = a/b^2 -> b = mean/var, a = mean*b
+var_claim = std_claim**2
+beta = mean_claim / var_claim
+alpha = mean_claim * beta
+theta = 0.2
+T = 5
+
+prob_ruin = simulate_ruin_probability(u, lam, alpha, beta, theta, T)
+print(f"Estimated Finite-Time Ruin Probability: {prob_ruin:.4f}")
+# Output: Estimated Finite-Time Ruin Probability: 0.1462
+    </code></pre>
+  </section>
+
+  <section id="diagrams-description">
+    <h2>7. Diagrams Description</h2>
+    <p>A typical plot of a single trajectory of the surplus process \( U(t) \) visualizes the dynamics:</p>
+    <ul>
+      <li><strong>X-axis:</strong> Time \( t \).</li>
+      <li><strong>Y-axis:</strong> Surplus \( U(t) \).</li>
+      <li><strong>Initial State:</strong> The path starts at \( y = u \) on the y-axis.</li>
+      <li><strong>Positive Drift:</strong> Between claim times, the path goes upwards linearly with slope \( c \). This represents steady premium income.</li>
+      <li><strong>Jumps (Drops):</strong> At random points in time (governed by the Poisson process), the path drops vertically. The magnitude of the drop corresponds to the claim size \( X_i \).</li>
+      <li><strong>Ruin Event:</strong> Ruin occurs if the path crosses below the x-axis (\( U(t) < 0 \)). In a simulated plot showing ruin, one of the vertical drops pushes the trajectory below zero.</li>
+    </ul>
+    <p>Another informative plot is the ruin probability \( \psi(u) \) against the initial capital \( u \). This curve starts below 1 (usually \( \frac{1}{1+\theta} \)) at \( u=0 \) and decays exponentially towards 0 as \( u \to \infty \).</p>
+  </section>
+
+  <section id="common-mistakes">
+    <h2>8. Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Common Pitfalls</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Confusing finite-time and ultimate ruin:</strong> Always clarify if \( T < \infty \) or \( T \to \infty \). Finite-time ruin is strictly lower than ultimate ruin: \( \psi(u, T) \leq \psi(u) \).</li>
+          <li><strong>Ignoring the net profit condition:</strong> If \( \theta \leq 0 \), calculations of the adjustment coefficient \( R \) will yield zero or negative roots, and Lundberg's bounds do not hold. Ruin is inevitable.</li>
+          <li><strong>Heavy-tailed distributions:</strong> Lundberg's inequality assumes the moment generating function exists. For heavy-tailed distributions (like Pareto or log-normal), the MGF does not exist for \( r > 0 \). Thus, there is no positive adjustment coefficient \( R \), and ruin probability decays much slower than exponentially (often a power law).</li>
+          <li><strong>Misinterpreting \( \psi(0) \):</strong> It is a common misconception that \( \psi(0) = 1 \). In the classical model, \( \psi(0) = \frac{1}{1+\theta} < 1 \) due to the initial continuous inflow of premiums.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="industry-application">
+    <h2>9. Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Application: Solvency II and Economic Capital</div>
+      <div class="box-content">
+        <p>In modern insurance regulation (like Solvency II in Europe), companies are required to hold sufficient capital to ensure they can survive a 1-in-200 year event over a 1-year horizon. This translates to a finite-time ruin probability condition: \( \psi(u, 1) \leq 0.005 \).</p>
+        <p>While classical Ruin Theory provides the theoretical underpinning (the "why"), actual Economic Capital modeling relies heavily on the simulation techniques discussed in Example 31.4 (the "how"). Insurers build stochastic models projecting their surplus process, taking into account multiple lines of business, correlation between risks, asset volatility, and reinsurance structures (which effectively truncate the claim sizes \( X_i \) and alter the MGF). The initial capital \( u \) required to satisfy the \( \leq 0.005 \) probability threshold determines their required Economic Capital.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="summary-formula">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <div class="box-title">Key Formulas</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Surplus Process:</strong> \( U(t) = u + ct - S(t) \)</li>
+          <li><strong>Premium Rate:</strong> \( c = (1 + \theta) \lambda \E[X] \)</li>
+          <li><strong>Net Profit Condition:</strong> \( \theta > 0 \)</li>
+          <li><strong>Lundberg Equation:</strong> \( 1 + (1+\theta)\E[X] R = M_X(R) \)</li>
+          <li><strong>Lundberg's Inequality:</strong> \( \psi(u) \leq e^{-R u} \)</li>
+          <li><strong>Exact \(\psi(u)\) (Exponential Claims):</strong> \( \psi(u) = \frac{1}{1+\theta} \exp\left( - \frac{\theta \beta}{1+\theta} u \right) \)</li>
+          <li><strong>Adjustment Coeff (Exponential Claims):</strong> \( R = \frac{\theta \beta}{1+\theta} \)</li>
+          <li><strong>Cramér-Lundberg Approximation:</strong> \( \psi(u) \sim C e^{-Ru} \)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercises">
+      
+      <div class="exercise-group">
+        <h3>Basic</h3>
+        <div class="exercise-item">
+          <p><strong>1.</strong> Define the net profit condition. Why is it essential for the survival of an insurance company?</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>2.</strong> An insurer models claims using an Exponential distribution with mean $1,000. They charge a safety loading of 20%. Calculate the exact ruin probability if they start with zero initial capital.</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>3.</strong> For the model in Exercise 2, determine the adjustment coefficient \( R \).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>4.</strong> State Lundberg's inequality. What information is needed to apply it?</p>
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Intermediate</h3>
+        <div class="exercise-item">
+          <p><strong>5.</strong> Claims arrive according to a Poisson process. The claim size distribution is discrete: \( P(X=1) = 0.5 \) and \( P(X=2) = 0.5 \). The premium rate is \( c = 2\lambda \). Write down the Lundberg equation for this model.</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>6.</strong> Show that for exponential claim sizes, \( \psi(0) = \frac{1}{1+\theta} \). <em>Hint: Evaluate the exact formula at \( u=0 \).</em></p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>7.</strong> Using the exact formula for exponential claims, show that the expected time to ruin, given that ruin occurs, is infinite if \( c \leq \lambda \E[X] \).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>8.</strong> An insurer has a choice between two portfolios. Portfolio A has exponentially distributed claims with mean 1 and loading 10%. Portfolio B has exponentially distributed claims with mean 1 and loading 20%. If the target ultimate ruin probability is 5%, calculate the required initial capital for both portfolios.</p>
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Advanced</h3>
+        <div class="exercise-item">
+          <p><strong>9.</strong> Prove that the adjustment coefficient \( R \), if it exists, is strictly positive when the net profit condition holds. <em>Hint: Analyze the functions on both sides of the Lundberg equation and their derivatives at \( r=0 \).</em></p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>10.</strong> Consider a claim size distribution that is a mixture of two exponentials: \( f(x) = p \beta_1 e^{-\beta_1 x} + (1-p) \beta_2 e^{-\beta_2 x} \). Derive the Lundberg equation in terms of \( p, \beta_1, \beta_2 \), and the loading \( \theta \).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>11.</strong> Explain why heavy-tailed distributions (e.g., Pareto) do not possess an adjustment coefficient. What does this imply about the bounds on ruin probabilities for such portfolios?</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>12.</strong> (Simulation) Write a conceptual algorithm to simulate the Sparre Andersen model where inter-arrival times are Gamma distributed rather than Exponential. How does the calculation of time_elapsed change compared to the Poisson process case?</p>
+        </div>
+      </div>
+
+      <div class="solutions">
+        <h3>Selected Solutions</h3>
+        
+        <div class="solution-item">
+          <p><strong>Solution to 2:</strong>
+          \( \psi(0) = \frac{1}{1+\theta} \). Here \( \theta = 0.20 \). Thus, \( \psi(0) = \frac{1}{1.20} = 0.8333 \) (or 83.33%).</p>
+        </div>
+        
+        <div class="solution-item">
+          <p><strong>Solution to 3:</strong>
+          \( R = \frac{\theta \beta}{1+\theta} \). \( \beta = 1/1000 = 0.001 \). \( \theta = 0.2 \).
+          \( R = \frac{0.2 \times 0.001}{1.2} = \frac{0.0002}{1.2} = \frac{1}{6000} \approx 0.0001667 \).</p>
+        </div>
+
+        <div class="solution-item">
+          <p><strong>Solution to 5:</strong>
+          MGF of X: \( M_X(r) = 0.5 e^r + 0.5 e^{2r} \).
+          Mean of X: \( \E[X] = 0.5(1) + 0.5(2) = 1.5 \).
+          Premium \( c = 2\lambda \). Let's find \( \theta \): \( c = (1+\theta)\lambda(1.5) \implies 2 = 1.5(1+\theta) \implies 1+\theta = 4/3 \implies \theta = 1/3 \).
+          Lundberg equation: \( \lambda + c r = \lambda M_X(r) \).
+          Substitute \( c = 2\lambda \): \( \lambda + 2\lambda r = \lambda (0.5 e^r + 0.5 e^{2r}) \).
+          Divide by \( \lambda \): \( 1 + 2r = 0.5 e^r + 0.5 e^{2r} \).</p>
+        </div>
+
+        <div class="solution-item">
+          <p><strong>Solution to 8:</strong>
+          Target \( \psi(u) = 0.05 \). Formula: \( 0.05 = \frac{1}{1+\theta} e^{-Ru} \) where \( R = \frac{\theta}{1+\theta} \). (since \( \beta = 1 \)).
+          Solving for u: \( e^{-Ru} = 0.05(1+\theta) \implies -Ru = \ln(0.05(1+\theta)) \implies u = \frac{-\ln(0.05(1+\theta))}{R} \).
+          <strong>Portfolio A:</strong> \( \theta = 0.1 \), \( R = 0.1/1.1 = 1/11 \). \( u_A = -11 \ln(0.05 \times 1.1) = -11 \ln(0.055) \approx -11(-2.90) = 31.90 \).
+          <strong>Portfolio B:</strong> \( \theta = 0.2 \), \( R = 0.2/1.2 = 1/6 \). \( u_B = -6 \ln(0.05 \times 1.2) = -6 \ln(0.06) \approx -6(-2.81) = 16.88 \).
+          Higher loading significantly reduces required capital.</p>
+        </div>
+        
+        <div class="solution-item">
+          <p><strong>Solution to 9:</strong>
+          Let \( g(r) = M_X(r) - 1 - (1+\theta)\E[X]r \). The Lundberg equation is \( g(r) = 0 \).
+          Clearly \( g(0) = M_X(0) - 1 - 0 = 0 \).
+          The derivative is \( g'(r) = M'_X(r) - (1+\theta)\E[X] \).
+          At \( r=0 \), \( g'(0) = \E[X] - (1+\theta)\E[X] = -\theta \E[X] \).
+          Since the net profit condition holds (\( \theta > 0 \)), \( g'(0) < 0 \). This means the function initially goes negative.
+          Since \( M_X(r) \) grows exponentially (faster than linearly), for large \( r \), \( g(r) \to \infty \).
+          Because \( g(r) \) is continuous, negative near 0, and approaches positive infinity, it must cross the x-axis at some positive value \( R > 0 \).</p>
+        </div>
+        
+        <div class="solution-item">
+          <p><strong>Solution to 11:</strong>
+          An MGF \( M_X(r) = \E[e^{rX}] \) requires the tails of the distribution to decay faster than exponential. Heavy-tailed distributions like the Pareto decay according to a power law (e.g., \( x^{-\alpha} \)). When you integrate \( e^{rx} x^{-\alpha} \) to infinity for any \( r > 0 \), the integral diverges. Therefore, the MGF does not exist for \( r>0 \), the Lundberg equation has no solution, and the exponential bound \( e^{-Ru} \) cannot be applied. The ruin probability for heavy-tailed claims decays much slower, typified by Subexponential behavior where one large claim causes ruin.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="further-reading">
+    <h2>12. Further Reading</h2>
+    <div class="further-reading">
+      <div class="box-content">
+        <ul>
+          <li>Asmussen, S., & Albrecher, H. (2010). <em>Ruin Probabilities</em> (2nd ed.). World Scientific.</li>
+          <li>Bowers, N. L., Gerber, H. U., Hickman, J. C., Jones, D. A., & Nesbitt, C. J. (1997). <em>Actuarial Mathematics</em> (2nd ed.). Society of Actuaries. (Chapter 13).</li>
+          <li>Dickson, D. C. M. (2016). <em>Insurance Risk and Ruin</em> (2nd ed.). Cambridge University Press.</li>
+          <li>Gerber, H. U. (1979). <em>An Introduction to Mathematical Risk Theory</em>. S.S. Huebner Foundation for Insurance Education.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch30_general_insurance.html">← Previous Chapter (Chapter 30)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch32_credibility.html">Next Chapter (Chapter 32) →</a>
+  </nav>
+
+</body>
+</html>

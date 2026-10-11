@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 22: Machine Learning and Data Science in Finance</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 22: Machine Learning and Data Science in Finance</h1>
+
+  <section id="learning-objectives">
+    <h2>22.1 Learning Objectives</h2>
+    <ul class="learning-objectives">
+      <li>Understand and apply advanced feature engineering techniques specifically tailored for financial data, including lagging, rolling statistics, and encoding methods.</li>
+      <li>Distinguish between and implement various predictive models, from regularized regression and tree-based ensembles (Random Forests, XGBoost) to deep learning architectures (LSTMs).</li>
+      <li>Develop end-to-end credit scoring and fraud detection pipelines incorporating class imbalance handling, WoE/IV analysis, and performance metrics like the KS statistic.</li>
+      <li>Extract insights from unstructured financial text and alternative datasets using NLP and modern embedding techniques.</li>
+      <li>Apply explainable AI (SHAP) and rigorous model risk management frameworks (SR 11-7) to ensure models are robust, interpretable, and compliant with regulatory standards.</li>
+      <li>Identify and mitigate common pitfalls such as backtest overfitting, data snooping, and selection bias in financial modeling.</li>
+    </ul>
+  </section>
+
+  <section id="prerequisites-roadmap">
+    <h2>22.2 Prerequisites & Roadmap</h2>
+    <p class="prerequisites">
+      <strong>Prerequisites:</strong> This chapter heavily relies on the statistical foundations established in <em>Chapter 6 (Statistics, Regression, and Generalized Linear Models)</em>. A solid grasp of linear algebra from <em>Chapter 3</em> is required for understanding neural network architectures, optimization algorithms, and dimensionality reduction. Familiarity with time series analysis (Chapter 9) is beneficial for sequence modeling.<br><br>
+      <strong>Roadmap:</strong> We pivot from classical quantitative finance models (like Black-Scholes and Markowitz) to data-driven, non-parametric approaches. This sets the stage for the highly empirical risk modeling techniques required in <em>Chapter 23 (Insurance Fundamentals)</em> and subsequent actuarial chapters.
+    </p>
+  </section>
+
+  <section id="intuition-motivation">
+    <h2>22.3 Intuition & Motivation</h2>
+    <p>
+      In 2012, a global bank was struggling with its legacy fraud detection system for credit cards. Built on a series of rigid, manually crafted rules (e.g., "Flag transaction if amount > $5,000 AND foreign country"), the system was producing an unbearable 95% false positive rate. Every flagged transaction required manual review by a human analyst, costing the bank tens of millions annually in operational expenses, not to mention the customer dissatisfaction from unnecessarily blocked cards. 
+    </p>
+    <p>
+      By transitioning to an ensemble machine learning model trained on hundreds of engineered features—velocity of transactions, IP geolocation mismatches, behavioral deviations from historical baselines—the bank reduced false positives by 60% while simultaneously catching 30% more actual fraud. The model didn't just look at rules; it looked at complex, non-linear interactions.
+    </p>
+    <p>
+      Machine Learning (ML) in finance is fundamentally about pattern recognition in high-dimensional, noisy data. Whether predicting corporate defaults, parsing millions of news articles for sentiment, or forecasting short-term volatility, modern data science provides tools that classical econometric models cannot match in predictive power. However, with this power comes complexity. A black-box algorithm predicting mortgage defaults is useless to a regulator unless its decisions can be explained, validated, and proven not to overfit historical anomalies. Thus, financial machine learning is not just about prediction accuracy; it is equally about <em>explainability, stability, and risk management</em>.
+    </p>
+  </section>
+
+  <section id="formal-theory">
+    <h2>22.4 Formal Theory</h2>
+
+    <h3>22.4.1 Feature Engineering for Finance</h3>
+    <p>
+      In financial machine learning, the quality of inputs (features) often dictates performance more than the choice of algorithm. Financial data is notoriously noisy, non-stationary, and prone to regime shifts.
+    </p>
+    <ul>
+      <li><strong>Technical Indicators & Transformations:</strong> Raw prices are rarely used due to non-stationarity. We use log returns \( r_t = \ln(P_t / P_{t-1}) \), moving averages, momentum indicators (RSI, MACD), and volatility measures (Bollinger Bands).</li>
+      <li><strong>Lagged Features & Rolling Statistics:</strong> Time series models require historical context. A feature matrix often includes \( X_{t-1}, X_{t-2}, \dots, X_{t-k} \). Rolling statistics (e.g., 30-day moving average, 60-day rolling standard deviation) capture recent trends and volatility.</li>
+      <li><strong>Calendar Features:</strong> Financial markets exhibit seasonality (e.g., month-end flows, earnings seasons). Extracting day-of-week, month, or proximity to holidays is crucial.</li>
+      <li><strong>Categorical Encoding:</strong> Variables like "Sector" or "Exchange" must be digitized. 
+        <ul>
+          <li><em>One-Hot Encoding:</em> Creates binary columns for each category. Can lead to high dimensionality (curse of dimensionality).</li>
+          <li><em>Target Encoding:</em> Replaces a category with the average target value for that category (e.g., replacing "Tech Sector" with the historical average default rate of tech companies). Requires careful cross-validation to prevent data leakage.</li>
+        </ul>
+      </li>
+      <li><strong>Feature Scaling:</strong> Crucial for distance-based algorithms and neural networks. Standardization (Z-score) \( z = \frac{x - \mu}{\sigma} \) or Min-Max scaling.</li>
+    </ul>
+
+    <h3>22.4.2 Regularized Regression</h3>
+    <p>
+      Ordinary Least Squares (OLS) can overfit when the number of features \( p \) is large relative to observations \( n \), or when features are highly collinear (common in finance). Regularization adds a penalty term to the loss function to constrain coefficients.
+    </p>
+    <div class="definition">
+      <div class="box-title">Definition: Ridge, LASSO, and Elastic Net</div>
+      <div class="box-content">
+        Let \( \mathcal{L}(\beta) \) be the Mean Squared Error loss. Regularized regression minimizes:
+        \[ \hat{\beta} = \arg\min_{\beta} \left\{ \sum_{i=1}^n (y_i - x_i^T \beta)^2 + \lambda_1 \sum_{j=1}^p |\beta_j| + \lambda_2 \sum_{j=1}^p \beta_j^2 \right\} \]
+        <ul>
+          <li><strong>Ridge (L2 penalty):</strong> \( \lambda_1 = 0, \lambda_2 > 0 \). Shrinks coefficients but rarely to exactly zero. Good for handling multicollinearity.</li>
+          <li><strong>LASSO (L1 penalty):</strong> \( \lambda_1 > 0, \lambda_2 = 0 \). Can force coefficients to exactly zero, performing intrinsic feature selection.</li>
+          <li><strong>Elastic Net:</strong> \( \lambda_1 > 0, \lambda_2 > 0 \). A convex combination of both, useful when there are multiple correlated features.</li>
+        </ul>
+      </div>
+    </div>
+    <p>
+      <strong>Hyperparameter Selection:</strong> The penalty strength \( \lambda \) is chosen via \( K \)-fold cross-validation. In finance, this is often applied to <em>factor models</em> (e.g., selecting the most relevant macroeconomic variables out of hundreds to explain asset returns).
+    </p>
+
+    <h3>22.4.3 Decision Trees</h3>
+    <p>
+      Decision trees partition the feature space into hyper-rectangles using binary splits. The CART (Classification and Regression Trees) algorithm chooses splits that greedily maximize information gain or minimize impurity.
+    </p>
+    <p>
+      For classification, a common metric is <strong>Gini Impurity</strong>. For a node with classes \( C_i \), where \( p_i \) is the probability of an item belonging to class \( i \):
+      \[ \text{Gini} = 1 - \sum_{i} p_i^2 \]
+      Information Gain is the reduction in impurity after a split. 
+    </p>
+    <p>
+      <strong>Advantages:</strong> Highly interpretable (can be drawn as a flowchart), handles non-linear relationships, robust to outliers, requires minimal data scaling. <br>
+      <strong>Limitations:</strong> Highly unstable (small changes in data cause large changes in tree structure), prone to severe overfitting unless pruned (limiting depth or requiring minimum samples per leaf).
+    </p>
+
+    <h3>22.4.4 Random Forests</h3>
+    <p>
+      An ensemble method that builds multiple decision trees and aggregates their predictions (majority vote for classification, average for regression) to combat the high variance of individual trees.
+    </p>
+    <ul>
+      <li><strong>Bagging (Bootstrap Aggregating):</strong> Each tree is trained on a random sample of the data (with replacement).</li>
+      <li><strong>Feature Randomness:</strong> At each split, only a random subset of features (often \( \sqrt{p} \)) is considered. This decorrelates the trees.</li>
+      <li><strong>Out-of-Bag (OOB) Error:</strong> Samples not included in a bootstrap sample can act as a built-in validation set to estimate generalization error without needing a separate holdout set.</li>
+      <li><strong>Hyperparameters:</strong> `n_estimators` (number of trees), `max_depth` (tree depth), `min_samples_split`.</li>
+    </ul>
+
+    <h3>22.4.5 Gradient Boosting (XGBoost, LightGBM, CatBoost)</h3>
+    <p>
+      Unlike Random Forests which build deep independent trees, Gradient Boosting builds shallow trees <em>sequentially</em>. Each new tree attempts to correct the residual errors of the combined ensemble of previous trees.
+    </p>
+    <div class="theorem">
+      <div class="box-title">XGBoost Additive Training Objective</div>
+      <div class="box-content">
+        At step \( t \), we add tree \( f_t \) to minimize the objective:
+        \[ \mathcal{L}^{(t)} = \sum_{i=1}^n l(y_i, \hat{y}_i^{(t-1)} + f_t(x_i)) + \Omega(f_t) \]
+        where \( l \) is a differentiable loss function and \( \Omega \) is a regularization term penalizing tree complexity (number of leaves, L2 norm of leaf scores). XGBoost uses a second-order Taylor expansion (Newton steps) of the loss function for faster convergence.
+      </div>
+    </div>
+    <p>
+      <strong>Key concepts:</strong> Learning rate (shrinkage) scales the contribution of each tree. Slower learning rates generally require more trees but yield better generalization. <br>
+      <strong>Variants:</strong> <em>LightGBM</em> uses histogram-based split finding for massive speedups on large datasets. <em>CatBoost</em> natively handles categorical variables elegantly without extensive one-hot encoding.
+    </p>
+
+    <h3>22.4.6 Neural Networks and Deep Learning</h3>
+    <p>
+      Deep learning models learn hierarchical representations of data. The basic unit is the perceptron, which computes a linear combination of inputs followed by a non-linear activation function.
+      \[ z = W x + b, \quad a = g(z) \]
+    </p>
+    <ul>
+      <li><strong>Activation Functions:</strong> ReLU (\( \max(0,z) \)) solves the vanishing gradient problem of older functions like Sigmoid or Tanh, allowing for deep networks.</li>
+      <li><strong>Backpropagation:</strong> Computes gradients of the loss function with respect to weights using the chain rule.</li>
+      <li><strong>Optimizers:</strong> Stochastic Gradient Descent (SGD) updates weights using mini-batches. Adam incorporates momentum and adaptive learning rates, becoming the industry standard.</li>
+      <li><strong>Regularization:</strong> <em>Dropout</em> randomly zeroes out activations during training to prevent co-adaptation of neurons. <em>Batch Normalization</em> stabilizes training by normalizing layer inputs.</li>
+    </ul>
+
+    <h3>22.4.7 LSTMs and Sequence Models</h3>
+    <p>
+      Standard feed-forward networks cannot capture temporal dependencies. Recurrent Neural Networks (RNNs) maintain a hidden state over time, but suffer from vanishing gradients over long sequences. Long Short-Term Memory (LSTM) networks solve this via a gating mechanism.
+    </p>
+    <p>
+      An LSTM cell maintains a cell state \( C_t \). It uses three gates (sigmoid layers outputting between 0 and 1) to control information flow:
+      <br>1. <strong>Forget Gate:</strong> Decides what to discard from the previous state.
+      <br>2. <strong>Input Gate:</strong> Decides what new information to store.
+      <br>3. <strong>Output Gate:</strong> Decides what to output based on the updated state.
+    </p>
+    <p>
+      LSTMs are heavily used in quantitative finance for volatility forecasting, high-frequency trading prediction, and modeling term structures. Modern NLP has largely moved from LSTMs to <em>Attention Mechanisms</em> and Transformers, which we touch on later.
+    </p>
+
+    <h3>22.4.8 Explainability (SHAP)</h3>
+    <p>
+      Regulatory constraints (e.g., fair lending laws) prohibit "black box" models. SHAP (SHapley Additive exPlanations) provides local and global interpretability.
+    </p>
+    <div class="definition">
+      <div class="box-title">Definition: Shapley Values</div>
+      <div class="box-content">
+        Originating in cooperative game theory, a Shapley value assigns a payout to a player depending on their marginal contribution to all possible coalitions. In ML, "players" are features, and the "payout" is the prediction.
+        \[ \phi_i = \sum_{S \subseteq F \setminus \{i\}} \frac{|S|! (|F| - |S| - 1)!}{|F|!} \left[ v(S \cup \{i\}) - v(S) \right] \]
+        where \( F \) is the set of all features, \( S \) is a subset, and \( v(S) \) is the model output using only features in \( S \).
+      </div>
+    </div>
+    <p>
+      TreeSHAP is a fast algorithm for tree ensembles. SHAP <em>Force Plots</em> explain individual predictions (e.g., why a specific customer was denied a loan). <em>Summary Plots</em> show global feature importance and directionality.
+    </p>
+
+    <h3>22.4.9 Model Risk Management (SR 11-7) & Backtest Overfitting</h3>
+    <p>
+      The US Federal Reserve's SR 11-7 guidance forms the bedrock of model risk management. A model consists of inputs, processing (theory/algorithm), and reporting.
+      <br><strong>Validation phases:</strong>
+      1. <em>Conceptual Soundness:</em> Is the math/logic sound? (e.g., using random forest for extrapolation is conceptually flawed).
+      2. <em>Outcome Analysis:</em> Backtesting and benchmarking against simpler models.
+      3. <em>Ongoing Monitoring:</em> Tracking performance decay (concept drift).
+    </p>
+    <p>
+      <strong>Backtest Overfitting:</strong> "If you torture the data long enough, it will confess." Running thousands of model variations and selecting the best backtest leads to selection bias. The <em>Deflated Sharpe Ratio (DSR)</em> adjusts the standard Sharpe ratio to account for the number of trials attempted. Cross-validation in finance must respect time (Walk-Forward or Combinatorial Purged CV) to prevent data leakage from the future into the past.
+    </p>
+
+    <h3>22.4.10 Credit Scoring & Fraud Detection</h3>
+    <p>
+      <strong>Credit Scoring (Scorecards):</strong> While complex models exist, many banks still use Logistic Regression based on Weight of Evidence (WoE) for strict regulatory compliance and interpretability.
+      <br>
+      For a binned characteristic, WoE is:
+      \[ \text{WoE}_i = \ln \left( \frac{\text{\% of Good Customers in bin } i}{\text{\% of Bad Customers in bin } i} \right) \]
+      Information Value (IV) aggregates WoE to measure predictive power:
+      \[ \text{IV} = \sum_{i} (\text{\% Good}_i - \text{\% Bad}_i) \times \text{WoE}_i \]
+      Features with IV < 0.02 are useless; > 0.3 is strong. Scorecards translate log-odds into points (e.g., Points to Double the Odds).
+    </p>
+    <p>
+      <strong>Fraud Detection:</strong> Characterized by massive class imbalance (e.g., 0.1% fraud). Standard accuracy is a terrible metric; models will simply predict "Not Fraud" 100% of the time. We must use Precision-Recall AUC or F1-score.
+      Handling techniques include SMOTE (Synthetic Minority Over-sampling Technique) or using Anomaly Detection algorithms (Isolation Forests, Autoencoders) which identify data points far from normal distributions.
+    </p>
+
+    <h3>22.4.11 Alternative Data & NLP</h3>
+    <p>
+      Alpha generation increasingly relies on non-traditional data (satellite images of retail parking lots, credit card receipts, social media). 
+      <br><strong>NLP for Finance:</strong> Processing 10-K filings or earnings calls.
+      <ul>
+        <li><em>Text Preprocessing:</em> Tokenization, stop-word removal, stemming.</li>
+        <li><em>TF-IDF (Term Frequency-Inverse Document Frequency):</em> Weighs word importance.</li>
+        <li><em>Sentiment:</em> Using the Loughran-McDonald dictionary (tailored for finance, where "liability" is not necessarily a negative sentiment word, but a balance sheet item).</li>
+        <li><em>FinBERT:</em> A Transformer-based model pre-trained on financial text for highly accurate sentiment classification.</li>
+      </ul>
+    </p>
+  </section>
+
+  <section id="worked-examples">
+    <h2>22.5 Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 22.1: Credit Scoring with WoE and IV</div>
+      <div class="box-content">
+        <strong>Problem:</strong> A bank is evaluating a 'Revolving Balance' feature for a scorecard. The total dataset has 10,000 Goods and 1,000 Bads. The feature is split into two bins: <br>
+        Bin 1 (Balance < $5,000): 6,000 Goods, 300 Bads.<br>
+        Bin 2 (Balance >= $5,000): 4,000 Goods, 700 Bads.<br>
+        Calculate the WoE for each bin and the total IV for this feature.
+        <br><br><strong>Solution:</strong>
+        <br>Total Goods = 10,000. Total Bads = 1,000.
+        <br><em>Bin 1:</em>
+        <br>% Goods = 6,000 / 10,000 = 60.0% (0.60)
+        <br>% Bads = 300 / 1,000 = 30.0% (0.30)
+        <br>WoE_1 = ln(0.60 / 0.30) = ln(2) = 0.693
+        <br>IV_1 = (0.60 - 0.30) * 0.693 = 0.30 * 0.693 = 0.2079
+        <br><br><em>Bin 2:</em>
+        <br>% Goods = 4,000 / 10,000 = 40.0% (0.40)
+        <br>% Bads = 700 / 1,000 = 70.0% (0.70)
+        <br>WoE_2 = ln(0.40 / 0.70) = ln(0.5714) = -0.5596
+        <br>IV_2 = (0.40 - 0.70) * -0.5596 = -0.30 * -0.5596 = 0.1679
+        <br><br><em>Total IV:</em>
+        <br>IV = IV_1 + IV_2 = 0.2079 + 0.1679 = <strong>0.3758</strong>
+        <br><em>Conclusion:</em> Since IV > 0.3, this feature has strong predictive power.
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 22.2: XGBoost and SHAP Values</div>
+      <div class="box-content">
+        <strong>Problem:</strong> An XGBoost model predicts the probability of a company defaulting on its INR 50 Cr loan. The base expected log-odds of default across the portfolio is -2.0 (approx 11.9% probability). For Company X, the SHAP values for its features are:<br>
+        Debt-to-Equity Ratio: +1.5<br>
+        Profit Margin: -0.8<br>
+        Sector (Retail): +0.3<br>
+        Calculate the final predicted log-odds and probability of default for Company X. Explain the biggest driver.
+        <br><br><strong>Solution:</strong>
+        <br>SHAP values are additive. 
+        <br>Final Log-Odds = Base Value + Sum(SHAP Values)
+        <br>Final Log-Odds = -2.0 + 1.5 - 0.8 + 0.3 = -1.0
+        <br>Convert log-odds to probability: \( P = \frac{1}{1 + e^{-\text{log-odds}}} \)
+        <br>\( P = \frac{1}{1 + e^{1.0}} = \frac{1}{1 + 2.718} = \frac{1}{3.718} \approx 26.89\% \)
+        <br><em>Explanation:</em> The probability of default is 26.89%. The biggest driver pushing the risk higher is the high Debt-to-Equity ratio, which contributed +1.5 to the log-odds.
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 22.3: LSTM Parameter Calculation</div>
+      <div class="box-content">
+        <strong>Problem:</strong> An LSTM is used to forecast USD/EUR exchange rates. The input vector \( X_t \) has 5 features. The hidden state \( h_t \) size is 10. How many total learnable parameters are in a standard single LSTM layer?
+        <br><br><strong>Solution:</strong>
+        <br>A standard LSTM has 4 gates/components: Forget gate, Input gate, Output gate, and Cell state update.
+        <br>For each gate, there are weights for the input \( W_x \), weights for the hidden state \( W_h \), and a bias term \( b \).
+        <br>Input dimension \( I = 5 \). Hidden dimension \( H = 10 \).
+        <br>Parameters per gate = \( (H \times I) + (H \times H) + H \) (bias)
+        <br>Parameters per gate = \( (10 \times 5) + (10 \times 10) + 10 = 50 + 100 + 10 = 160 \)
+        <br>Total Parameters = 4 gates × 160 = <strong>640</strong>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 22.4: Fraud Detection Metrics</div>
+      <div class="box-content">
+        <strong>Problem:</strong> A fraud detection model processes 10,000 transactions. 100 are actual fraud. The model flags 150 transactions, of which 60 are actual fraud. Calculate Accuracy, Precision, and Recall. Why is Accuracy misleading?
+        <br><br><strong>Solution:</strong>
+        <br>True Positives (TP) = 60
+        <br>False Positives (FP) = 150 - 60 = 90
+        <br>False Negatives (FN) = Total Fraud (100) - TP (60) = 40
+        <br>True Negatives (TN) = Total Non-Fraud (9,900) - FP (90) = 9,810
+        <br><br>Precision = TP / (TP + FP) = 60 / 150 = <strong>40.0%</strong>
+        <br>Recall = TP / (TP + FN) = 60 / 100 = <strong>60.0%</strong>
+        <br>Accuracy = (TP + TN) / Total = (60 + 9,810) / 10,000 = 98.7%
+        <br><em>Insight:</em> A naive model predicting "Not Fraud" for everything would achieve 99.0% accuracy. The 98.7% accuracy sounds great, but masks the fact that 40% of frauds were missed, and out of all alarms, 60% were false. Precision and Recall are better metrics for imbalanced datasets.
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 22.5: Loughran-McDonald Sentiment Calculation</div>
+      <div class="box-content">
+        <strong>Problem:</strong> An excerpt from a financial filing reads: "The company experienced significant delays in production, increasing our liability. However, revenue grew substantially."
+        Using a simplified Loughran-McDonald dictionary:
+        Negative words: {delays, liability, loss, decline}
+        Positive words: {grew, substantially, strong, exceed}
+        Calculate the net sentiment score defined as (Pos - Neg) / (Pos + Neg).
+        <br><br><strong>Solution:</strong>
+        <br>Tokens matching Negative list: "delays", "liability" (Count = 2)
+        <br>Tokens matching Positive list: "grew", "substantially" (Count = 2)
+        <br>Net Sentiment = (2 - 2) / (2 + 2) = 0 / 4 = <strong>0.0</strong> (Neutral overall).
+        <br><em>Note:</em> Standard English sentiment analyzers might mistakenly classify "liability" as negative contextually, but in finance, it's just an accounting term, though the LM dictionary specifically categorizes terms based on 10-K contexts.
+      </div>
+    </div>
+  </section>
+
+  <section id="python-code">
+    <h2>22.6 Python Code: Complete Credit Scorecard Pipeline</h2>
+    <p>This snippet demonstrates calculating WoE and IV, and fitting a Logistic Regression model to simulate a basic credit scorecard.</p>
+    <pre><code class="language-python">
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_curve, auc
+
+# Simulate data
+np.random.seed(42)
+n = 5000
+balance = np.random.normal(5000, 2000, n)
+age = np.random.randint(21, 70, n)
+# Probability of default increases with lower balance and younger age
+log_odds = -2 + (5000 - balance)*0.001 + (40 - age)*0.05
+p_default = 1 / (1 + np.exp(-log_odds))
+target = np.random.binomial(1, p_default)
+
+df = pd.DataFrame({'Balance': balance, 'Age': age, 'Default': target})
+
+def calc_woe_iv(df, feature, target):
+    """Calculates Weight of Evidence and Information Value for a binned feature."""
+    # Create 5 bins
+    df['bin'] = pd.qcut(df[feature], q=5, duplicates='drop')
+    
+    grouped = df.groupby('bin', observed=True)[target].agg(['count', 'sum'])
+    grouped['good'] = grouped['count'] - grouped['sum'] # sum is total bads
+    grouped['bad'] = grouped['sum']
+    
+    total_good = grouped['good'].sum()
+    total_bad = grouped['bad'].sum()
+    
+    grouped['pct_good'] = grouped['good'] / total_good
+    grouped['pct_bad'] = grouped['bad'] / total_bad
+    
+    # Add small epsilon to avoid log(0)
+    grouped['woe'] = np.log((grouped['pct_good'] + 1e-10) / (grouped['pct_bad'] + 1e-10))
+    grouped['iv'] = (grouped['pct_good'] - grouped['pct_bad']) * grouped['woe']
+    
+    iv_total = grouped['iv'].sum()
+    return grouped, iv_total
+
+# Calculate for Balance
+woe_df, iv_val = calc_woe_iv(df.copy(), 'Balance', 'Default')
+print(f"Information Value for Balance: {iv_val:.4f}")
+
+# Fit Logistic Regression using continuous variables for simplicity
+X = df[['Balance', 'Age']]
+y = df['Default']
+clf = LogisticRegression(class_weight='balanced')
+clf.fit(X, y)
+
+# Predict probabilities
+preds = clf.predict_proba(X)[:, 1]
+
+# Calculate Gini and KS Statistic
+fpr, tpr, thresholds = roc_curve(y, preds)
+roc_auc = auc(fpr, tpr)
+gini = 2 * roc_auc - 1
+ks_stat = np.max(tpr - fpr)
+
+print(f"Gini Coefficient: {gini:.4f}")
+print(f"KS Statistic: {ks_stat:.4f}")
+    </code></pre>
+  </section>
+
+  <section id="diagrams">
+    <h2>22.7 Key Diagrams Description</h2>
+    <ul>
+      <li><strong>Figure 22.1: ROC Curve and KS Statistic</strong> - A standard plot showing the True Positive Rate against False Positive Rate. The KS statistic is visually represented as the maximum vertical distance between the cumulative distribution of positive events (defaults) and negative events.</li>
+      <li><strong>Figure 22.2: Decision Tree vs Random Forest</strong> - A schematic showing a single deep, complex decision tree over-fitting data points compared to an ensemble of shallow trees averaging their boundaries to create a smoother, more robust decision surface.</li>
+      <li><strong>Figure 22.3: LSTM Cell Architecture</strong> - A flowchart illustrating the internal mechanics of an LSTM cell, highlighting the multiplication gates (Forget, Input, Output) and the addition operations that update the long-term cell state.</li>
+      <li><strong>Figure 22.4: SHAP Summary Plot</strong> - A horizontal swarm plot showing feature importance on the y-axis. The x-axis shows the SHAP value (impact on model output). Dots are colored by the original feature value (e.g., Red for high values, Blue for low values), showing non-linear directional impacts.</li>
+    </ul>
+  </section>
+
+  <section id="common-mistakes">
+    <h2>22.8 Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Warning: Pitfalls in Financial ML</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Look-ahead Bias (Data Leakage):</strong> Scaling features using the entire dataset's mean/variance before splitting into train/test. You are leaking future information into the past.</li>
+          <li><strong>Ignoring Stationarity:</strong> Feeding raw prices into an LSTM instead of returns. The model will fail dramatically during regime shifts.</li>
+          <li><strong>Over-relying on Accuracy for Fraud:</strong> As shown in Example 22.4, accuracy is useless for highly imbalanced credit/fraud datasets.</li>
+          <li><strong>Blindly using K-Fold CV on Time Series:</strong> Standard cross-validation randomly shuffles data. In finance, predicting 2018 using data from 2020 is nonsensical. Walk-forward validation must be used.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="industry-application">
+    <h2>22.9 Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Industry Application: Alternative Data in Hedge Funds</div>
+      <div class="box-content">
+        Quantitative hedge funds have moved far beyond price and volume data. Consider a fund trying to predict quarterly earnings for a retail giant like Walmart. 
+        <br><br>
+        Instead of waiting for the earnings report, they utilize:
+        <ul>
+          <li><strong>Satellite Imagery:</strong> Counting the number of cars in Walmart parking lots across the US daily to estimate foot traffic.</li>
+          <li><strong>Credit Card Aggregation:</strong> Buying anonymized credit card receipt data to track real-time consumer spending shifts.</li>
+          <li><strong>Web Scraping:</strong> Scraping prices of thousands of items on Walmart.com daily to detect early signs of discounting and margin compression.</li>
+        </ul>
+        This data is fed into extreme gradient boosting (XGBoost) models to forecast revenue with high precision. However, this raises ethical and regulatory considerations. If a fund buys data not publicly available, does it constitute insider trading? The SEC actively monitors the sourcing and use of alternative data to ensure a level playing field.
+      </div>
+    </div>
+  </section>
+
+  <section id="summary-formulas">
+    <h2>22.10 Summary & Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <strong>Model Evaluation Metrics:</strong>
+      <ul>
+        <li>Precision = \( \frac{TP}{TP + FP} \)</li>
+        <li>Recall = \( \frac{TP}{TP + FN} \)</li>
+        <li>F1-Score = \( 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}} \)</li>
+        <li>Gini Coefficient = \( 2 \times \text{AUC} - 1 \)</li>
+        <li>Weight of Evidence (WoE) = \( \ln \left( \frac{\%\text{Good}}{\%\text{Bad}} \right) \)</li>
+        <li>Information Value (IV) = \( \sum (\%\text{Good} - \%\text{Bad}) \times \text{WoE} \)</li>
+      </ul>
+      <strong>Regularization penalties:</strong>
+      <ul>
+        <li>Ridge (L2): \( \lambda \sum \beta_j^2 \)</li>
+        <li>LASSO (L1): \( \lambda \sum |\beta_j| \)</li>
+      </ul>
+      <strong>Shapley Value core formula:</strong>
+      <ul>
+        <li>\( \phi_i = \sum \frac{|S|! (|F| - |S| - 1)!}{|F|!} [v(S \cup \{i\}) - v(S)] \)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="exercises">
+    <h2>22.11 Exercises</h2>
+    <div class="exercises">
+      
+      <div class="exercise-group">
+        <h3>Basic Questions</h3>
+        <div class="exercise-item">
+          <strong>1.</strong> Explain the difference between L1 (LASSO) and L2 (Ridge) regularization. Which one is more likely to reduce the number of features in a model?
+        </div>
+        <div class="exercise-item">
+          <strong>2.</strong> Calculate the WoE for a bin containing 15% of total Goods and 5% of total Bads.
+        </div>
+        <div class="exercise-item">
+          <strong>3.</strong> Why is standard k-fold cross-validation inappropriate for financial time series data?
+        </div>
+        <div class="exercise-item">
+          <strong>4.</strong> A model predicts 1,000 transactions as fraudulent. 200 are actually fraudulent. There were 500 total fraudulent transactions in the dataset. Calculate Precision and Recall.
+        </div>
+        <div class="exercise-item">
+          <strong>5.</strong> Describe the vanishing gradient problem and how LSTMs attempt to solve it.
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Intermediate Questions</h3>
+        <div class="exercise-item">
+          <strong>6.</strong> A Random Forest is trained on a dataset. The OOB (Out-of-Bag) error is significantly higher than the training error. What hyperparameters would you adjust to reduce overfitting?
+        </div>
+        <div class="exercise-item">
+          <strong>7.</strong> Explain the Gini Impurity metric. Calculate the Gini Impurity for a classification node containing 40 "Default" and 60 "No Default" instances.
+        </div>
+        <div class="exercise-item">
+          <strong>8.</strong> What is Target Encoding? Why must it be implemented carefully within a cross-validation loop?
+        </div>
+        <div class="exercise-item">
+          <strong>9.</strong> Using the Loughran-McDonald context, explain why the word "liability" might be negative in a general text but neutral in a 10-K filing.
+        </div>
+        <div class="exercise-item">
+          <strong>10.</strong> An XGBoost model has a high learning rate (0.5). What is the likely impact on the number of trees (n_estimators) required to reach optimal performance compared to a learning rate of 0.01?
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Advanced Questions</h3>
+        <div class="exercise-item">
+          <strong>11.</strong> Derive the total number of parameters in a single LSTM layer given an input dimension of \( N \) and a hidden state dimension of \( M \).
+        </div>
+        <div class="exercise-item">
+          <strong>12.</strong> Outline the three core pillars of Model Risk Management according to SR 11-7 and provide an example of a failure in each pillar for an ML credit model.
+        </div>
+        <div class="exercise-item">
+          <strong>13.</strong> Explain the concept of the Deflated Sharpe Ratio (DSR) in the context of backtest overfitting.
+        </div>
+        <div class="exercise-item">
+          <strong>14.</strong> You are building a fraud detection model with 0.1% fraud prevalence. Compare the theoretical impact of using SMOTE versus cost-sensitive learning (assigning a high class weight to fraud).
+        </div>
+        <div class="exercise-item">
+          <strong>15.</strong> Explain how SHAP values solve the inconsistency problem that standard feature importance metrics (like split count or gain in trees) suffer from.
+        </div>
+      </div>
+
+      <div class="solutions">
+        <h3>Selected Solutions</h3>
+        <div class="solution-item">
+          <strong>Solution to 1:</strong> L1 adds a penalty equal to the absolute value of coefficients, while L2 adds a penalty equal to the square of coefficients. L1 (LASSO) is more likely to reduce features because its geometry (diamond shape constraint) causes the optimization to intersect at axes, driving coefficients exactly to zero.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 2:</strong> WoE = ln(0.15 / 0.05) = ln(3) ≈ 1.0986.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 4:</strong> Precision = TP / (TP + FP) = 200 / 1000 = 20%. Recall = TP / Total Actual = 200 / 500 = 40%.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 6:</strong> To reduce overfitting in a Random Forest, decrease `max_depth` (shallower trees), increase `min_samples_split` (require more data to split), or decrease `max_features` (increase randomness). You generally do not decrease `n_estimators`, as more trees usually reduce variance without increasing bias.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 7:</strong> Total instances = 100. \( p(\text{Default}) = 0.4 \), \( p(\text{No Default}) = 0.6 \). Gini = \( 1 - (0.4^2 + 0.6^2) = 1 - (0.16 + 0.36) = 1 - 0.52 = 0.48 \).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 11:</strong> An LSTM has 4 gates. Each gate requires weights for input (\( M \times N \)), weights for hidden state (\( M \times M \)), and bias (\( M \)). Total parameters = \( 4 \times (MN + M^2 + M) \).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 13:</strong> The DSR adjusts the Sharpe Ratio downward based on the number of backtest trials and the correlation of the returns among trials. It accounts for selection bias; if you test 10,000 random strategies, the max Sharpe Ratio will be artificially high by chance. DSR calculates the probability that the observed Sharpe is statistically significant given the multiple testing.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="further-reading">
+    <h2>22.12 Further Reading</h2>
+    <div class="further-reading">
+      <ul>
+        <li>Marcos Lopez de Prado (2018). <em>Advances in Financial Machine Learning</em>. Wiley. (Essential reading for backtest overfitting and financial cross-validation).</li>
+        <li>Trevor Hastie, Robert Tibshirani, and Jerome Friedman (2009). <em>The Elements of Statistical Learning</em>. Springer. (Foundation for regularized regression, trees, and boosting).</li>
+        <li>Board of Governors of the Federal Reserve System (2011). <em>SR 11-7: Guidance on Model Risk Management</em>.</li>
+        <li>Lundberg, S. M., & Lee, S. I. (2017). <em>A Unified Approach to Interpreting Model Predictions (SHAP)</em>. Advances in Neural Information Processing Systems.</li>
+        <li>Loughran, T., & McDonald, B. (2011). <em>When Is a Liability Not a Liability? Textual Analysis, Dictionaries, and 10-Ks</em>. The Journal of Finance, 66(1), 35-65.</li>
+      </ul>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch21_corporate_finance.html">← Previous Chapter (Ch 21: Corporate Finance)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch23_insurance_fundamentals.html">Next Chapter (Ch 23: Insurance Fundamentals) →</a>
+  </nav>
+
+</body>
+</html>

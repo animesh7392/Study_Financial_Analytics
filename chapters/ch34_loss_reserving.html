@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 34: Loss Reserving</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 34: Loss Reserving</h1>
+
+  <div class="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul>
+      <li>Understand the structure of Claims Development Triangles and distinguish between accident year, development year, and calendar year.</li>
+      <li>Calculate unpaid claims reserves using deterministic methods: Chain Ladder (CL), Bornhuetter-Ferguson (BF), and Cape Cod.</li>
+      <li>Apply stochastic reserving frameworks, specifically Mack's Model and Bootstrap Chain Ladder, to estimate reserve variability.</li>
+      <li>Understand Generalized Linear Models (GLM) for reserving using over-dispersed Poisson.</li>
+      <li>Estimate tail factors and compare paid vs. incurred data.</li>
+      <li>Grasp the reserving implications under Actuarial Standards like IFRS 17 and Solvency II.</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <p>This chapter builds directly on <strong>Chapter 33: Ratemaking</strong>, where we priced policies based on expected future losses. Understanding expected loss ratios is crucial for methods like Bornhuetter-Ferguson. A strong grasp of generalized linear models (<strong>Chapter 12</strong>) and stochastic processes (<strong>Chapter 18</strong>) is required for Mack's Model and GLM reserving.</p>
+  </div>
+
+  <h2>3. Intuition & Motivation</h2>
+  <p>Imagine you manage a large property & casualty (P&C) insurance company. You've collected $100 million in premium this year. Over the course of the year, policyholders get into accidents, and some claims are immediately reported and paid. However, by December 31, many accidents have occurred but haven't been reported yet (Incurred But Not Reported - IBNR). Additionally, claims that have been reported might be more expensive than initially estimated (Incurred But Not Enough Reported - IBNER). If you simply wait for all claims to settle before setting aside money, you might distribute dividends to shareholders prematurely and go bankrupt when the final bills arrive years later.</p>
+  <p>Loss reserving is the actuary's time machine. We use historical patterns of how claims are reported and paid over time to predict the final ultimate cost of claims that have already occurred. This "unpaid claim estimate" or "reserve" is the largest liability on a P&C insurer's balance sheet, often dwarfing shareholders' equity. Small errors in reserving can turn reported profits into massive losses, triggering regulatory intervention.</p>
+
+  <h2>4. Formal Theory</h2>
+  
+  <h3>4.1 Claims Development Triangle</h3>
+  <p>Data for loss reserving is typically organized in a <strong>run-off triangle</strong> or development triangle. Let \( i \in \{1, 2, \dots, I\} \) denote the origin period (e.g., accident year) and \( j \in \{1, 2, \dots, J\} \) denote the development period (e.g., development year), with \( I = J \) typically representing the current evaluation date.</p>
+  <ul>
+    <li><strong>Accident Year (\(i\)):</strong> The year the loss event occurred.</li>
+    <li><strong>Development Year (\(j\)):</strong> The number of years since the accident year.</li>
+    <li><strong>Calendar Year (\(i + j - 1\)):</strong> The year the payment or evaluation was made. For the current evaluation date, \( i + j - 1 = I \).</li>
+  </ul>
+  <p>Let \( C_{i,j} \) be the cumulative claims paid (or incurred) for accident year \( i \) evaluated at the end of development year \( j \). The incremental claims are \( X_{i,j} = C_{i,j} - C_{i,j-1} \) (with \( C_{i,0} = 0 \)). The observable data is the upper triangle: \( \mathcal{D}_I = \{ C_{i,j} : i+j-1 \le I \} \). The goal is to predict the lower triangle: \( \{ C_{i,j} : i+j-1 > I \} \) and ultimately the final value \( C_{i,J} \).</p>
+
+  <h3>4.2 Chain Ladder (CL) Method</h3>
+  <div class="definition">
+    <div class="box-title">Definition: Chain Ladder Method</div>
+    <div class="box-content">
+      <p>The Chain Ladder method assumes that the proportional development of claims from one period to the next is consistent across origin periods. The expected value of future cumulative claims is proportional to the current cumulative claims.</p>
+    </div>
+  </div>
+  <p>We compute historical age-to-age factors (or link ratios) for \( j = 1, \dots, J-1 \):
+  \[ f_{i,j} = \frac{C_{i,j+1}}{C_{i,j}} \]
+  The selected development factor \( f_j \) is typically an average of historical \( f_{i,j} \). Common selections include:</p>
+  <ul>
+    <li><strong>Volume-weighted average:</strong> \( \hat{f}_j = \frac{\sum_{i=1}^{I-j} C_{i,j+1}}{\sum_{i=1}^{I-j} C_{i,j}} \)</li>
+    <li><strong>Simple average:</strong> \( \hat{f}_j = \frac{1}{I-j} \sum_{i=1}^{I-j} f_{i,j} \)</li>
+    <li><strong>Last 3 or 5 years:</strong> Averages restricted to recent calendar periods to reflect changing trends.</li>
+  </ul>
+  <p>The ultimate claims for accident year \( i \) are projected as:
+  \[ \hat{C}_{i,J} = C_{i, I-i+1} \prod_{k=I-i+1}^{J-1} \hat{f}_k \]
+  The IBNR (in a broad sense, meaning total unpaid claims) is:
+  \[ \text{IBNR}_i = \hat{C}_{i,J} - C_{i, I-i+1} \]
+  </p>
+
+  <h3>4.3 Bornhuetter-Ferguson (BF) Method</h3>
+  <p>The Chain Ladder method is highly sensitive to the current cumulative claims \( C_{i, I-i+1} \), especially for recent accident years where development is immature. The Bornhuetter-Ferguson method introduces an <em>a priori</em> estimate of ultimate claims, \( \mu_i \), often derived from a prior expected loss ratio (ELR) multiplied by earned premium \( P_i \).</p>
+  <div class="theorem">
+    <div class="box-title">Theorem: BF IBNR Formula</div>
+    <div class="box-content">
+      <p>Let \( \text{CDF}_j = \prod_{k=j}^{J-1} \hat{f}_k \) be the cumulative development factor from age \( j \) to ultimate. The proportion of ultimate claims expected to emerge after evaluation age \( j \) is \( q_j = 1 - \frac{1}{\text{CDF}_j} \). The BF reserve for accident year \( i \) evaluated at age \( j = I-i+1 \) is:</p>
+      <p>\[ \text{IBNR}_i^{\text{BF}} = \mu_i \times \left(1 - \frac{1}{\text{CDF}_{I-i+1}}\right) \]</p>
+      <p>The total projected ultimate claims under BF are: \( \hat{C}_{i,J}^{\text{BF}} = C_{i, I-i+1} + \text{IBNR}_i^{\text{BF}} \).</p>
+    </div>
+  </div>
+
+  <h3>4.4 Cape Cod Method</h3>
+  <p>The Cape Cod (or Stanard-Bühlmann) method is a variant of BF that estimates a single overall Expected Loss Ratio (ELR) from the data rather than relying on an external <em>a priori</em> estimate. It introduces the concept of "used-up premium" \( P_i / \text{CDF}_{I-i+1} \).</p>
+  <p>The overall ELR is estimated as:
+  \[ \text{ELR}_{\text{CC}} = \frac{\sum_{i=1}^{I} C_{i, I-i+1}}{\sum_{i=1}^{I} P_i / \text{CDF}_{I-i+1}} \]
+  The <em>a priori</em> ultimate for year \( i \) is then \( \mu_i = P_i \times \text{ELR}_{\text{CC}} \), which is then plugged into the standard BF formula.</p>
+
+  <h3>4.5 Mack's Model (Stochastic Chain Ladder)</h3>
+  <p>Thomas Mack (1993) formalized the implicit statistical assumptions of the volume-weighted Chain Ladder method, allowing for the calculation of the standard error of reserves.</p>
+  <div class="definition">
+    <div class="box-title">Definition: Mack's Assumptions</div>
+    <div class="box-content">
+      <ol>
+        <li>\(\E[C_{i,j+1} \mid C_{i,1}, \dots, C_{i,j}] = f_j C_{i,j} \)</li>
+        <li>\(\Var(C_{i,j+1} \mid C_{i,1}, \dots, C_{i,j}) = \sigma_j^2 C_{i,j} \)</li>
+        <li>Accident years \( \{C_{i,1}, \dots, C_{i,J}\} \) are independent for different \( i \).</li>
+      </ol>
+    </div>
+  </div>
+  <p>Under these assumptions, the volume-weighted \(\hat{f}_j\) is an unbiased estimator for \( f_j \). The variance parameters \( \sigma_j^2 \) are estimated as:
+  \[ \hat{\sigma}_j^2 = \frac{1}{I-j-1} \sum_{i=1}^{I-j} C_{i,j} \left( \frac{C_{i,j+1}}{C_{i,j}} - \hat{f}_j \right)^2 \]
+  The Mean Squared Error of Prediction (MSEP) for a single accident year \( i \) decomposes into <strong>process variance</strong> (randomness of claims) and <strong>estimation variance</strong> (uncertainty in \(\hat{f}_j\)):
+  \[ \text{MSEP}(\hat{C}_{i,J}) \approx \hat{C}_{i,J}^2 \sum_{k=I-i+1}^{J-1} \frac{\hat{\sigma}_k^2}{\hat{f}_k^2} \left( \frac{1}{\hat{C}_{i,k}} + \frac{1}{\sum_{m=1}^{I-k} C_{m,k}} \right) \]
+  </p>
+
+  <h3>4.6 Bootstrap Chain Ladder</h3>
+  <p>Instead of relying on analytical variance approximations like Mack, bootstrapping simulates the full predictive distribution of reserves. The Over-Dispersed Poisson (ODP) bootstrap relies on Pearson residuals.</p>
+  <p>Let \( m_{i,j} \) be the expected incremental claims. The unscaled Pearson residuals are:
+  \[ r_{i,j} = \frac{X_{i,j} - m_{i,j}}{\sqrt{m_{i,j}}} \]
+  The bootstrap procedure:
+  1. Fit a model (like GLM or CL) to get fitted incrementals \( \hat{m}_{i,j} \) and residuals \( r_{i,j} \).
+  2. Resample residuals with replacement to get \( r^*_{i,j} \).
+  3. Create a pseudo-triangle of past claims: \( X^*_{i,j} = \hat{m}_{i,j} + r^*_{i,j} \sqrt{\hat{m}_{i,j}} \).
+  4. Project the pseudo-triangle to ultimate using CL to get process means.
+  5. Add process variance (e.g., using Gamma or Poisson random variables) to get simulated future payments.
+  </p>
+
+  <h3>4.7 GLM Reserving</h3>
+  <p>The Chain Ladder method is mathematically equivalent to fitting a Generalized Linear Model to incremental claims \( X_{i,j} \) assuming an Over-Dispersed Poisson (ODP) distribution with a logarithmic link function. The model incorporates row (accident year) and column (development year) factors:
+  \[ \E[X_{i,j}] = \mu_{i,j}, \quad \Var(X_{i,j}) = \phi \mu_{i,j} \]
+  \[ \ln(\mu_{i,j}) = \eta + \alpha_i + \beta_j \]
+  Where \( \alpha_1 = \beta_1 = 0 \) for identifiability. If we use Maximum Likelihood Estimation (MLE) or quasi-likelihood, the fitted marginal totals equal the observed marginal totals, matching exactly the volume-weighted CL ultimates.</p>
+
+  <h3>4.8 Paid vs Incurred Analysis</h3>
+  <p>Reserving analysis typically utilizes both paid claims and incurred claims (Paid + Case Reserves). </p>
+  <ul>
+    <li><strong>Paid Data:</strong> Objective, not subject to case reserve adequacy changes, but slow to develop and volatile.</li>
+    <li><strong>Incurred Data:</strong> Develops faster, less volatile, but sensitive to changes in company reserving philosophy (e.g., strengthening case reserves).</li>
+  </ul>
+  <p>Actuaries must check for consistency between paid and incurred projections. A growing gap between the two suggests a change in settlement rates or case reserve adequacy.</p>
+
+  <h3>4.9 Tail Factors</h3>
+  <p>Often, claims are not fully settled at the end of the observed triangle (period \( J \)). We must apply a tail factor to extrapolate development beyond \( J \). Common methods for estimating tail factors include curve fitting to the observed \( \hat{f}_j \):
+  <ul>
+    <li><strong>Exponential Decay:</strong> \( \hat{f}_j - 1 = a \cdot e^{-b j} \)</li>
+    <li><strong>Inverse Power Curve:</strong> \( \hat{f}_j - 1 = a \cdot j^{-b} \)</li>
+  </ul>
+  The tail factor is \( f_{\text{tail}} = \prod_{j=J}^{\infty} f_j \).
+  </p>
+
+  <h3>4.10 Actuarial Standards: IFRS 17 and Solvency II</h3>
+  <p>Modern reserving extends beyond point estimates to encompass risk margins and discounting.</p>
+  <ul>
+    <li><strong>IFRS 17:</strong> Requires discounting of future cash flows and an explicit Risk Adjustment for Non-Financial Risk. Models like Building Block Approach (BBA) or Premium Allocation Approach (PAA) are used. The Contractual Service Margin (CSM) represents unearned profit.</li>
+    <li><strong>Solvency II:</strong> Technical Provisions equal Best Estimate Liabilities (discounted probability-weighted average of future cash flows) plus a Risk Margin (cost of capital approach using a 6% rate).</li>
+  </ul>
+
+  <h2>5. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 34.1: Chain Ladder on a 5x5 Paid Loss Triangle</div>
+    <div class="box-content">
+      <p>Consider the following cumulative paid claims triangle (in '000s INR):</p>
+      <table style="width:50%; margin:auto; border-collapse: collapse; text-align: right;">
+        <tr><th>AY \ DY</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+        <tr><td>1</td><td>100</td><td>150</td><td>175</td><td>180</td><td>185</td></tr>
+        <tr><td>2</td><td>110</td><td>168</td><td>192</td><td>205</td><td></td></tr>
+        <tr><td>3</td><td>115</td><td>176</td><td>210</td><td></td><td></td></tr>
+        <tr><td>4</td><td>125</td><td>190</td><td></td><td></td><td></td></tr>
+        <tr><td>5</td><td>140</td><td></td><td></td><td></td><td></td></tr>
+      </table>
+      <p><strong>Step 1: Calculate age-to-age factors \( f_{i,j} \)</strong></p>
+      <p>For AY1: \( f_{1,1} = 150/100 = 1.500 \), \( f_{1,2} = 175/150 = 1.167 \), \( f_{1,3} = 180/175 = 1.029 \), \( f_{1,4} = 185/180 = 1.028 \).</p>
+      <p>For AY2: \( f_{2,1} = 168/110 = 1.527 \), \( f_{2,2} = 192/168 = 1.143 \), \( f_{2,3} = 205/192 = 1.068 \).</p>
+      <p>For AY3: \( f_{3,1} = 176/115 = 1.530 \), \( f_{3,2} = 210/176 = 1.193 \).</p>
+      <p>For AY4: \( f_{4,1} = 190/125 = 1.520 \).</p>
+      <p><strong>Step 2: Volume-weighted averages \( \hat{f}_j \)</strong></p>
+      <p>\( \hat{f}_1 = \frac{150+168+176+190}{100+110+115+125} = \frac{684}{450} = 1.520 \)</p>
+      <p>\( \hat{f}_2 = \frac{175+192+210}{150+168+176} = \frac{577}{494} = 1.168 \)</p>
+      <p>\( \hat{f}_3 = \frac{180+205}{175+192} = \frac{385}{367} = 1.049 \)</p>
+      <p>\( \hat{f}_4 = \frac{185}{180} = 1.028 \)</p>
+      <p><strong>Step 3: Cumulative Development Factors to Ultimate (CDF)</strong></p>
+      <p>\( \text{CDF}_4 = 1.028 \)</p>
+      <p>\( \text{CDF}_3 = 1.049 \times 1.028 = 1.078 \)</p>
+      <p>\( \text{CDF}_2 = 1.168 \times 1.078 = 1.259 \)</p>
+      <p>\( \text{CDF}_1 = 1.520 \times 1.259 = 1.914 \)</p>
+      <p><strong>Step 4: Ultimate Claims and IBNR</strong></p>
+      <p>AY2: Ultimate = \( 205 \times 1.028 = 210.74 \). IBNR = \( 210.74 - 205 = 5.74 \).</p>
+      <p>AY3: Ultimate = \( 210 \times 1.078 = 226.38 \). IBNR = \( 226.38 - 210 = 16.38 \).</p>
+      <p>AY4: Ultimate = \( 190 \times 1.259 = 239.21 \). IBNR = \( 239.21 - 190 = 49.21 \).</p>
+      <p>AY5: Ultimate = \( 140 \times 1.914 = 267.96 \). IBNR = \( 267.96 - 140 = 127.96 \).</p>
+      <p>Total IBNR = 199.29 ('000s INR).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 34.2: Bornhuetter-Ferguson Method</div>
+    <div class="box-content">
+      <p>Using the data from Example 34.1, assume earned premiums for AY3, AY4, and AY5 are 350, 380, and 420 ('000s INR) respectively. The <em>a priori</em> expected loss ratio is 65%. Find the BF IBNR.</p>
+      <p><strong>Step 1: Expected Ultimate Claims (\( \mu_i \))</strong></p>
+      <p>AY3: \( \mu_3 = 350 \times 0.65 = 227.5 \)</p>
+      <p>AY4: \( \mu_4 = 380 \times 0.65 = 247.0 \)</p>
+      <p>AY5: \( \mu_5 = 420 \times 0.65 = 273.0 \)</p>
+      <p><strong>Step 2: Unpaid Proportion (\( 1 - 1/\text{CDF} \))</strong></p>
+      <p>AY3 (Age 3): \( 1 - 1/1.078 = 0.0724 \)</p>
+      <p>AY4 (Age 2): \( 1 - 1/1.259 = 0.2057 \)</p>
+      <p>AY5 (Age 1): \( 1 - 1/1.914 = 0.4775 \)</p>
+      <p><strong>Step 3: BF IBNR</strong></p>
+      <p>AY3: \( 227.5 \times 0.0724 = 16.47 \)</p>
+      <p>AY4: \( 247.0 \times 0.2057 = 50.81 \)</p>
+      <p>AY5: \( 273.0 \times 0.4775 = 130.36 \)</p>
+      <p>Total BF IBNR for these years = 197.64. The BF method produces slightly different results than CL, relying heavily on the 65% ELR assumption.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 34.3: Mack's Model Standard Error</div>
+    <div class="box-content">
+      <p>For development year 1 to 2 in Example 34.1, calculate the estimated variance parameter \( \hat{\sigma}_1^2 \).</p>
+      <p>\( \hat{f}_1 = 1.520 \).</p>
+      <p>\( \hat{\sigma}_1^2 = \frac{1}{4 - 1 - 1} \left[ 100(1.500 - 1.520)^2 + 110(1.527 - 1.520)^2 + 115(1.530 - 1.520)^2 + 125(1.520 - 1.520)^2 \right] \)</p>
+      <p>\( = \frac{1}{2} \left[ 100(-0.020)^2 + 110(0.007)^2 + 115(0.010)^2 + 0 \right] \)</p>
+      <p>\( = \frac{1}{2} \left[ 0.040 + 0.00539 + 0.0115 \right] = 0.028445 \)</p>
+      <p>This \( \hat{\sigma}_1^2 \) is then used in Mack's MSEP formula to quantify the variability in the projection for the youngest accident year (AY5).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 34.4: Bootstrap Predictive Distribution</div>
+    <div class="box-content">
+      <p>An actuary runs an Over-Dispersed Poisson bootstrap on a large triangle. They generate 1,000 simulated triangles and sum the total unpaid claims for each. The resulting set of 1,000 totals has a mean of $12,500,000 and a standard deviation of $1,200,000. The 5th percentile is $10,800,000 and the 95th percentile is $14,700,000.</p>
+      <p><strong>Conclusion:</strong> The actuary can report a point estimate of $12.5M. If management desires a risk margin to be 95% confident that reserves are adequate, they should set aside $14.7M (a risk margin of $2.2M above the central estimate).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 34.5: Cape Cod ELR Calculation</div>
+    <div class="box-content">
+      <p>Using the data from Examples 34.1 and 34.2 (AY3-5). We need "Used-up Premium".</p>
+      <p>AY3: Premium = 350. \( 1/\text{CDF}_3 = 1/1.078 = 0.9276 \). Used-up Premium = \( 350 \times 0.9276 = 324.66 \).</p>
+      <p>AY4: Premium = 380. \( 1/\text{CDF}_2 = 1/1.259 = 0.7943 \). Used-up Premium = \( 380 \times 0.7943 = 301.83 \).</p>
+      <p>AY5: Premium = 420. \( 1/\text{CDF}_1 = 1/1.914 = 0.5225 \). Used-up Premium = \( 420 \times 0.5225 = 219.45 \).</p>
+      <p>Total Used-up Premium (AY3-5) = 845.94. Total known claims = \( 210 + 190 + 140 = 540 \).</p>
+      <p>Cape Cod ELR = \( 540 / 845.94 = 63.8\% \).</p>
+      <p>The Cape Cod method would then use this 63.8% ELR in place of the 65% a priori ELR used in the standard BF method.</p>
+    </div>
+  </div>
+
+  <h2>6. Python Code</h2>
+  <pre><code class="language-python">
+import numpy as np
+
+# Cumulative triangle (0 for missing lower triangle)
+triangle = np.array([
+    [100, 150, 175, 180, 185],
+    [110, 168, 192, 205,   0],
+    [115, 176, 210,   0,   0],
+    [125, 190,   0,   0,   0],
+    [140,   0,   0,   0,   0]
+], dtype=float)
+
+I, J = triangle.shape
+f_factors = []
+
+# Calculate volume weighted age-to-age factors
+for j in range(J - 1):
+    sum_c_j = 0
+    sum_c_j1 = 0
+    for i in range(I - 1 - j):
+        sum_c_j += triangle[i, j]
+        sum_c_j1 += triangle[i, j + 1]
+    f = sum_c_j1 / sum_c_j
+    f_factors.append(f)
+
+print(f"Age-to-age factors: {[round(f, 3) for f in f_factors]}")
+
+# Square the triangle
+sq_triangle = np.copy(triangle)
+for i in range(1, I):
+    for j in range(I - i, J):
+        sq_triangle[i, j] = sq_triangle[i, j - 1] * f_factors[j - 1]
+
+print("Squared Triangle:\n", np.round(sq_triangle, 1))
+
+# Calculate IBNR
+ibnr = 0
+for i in range(1, I):
+    latest_observed = triangle[i, I - i - 1]
+    ultimate = sq_triangle[i, J - 1]
+    ibnr += (ultimate - latest_observed)
+    
+print(f"Total CL IBNR: {round(ibnr, 2)}")
+  </code></pre>
+
+  <h2>7. Diagrams Description</h2>
+  <p><strong>Figure 34.1: Claims Development Pattern</strong><br>
+  A line chart showing the cumulative paid claims on the Y-axis versus development age on the X-axis. Each accident year is represented by a separate line. The lines fan out from the origin and slowly plateau as claims settle, demonstrating the maturation of each accident year.</p>
+
+  <p><strong>Figure 34.2: Bootstrap Predictive Distribution</strong><br>
+  A histogram representing the output of 10,000 bootstrap simulations of total unpaid claims. A vertical dashed line indicates the deterministic Chain Ladder point estimate (the mean), while a red solid line indicates the 99.5th percentile (Value at Risk) often used for Solvency II capital requirements. The distribution is visibly right-skewed.</p>
+
+  <div class="warning">
+    <div class="box-title">8. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Paid vs Incurred IBNR:</strong> IBNR derived from paid data includes both true "not reported" claims and case reserve development (IBNER). IBNR from incurred data only covers true IBNR (assuming case reserves are perfectly adequate).</li>
+        <li><strong>Ignoring Calendar Year Effects:</strong> The standard Chain Ladder method assumes columns (development years) and rows (accident years) are independent. It fails to explicitly capture diagonal effects, such as a sudden spike in claims inflation affecting all accident years in a specific calendar year.</li>
+        <li><strong>Over-relying on CL for young years:</strong> The Chain Ladder method projects an enormous amount of claims based on a tiny early observation. The BF method is much safer for immature accident years.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">9. Industry Application: Reserving at a Global Insurer</div>
+    <div class="box-content">
+      <p>At a large multinational insurer, loss reserving is not just about mathematical formulas; it's a critical corporate governance process. Actuarial teams perform detailed reviews every quarter. They segment data into hundreds of homogeneous reserving classes (e.g., UK Commercial Motor, US Workers' Compensation). They apply CL, BF, and Cape Cod to both Paid and Incurred data, creating multiple views of the ultimate.</p>
+      <p>The selected ultimate is rarely a pure mechanical output. Actuaries apply "expert judgment" to select development factors, often holding meetings with claims adjusters and underwriters to understand operational changes (e.g., "Did we speed up claims processing this year?"). Finally, the Chief Actuary must sign off on the reserves, and external auditors rigorously review the methodology and assumptions to prevent earnings manipulation.</p>
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>Volume-weighted link ratio:</strong> \( \hat{f}_j = \frac{\sum_{i} C_{i,j+1}}{\sum_{i} C_{i,j}} \)</li>
+      <li><strong>Chain Ladder Ultimate:</strong> \( \hat{C}_{i,J} = C_{i, I-i+1} \prod_{k=I-i+1}^{J-1} \hat{f}_k \)</li>
+      <li><strong>Cumulative Development Factor (CDF):</strong> \( \text{CDF}_j = \prod_{k=j}^{J-1} \hat{f}_k \)</li>
+      <li><strong>Proportion Unpaid:</strong> \( q_j = 1 - \frac{1}{\text{CDF}_j} \)</li>
+      <li><strong>Bornhuetter-Ferguson IBNR:</strong> \( \text{IBNR}_i^{\text{BF}} = \mu_i \times q_{I-i+1} \)</li>
+      <li><strong>Cape Cod ELR:</strong> \( \text{ELR}_{\text{CC}} = \frac{\sum C_{i, I-i+1}}{\sum P_i / \text{CDF}_{I-i+1}} \)</li>
+    </ul>
+  </div>
+
+  <div class="exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">1. Define the difference between Accident Year, Calendar Year, and Development Year.</div>
+      <div class="exercise-item">2. Given cumulative claims \( C_{1,1} = 50, C_{1,2} = 80, C_{2,1} = 60 \), calculate the volume-weighted \( \hat{f}_1 \) and project \( \hat{C}_{2,2} \).</div>
+      <div class="exercise-item">3. If the CDF to ultimate is 2.50, what percentage of ultimate claims is expected to be paid out <em>after</em> this point?</div>
+      <div class="exercise-item">4. Explain why the BF method is often preferred over the Chain Ladder method for the most recent accident year.</div>
+    </div>
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">5. An insurer has earned premium of $10M for AY2022. The <em>a priori</em> ELR is 70%. Current paid claims are $2M. The CDF to ultimate is 1.80. Calculate the BF IBNR and the BF Ultimate.</div>
+      <div class="exercise-item">6. Using the data in Exercise 5, what would the ultimate claims be under the pure Chain Ladder method? Why is it lower than the BF ultimate?</div>
+      <div class="exercise-item">7. Outline the three main assumptions of Mack's stochastic chain ladder model.</div>
+      <div class="exercise-item">8. Describe how calendar year inflation can distort a traditional claims development triangle. Which diagonal represents the most recent calendar year?</div>
+    </div>
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">9. Prove that fitting a Poisson GLM with a log link function to incremental claims yields the same ultimate reserve estimates as the volume-weighted Chain Ladder method. State the necessary constraints on the parameters.</div>
+      <div class="exercise-item">10. Calculate the Cape Cod ELR given the following: AY1 (Prem: 100, Claims: 60, CDF: 1.1), AY2 (Prem: 120, Claims: 50, CDF: 1.5). Calculate the Cape Cod IBNR for AY2.</div>
+      <div class="exercise-item">11. A tail factor is estimated using an exponential decay model \( f_j - 1 = a e^{-bj} \). Given \( \hat{f}_8 = 1.05 \) and \( \hat{f}_9 = 1.03 \), estimate the parameters \( a \) and \( b \).</div>
+      <div class="exercise-item">12. Explain the procedural steps of the Over-Dispersed Poisson Bootstrap method. How does it generate a predictive distribution rather than just a point estimate?</div>
+    </div>
+
+    <h3>Solutions to Selected Exercises</h3>
+    <div class="solution-item">
+      <strong>Solution to 2:</strong> \( \hat{f}_1 = \frac{80}{50} = 1.6 \). Projecting for AY2: \( \hat{C}_{2,2} = C_{2,1} \times \hat{f}_1 = 60 \times 1.6 = 96 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 3:</strong> Unpaid proportion \( = 1 - 1/\text{CDF} = 1 - 1/2.50 = 1 - 0.40 = 0.60 \) or 60%.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 5:</strong> Expected Ultimate = $10M \times 70\% = $7M. Unpaid proportion = \( 1 - 1/1.80 = 0.444 \). BF IBNR = \( 7M \times 0.444 = \$3.11M \). BF Ultimate = Paid + IBNR = $2M + $3.11M = $5.11M.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 6:</strong> Chain Ladder Ultimate = \( 2M \times 1.80 = \$3.6M \). It is lower because CL relies solely on the currently low paid claims ($2M), whereas BF anchors to the prior expectation ($7M).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 10:</strong> 
+      Used-up Premium AY1 = \( 100 / 1.1 = 90.91 \). Used-up AY2 = \( 120 / 1.5 = 80 \). Total Used-up = 170.91. 
+      Total Claims = \( 60 + 50 = 110 \). 
+      Cape Cod ELR = \( 110 / 170.91 = 0.6436 \) (64.36%). 
+      AY2 <em>a priori</em> ultimate = \( 120 \times 0.6436 = 77.23 \). 
+      Unpaid proportion AY2 = \( 1 - 1/1.5 = 1 - 0.667 = 0.333 \). 
+      AY2 Cape Cod IBNR = \( 77.23 \times 0.333 = 25.74 \).
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <h2>12. Further Reading</h2>
+    <ul>
+      <li>Wüthrich, M. V., & Merz, M. (2008). <em>Stochastic Claims Reserving Methods in Insurance</em>. John Wiley & Sons.</li>
+      <li>Mack, T. (1993). Distribution-free calculation of the standard error of chain ladder reserve estimates. <em>ASTIN Bulletin: The Journal of the IAA</em>, 23(2), 213-225.</li>
+      <li>Friedland, J. (2010). <em>Estimating Unpaid Claims Using Basic Techniques</em>. Casualty Actuarial Society.</li>
+      <li>England, P. D., & Verrall, R. J. (2002). Stochastic claims reserving in general insurance. <em>British Actuarial Journal</em>, 8(3), 443-518.</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch33_ratemaking.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch35_reinsurance.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

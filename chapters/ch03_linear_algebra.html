@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 3: Linear Algebra</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2],
+          tr: ['\\operatorname{tr}']
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">â† Table of Contents</a>
+  
+  <h1>Chapter 3: Linear Algebra</h1>
+  
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the fundamental operations of vectors and matrices, and how they compactly represent financial models.</li>
+        <li>Master matrix decompositions, especially Cholesky and Singular Value Decomposition (SVD), and apply them to Monte Carlo simulation and factor models.</li>
+        <li>Compute and interpret eigenvalues and eigenvectors, connecting them to Principal Component Analysis (PCA) for yield curve modelling.</li>
+        <li>Apply matrix calculus to derive the optimal weights for a mean-variance portfolio.</li>
+        <li>Analyze the definiteness of matrices, specifically understanding why covariance matrices must be positive semi-definite.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds upon the scalar optimization concepts introduced in <em>Chapter 2: Calculus</em>. We will extend scalar derivatives to matrix derivatives. Moving forward, the linear algebra tools developed hereâ€”particularly covariance matrices and decompositionsâ€”are essential for <em>Chapter 4: Probability</em> and the modern portfolio theory covered in later chapters.</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>In finance and actuarial science, we rarely analyze a single asset or risk in isolation. A pension fund manager oversees thousands of different equities, bonds, and alternative investments. An insurance actuary evaluates policies across multiple intertwined demographic and geographic segments. If we try to model these using standard scalar algebra, we quickly drown in a sea of subscripts and summation signs.</p>
+  <p>Linear algebra is the mathematical language of high-dimensional spaces. By organizing data into vectors and matrices, we can perform complex operations simultaneously across all assets. For instance, calculating the overall risk (variance) of a portfolio of 500 stocks requires considering 500 individual variances and 124,750 pairwise correlations. Matrix multiplication reduces this massive calculation to a single, elegant equation: \(\sigma^2_p = \mathbf{w}^T \Sigma \mathbf{w}\). Linear algebra not only simplifies notation but also reveals deep geometric relationships in the data, such as identifying the latent factors driving the bond market through Principal Component Analysis.</p>
+
+  <h2>2. Formal Theory</h2>
+
+  <h3>2.1 Vectors</h3>
+  <div class="definition">
+    <div class="box-title">Definition 3.1: Vector</div>
+    <div class="box-content">
+      <p>A column vector \(\mathbf{x} \in \R^n\) is an ordered list of \(n\) real numbers:</p>
+      \[ \mathbf{x} = \begin{bmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{bmatrix} \]
+      <p>The elements \(x_i\) are the <em>components</em> of the vector.</p>
+    </div>
+  </div>
+  <p>Vectors support two primary operations: scalar multiplication (\(c\mathbf{x}\) multiplies each element by a scalar \(c\)) and vector addition (\(\mathbf{x} + \mathbf{y}\) adds corresponding elements). A set of vectors is <strong>linearly independent</strong> if no vector in the set can be written as a linear combination of the others.</p>
+  <p>The <strong>dot product</strong> (or inner product) of two vectors \(\mathbf{x}, \mathbf{y} \in \R^n\) is the scalar sum of the products of their corresponding entries: \(\mathbf{x}^T \mathbf{y} = \sum_{i=1}^n x_i y_i\). It measures alignment. The <strong>Euclidean norm</strong> (length) is \(\|\mathbf{x}\| = \sqrt{\mathbf{x}^T \mathbf{x}}\). The angle \(\theta\) between two vectors satisfies \(\cos(\theta) = \frac{\mathbf{x}^T \mathbf{y}}{\|\mathbf{x}\| \|\mathbf{y}\|}\).</p>
+
+  <h3>2.2 Matrices</h3>
+  <div class="definition">
+    <div class="box-title">Definition 3.2: Matrix</div>
+    <div class="box-content">
+      <p>A matrix \(A \in \R^{m \times n}\) is a rectangular array of real numbers with \(m\) rows and \(n\) columns. The element in the \(i\)-th row and \(j\)-th column is denoted \(a_{ij}\).</p>
+    </div>
+  </div>
+  <p>The <strong>transpose</strong> \(A^T\) swaps rows and columns. A matrix is <strong>symmetric</strong> if \(A = A^T\). An <strong>orthogonal</strong> matrix \(Q\) satisfies \(Q^T Q = Q Q^T = I\), meaning its columns are mutually perpendicular unit vectors.</p>
+
+  <h3>2.3 Systems of Linear Equations</h3>
+  <p>A system of \(m\) linear equations in \(n\) variables can be written compactly as \(A\mathbf{x} = \mathbf{b}\). We solve this using Gaussian elimination to reduce the augmented matrix \([A | \mathbf{b}]\) to row echelon form. The <strong>rank</strong> of \(A\) is the number of linearly independent rows (or columns). A unique solution exists if and only if \(A\) is square (\(n=n\)) and has full rank (\(\text{rank}(A) = n\)).</p>
+
+  <h3>2.4 Determinants</h3>
+  <p>The determinant, \(\det(A)\) or \(|A|\), is a scalar value defined only for square matrices. Geometrically, the absolute value of the determinant represents the volume of the parallelepiped spanned by the matrix's column vectors. A matrix is invertible if and only if \(\det(A) \neq 0\).</p>
+
+  <h3>2.5 Matrix Inverse</h3>
+  <p>For a square matrix \(A\), if there exists a matrix \(A^{-1}\) such that \(AA^{-1} = A^{-1}A = I\), then \(A^{-1}\) is the inverse of \(A\). The solution to \(A\mathbf{x} = \mathbf{b}\) is simply \(\mathbf{x} = A^{-1}\mathbf{b}\).</p>
+
+  <h3>2.6 Eigenvalues and Eigenvectors</h3>
+  <div class="definition">
+    <div class="box-title">Definition 3.3: Eigenvalues and Eigenvectors</div>
+    <div class="box-content">
+      <p>For a square matrix \(A\), a non-zero vector \(\mathbf{v}\) is an eigenvector with corresponding scalar eigenvalue \(\lambda\) if:</p>
+      \[ A\mathbf{v} = \lambda \mathbf{v} \]
+    </div>
+  </div>
+  <p>This means the matrix \(A\) acts on the vector \(\mathbf{v}\) simply by stretching or shrinking it by a factor of \(\lambda\), without changing its direction. We find eigenvalues by solving the characteristic equation \(\det(A - \lambda I) = 0\).</p>
+  <div class="theorem">
+    <div class="box-title">Theorem 3.1: Spectral Theorem for Symmetric Matrices</div>
+    <div class="box-content">
+      <p>If \(A\) is a real symmetric matrix (\(A = A^T\)), then its eigenvalues are real, and there exists an orthogonal matrix \(Q\) such that \(A = Q \Lambda Q^T\), where \(\Lambda\) is a diagonal matrix of the eigenvalues.</p>
+    </div>
+  </div>
+
+  <h3>2.7 Positive-Definite Matrices</h3>
+  <div class="definition">
+    <div class="box-title">Definition 3.4: Positive (Semi-)Definite Matrix</div>
+    <div class="box-content">
+      <p>A symmetric matrix \(A \in \R^{n \times n}\) is positive definite (PD) if for all non-zero vectors \(\mathbf{x} \in \R^n\):</p>
+      \[ \mathbf{x}^T A \mathbf{x} > 0 \]
+      <p>It is positive semi-definite (PSD) if \(\mathbf{x}^T A \mathbf{x} \geq 0\).</p>
+    </div>
+  </div>
+  <p>In finance, a covariance matrix \(\Sigma\) must be PSD. Why? Because the variance of any portfolio with weights \(\mathbf{w}\) is \(\mathbf{w}^T \Sigma \mathbf{w}\), and variance cannot be negative. If \(\Sigma\) is not PSD, there exists a portfolio with negative variance, which is impossible.</p>
+
+  <h3>2.8 Matrix Decompositions</h3>
+  <p><strong>Cholesky Decomposition:</strong> Every positive definite matrix \(A\) can be factored as \(A = L L^T\), where \(L\) is a lower triangular matrix with positive diagonal entries. This is the matrix equivalent of a square root.</p>
+  <p><strong>Singular Value Decomposition (SVD):</strong> Any rectangular matrix \(A \in \R^{m \times n}\) can be factored as \(A = U \Sigma V^T\), where \(U\) and \(V\) are orthogonal matrices and \(\Sigma\) is a diagonal matrix of singular values.</p>
+
+  <h3>2.9 Principal Component Analysis (PCA)</h3>
+  <p>PCA transforms a set of correlated variables into a set of linearly independent variables called principal components. Given a covariance matrix \(\Sigma\), we perform the eigendecomposition \(\Sigma = Q \Lambda Q^T\). The eigenvectors (columns of \(Q\)) are the principal axes, and the eigenvalues (diagonal elements of \(\Lambda\)) represent the variance explained by each component.</p>
+
+  <h3>2.10 Matrix Calculus for Finance</h3>
+  <p>When optimizing portfolios, we need to take derivatives with respect to vectors. The gradient of the linear function \(f(\mathbf{w}) = \mathbf{c}^T \mathbf{w}\) is \(\nabla_\mathbf{w} f = \mathbf{c}\). The gradient of the quadratic form (portfolio variance) \(f(\mathbf{w}) = \mathbf{w}^T \Sigma \mathbf{w}\) is:</p>
+  \[ \nabla_\mathbf{w} (\mathbf{w}^T \Sigma \mathbf{w}) = 2 \Sigma \mathbf{w} \]
+
+  <h2>3. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 3.1: Computing Portfolio Variance</div>
+    <div class="box-content">
+      <p>Consider a 3-asset portfolio with weights \(\mathbf{w} = \begin{bmatrix} 0.4 \\ 0.35 \\ 0.25 \end{bmatrix}\). The asset volatilities are \(\sigma_1 = 0.15\), \(\sigma_2 = 0.20\), \(\sigma_3 = 0.25\). The correlation matrix is:</p>
+      \[ C = \begin{bmatrix} 1.0 & 0.4 & -0.2 \\ 0.4 & 1.0 & 0.5 \\ -0.2 & 0.5 & 1.0 \end{bmatrix} \]
+      <p><strong>Step 1: Construct the covariance matrix \(\Sigma\).</strong> We know \(\Sigma_{ij} = \sigma_i \sigma_j C_{ij}\).</p>
+      \[ \Sigma = \begin{bmatrix} 0.15 & 0 & 0 \\ 0 & 0.20 & 0 \\ 0 & 0 & 0.25 \end{bmatrix} \begin{bmatrix} 1.0 & 0.4 & -0.2 \\ 0.4 & 1.0 & 0.5 \\ -0.2 & 0.5 & 1.0 \end{bmatrix} \begin{bmatrix} 0.15 & 0 & 0 \\ 0 & 0.20 & 0 \\ 0 & 0 & 0.25 \end{bmatrix} \]
+      \[ \Sigma = \begin{bmatrix} 0.0225 & 0.0120 & -0.0075 \\ 0.0120 & 0.0400 & 0.0250 \\ -0.0075 & 0.0250 & 0.0625 \end{bmatrix} \]
+      <p><strong>Step 2: Calculate \(\sigma^2_p = \mathbf{w}^T \Sigma \mathbf{w}\).</strong></p>
+      \[ \Sigma \mathbf{w} = \begin{bmatrix} 0.0225 & 0.0120 & -0.0075 \\ 0.0120 & 0.0400 & 0.0250 \\ -0.0075 & 0.0250 & 0.0625 \end{bmatrix} \begin{bmatrix} 0.4 \\ 0.35 \\ 0.25 \end{bmatrix} = \begin{bmatrix} 0.011325 \\ 0.025050 \\ 0.021375 \end{bmatrix} \]
+      \[ \sigma^2_p = \begin{bmatrix} 0.4 & 0.35 & 0.25 \end{bmatrix} \begin{bmatrix} 0.011325 \\ 0.025050 \\ 0.021375 \end{bmatrix} = 0.00453 + 0.0087675 + 0.00534375 = 0.01864125 \]
+      <p>The portfolio variance is 0.0186, giving a volatility of \(\sqrt{0.01864125} \approx 13.65\%\).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 3.2: Eigenvalues of a 2x2 Covariance Matrix</div>
+    <div class="box-content">
+      <p>Let a 2-asset covariance matrix be \(\Sigma = \begin{bmatrix} 0.04 & 0.02 \\ 0.02 & 0.05 \end{bmatrix}\). Find the eigenvalues.</p>
+      <p><strong>Step 1: Set up the characteristic equation \(\det(\Sigma - \lambda I) = 0\).</strong></p>
+      \[ \det \begin{bmatrix} 0.04 - \lambda & 0.02 \\ 0.02 & 0.05 - \lambda \end{bmatrix} = (0.04 - \lambda)(0.05 - \lambda) - (0.02)^2 = 0 \]
+      \[ \lambda^2 - 0.09\lambda + 0.0020 - 0.0004 = 0 \implies \lambda^2 - 0.09\lambda + 0.0016 = 0 \]
+      <p><strong>Step 2: Solve using the quadratic formula.</strong></p>
+      \[ \lambda = \frac{0.09 \pm \sqrt{(-0.09)^2 - 4(1)(0.0016)}}{2} = \frac{0.09 \pm \sqrt{0.0081 - 0.0064}}{2} = \frac{0.09 \pm \sqrt{0.0017}}{2} \]
+      \[ \lambda_1 \approx \frac{0.09 + 0.04123}{2} = 0.0656, \quad \lambda_2 \approx \frac{0.09 - 0.04123}{2} = 0.0244 \]
+      <p>The first principal component explains \(0.0656 / (0.0656 + 0.0244) = 72.9\%\) of the variance.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 3.3: Cholesky Decomposition for Simulation</div>
+    <div class="box-content">
+      <p>We need to simulate correlated random variables with correlation matrix \(C = \begin{bmatrix} 1.0 & 0.6 \\ 0.6 & 1.0 \end{bmatrix}\). We find the Cholesky factor \(L\) such that \(L L^T = C\).</p>
+      \[ \begin{bmatrix} l_{11} & 0 \\ l_{21} & l_{22} \end{bmatrix} \begin{bmatrix} l_{11} & l_{21} \\ 0 & l_{22} \end{bmatrix} = \begin{bmatrix} l_{11}^2 & l_{11}l_{21} \\ l_{21}l_{11} & l_{21}^2 + l_{22}^2 \end{bmatrix} = \begin{bmatrix} 1.0 & 0.6 \\ 0.6 & 1.0 \end{bmatrix} \]
+      <p>Solving term by term:</p>
+      <ul>
+        <li>\(l_{11}^2 = 1.0 \implies l_{11} = 1.0\)</li>
+        <li>\(l_{11}l_{21} = 0.6 \implies (1.0)l_{21} = 0.6 \implies l_{21} = 0.6\)</li>
+        <li>\(l_{21}^2 + l_{22}^2 = 1.0 \implies 0.36 + l_{22}^2 = 1.0 \implies l_{22}^2 = 0.64 \implies l_{22} = 0.8\)</li>
+      </ul>
+      \[ L = \begin{bmatrix} 1.0 & 0 \\ 0.6 & 0.8 \end{bmatrix} \]
+      <p>To simulate correlated returns, draw independent standard normals \(z_1, z_2\). The correlated variables are \(x_1 = z_1\) and \(x_2 = 0.6z_1 + 0.8z_2\).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 3.4: Solving Immunization Constraints</div>
+    <div class="box-content">
+      <p>A life insurer needs to construct a bond portfolio matching the present value (\(V = \$100 \text{M}\)) and duration (\(D = 8.5 \text{ yrs}\)) of liabilities. They have cash to allocate across a 5-yr bond (\(D_1 = 4.2\)) and a 10-yr bond (\(D_2 = 8.9\)). Let \(w_1, w_2\) be the portfolio weights.</p>
+      <p>Constraints:</p>
+      <ul>
+        <li>Weights sum to 1: \(w_1 + w_2 = 1\)</li>
+        <li>Match duration: \(4.2w_1 + 8.9w_2 = 8.5\)</li>
+      </ul>
+      <p>Matrix form \(A\mathbf{w} = \mathbf{b}\):</p>
+      \[ \begin{bmatrix} 1 & 1 \\ 4.2 & 8.9 \end{bmatrix} \begin{bmatrix} w_1 \\ w_2 \end{bmatrix} = \begin{bmatrix} 1 \\ 8.5 \end{bmatrix} \]
+      <p>Calculate \(A^{-1}\): \(\det(A) = (1)(8.9) - (1)(4.2) = 4.7\).</p>
+      \[ A^{-1} = \frac{1}{4.7} \begin{bmatrix} 8.9 & -1 \\ -4.2 & 1 \end{bmatrix} \]
+      \[ \mathbf{w} = A^{-1}\mathbf{b} = \frac{1}{4.7} \begin{bmatrix} 8.9 & -1 \\ -4.2 & 1 \end{bmatrix} \begin{bmatrix} 1 \\ 8.5 \end{bmatrix} = \frac{1}{4.7} \begin{bmatrix} 8.9 - 8.5 \\ -4.2 + 8.5 \end{bmatrix} = \frac{1}{4.7} \begin{bmatrix} 0.4 \\ 4.3 \end{bmatrix} \approx \begin{bmatrix} 0.085 \\ 0.915 \end{bmatrix} \]
+      <p>The insurer must invest 8.5% in the 5-yr bond and 91.5% in the 10-yr bond.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 3.5: PCA on the Yield Curve</div>
+    <div class="box-content">
+      <p>An analyst extracts the covariance matrix \(\Sigma\) of daily changes in the 1y, 5y, and 10y Treasury yields. After eigendecomposition, they find the following eigenvalues (\(\lambda_i\)) and eigenvectors (\(\mathbf{v}_i\)):</p>
+      <p>\(\lambda_1 = 8.5, \mathbf{v}_1 = [0.55, 0.58, 0.60]^T\) (Level: all maturities move up together)</p>
+      <p>\(\lambda_2 = 1.2, \mathbf{v}_2 = [-0.71, -0.05, 0.70]^T\) (Slope: short end falls, long end rises)</p>
+      <p>\(\lambda_3 = 0.3, \mathbf{v}_3 = [0.44, -0.81, 0.38]^T\) (Curvature: wings rise, belly falls)</p>
+      <p><strong>Variance Explained:</strong> Total variance = \(8.5 + 1.2 + 0.3 = 10.0\).</p>
+      <p>The first principal component (Level) explains \(8.5 / 10.0 = 85\%\) of the yield curve dynamics. The first two components explain \(97\%\).</p>
+    </div>
+  </div>
+
+  <h2>4. Python Code</h2>
+  <p>The following Python code reproduces the portfolio variance computation (Example 3.1) and the eigendecomposition (Example 3.2) using NumPy, the standard library for linear algebra in Python.</p>
+<pre><code class="language-python">import numpy as np
+
+# --- Example 3.1: Portfolio Variance ---
+weights = np.array([0.4, 0.35, 0.25])
+vols = np.array([0.15, 0.20, 0.25])
+corr_matrix = np.array([
+    [1.0, 0.4, -0.2],
+    [0.4, 1.0, 0.5],
+    [-0.2, 0.5, 1.0]
+])
+
+# Compute covariance matrix: diag(vols) * corr * diag(vols)
+diag_vols = np.diag(vols)
+cov_matrix = diag_vols @ corr_matrix @ diag_vols
+print("Covariance Matrix:\n", np.round(cov_matrix, 4))
+
+# Compute portfolio variance: w.T * Cov * w
+port_var = weights.T @ cov_matrix @ weights
+print(f"\nPortfolio Variance: {port_var:.6f}")
+print(f"Portfolio Volatility: {np.sqrt(port_var):.4%}")
+
+# --- Example 3.2: Eigendecomposition ---
+Sigma_2x2 = np.array([
+    [0.04, 0.02],
+    [0.02, 0.05]
+])
+
+eigenvalues, eigenvectors = np.linalg.eigh(Sigma_2x2)
+# Note: eigh is optimized for symmetric matrices
+
+print(f"\nEigenvalues: {np.round(eigenvalues, 4)}")
+total_var = np.sum(eigenvalues)
+print(f"Variance explained by PC1: {eigenvalues[1]/total_var:.2%}") 
+# eigh sorts eigenvalues in ascending order, so index 1 is the largest.
+</code></pre>
+
+  <h2>5. Diagrams Description</h2>
+  <ul>
+    <li><strong>Figure 3.1: Vector Projection (Placeholder).</strong> A 2D diagram showing vector \(\mathbf{y}\) projected onto vector \(\mathbf{x}\). A dashed perpendicular line drops from the tip of \(\mathbf{y}\) to \(\mathbf{x}\). This visualizes how linear regression finds the "closest" approximation in a subspace.</li>
+    <li><strong>Figure 3.2: SVD Geometric Interpretation (Placeholder).</strong> A sequence of three 2D plots. First, a unit circle representing vectors in \(\R^2\). Second, the circle rotated by \(V^T\). Third, the circle stretched into an ellipse by \(\Sigma\) and rotated by \(U\). This demonstrates how any matrix transformation is a rotation, a scaling, and another rotation.</li>
+    <li><strong>Figure 3.3: Principal Components of Yield Curve (Placeholder).</strong> A line chart with maturity on the x-axis and factor loading on the y-axis. It plots the three eigenvectors from Example 3.5: PC1 (Level, parallel shift), PC2 (Slope, crossing zero once), and PC3 (Curvature, U-shaped).</li>
+  </ul>
+
+  <h2>6. Common Mistakes & Misconceptions</h2>
+  <div class="warning">
+    <div class="box-title">Watch Out!</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Commutativity Assumption:</strong> Assuming \(AB = BA\). In general, matrix multiplication is <em>not</em> commutative. The order of multiplication is crucial.</li>
+        <li><strong>Matrix Inverse Exists for All:</strong> Attempting to invert a non-square matrix, or a square matrix with a determinant of zero (singular matrix). Use the pseudoinverse (via SVD) for non-invertible or rectangular matrices.</li>
+        <li><strong>Confusing PSD with all Positive Elements:</strong> A matrix can have negative off-diagonal elements and still be Positive Definite (like the covariance matrix in Example 3.1). Conversely, a matrix with all positive elements can be non-PD if the correlations are mathematically inconsistent.</li>
+        <li><strong>Eigenvalue Sorting:</strong> When extracting eigenvalues from software libraries (like Python's <code>np.linalg.eig</code>), they are not always sorted by magnitude. Always sort them descending to identify the primary principal components.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>7. Industry Application Box</h2>
+  <div class="industry">
+    <div class="box-title">Application: Quantitative Asset Management (Risk Models)</div>
+    <div class="box-content">
+      <p>In large-scale quantitative funds, estimating a robust covariance matrix for thousands of stocks is computationally difficult and statistically noisy. If you have 3000 stocks, the covariance matrix has \(\approx 4.5\) million unique entries. If you only use 5 years of daily data (1250 days), the matrix will be singular (non-invertible) because the number of observations is less than the number of variables.</p>
+      <p>Quants solve this using <strong>Factor Models</strong> and <strong>Matrix Factorization</strong>. Instead of modeling the full \(3000 \times 3000\) covariance matrix directly, they use PCA to identify, say, 50 latent factors driving the market. The covariance matrix is then approximated as \(\Sigma \approx B F B^T + D\), where \(B\) is the \(3000 \times 50\) matrix of factor loadings, \(F\) is the \(50 \times 50\) factor covariance matrix, and \(D\) is a diagonal matrix of idiosyncratic stock risk. This matrix algebraic trick reduces the parameters to estimate from millions down to a few thousand, ensuring the matrix is invertible and robust out-of-sample.</p>
+    </div>
+  </div>
+
+  <h2>8. Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <div class="box-title">Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Dot Product:</strong> \(\mathbf{x}^T \mathbf{y} = \sum x_i y_i = \|\mathbf{x}\|\|\mathbf{y}\|\cos(\theta)\)</li>
+        <li><strong>Matrix Multiplication:</strong> \((AB)_{ij} = \sum_{k} A_{ik} B_{kj}\)</li>
+        <li><strong>Transpose Properties:</strong> \((AB)^T = B^T A^T\)</li>
+        <li><strong>Inverse Properties:</strong> \((AB)^{-1} = B^{-1} A^{-1}\), \((A^T)^{-1} = (A^{-1})^T\)</li>
+        <li><strong>Portfolio Variance:</strong> \(\sigma^2_p = \mathbf{w}^T \Sigma \mathbf{w}\)</li>
+        <li><strong>Characteristic Equation:</strong> \(\det(A - \lambda I) = 0\)</li>
+        <li><strong>Spectral Decomposition:</strong> \(A = Q \Lambda Q^T\) (for symmetric \(A\))</li>
+        <li><strong>Gradient of Quadratic Form:</strong> \(\nabla_\mathbf{x} (\mathbf{x}^T A \mathbf{x}) = (A + A^T)\mathbf{x} = 2A\mathbf{x}\) (if \(A\) is symmetric)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>9. Exercises</h2>
+  <div class="exercises">
+    
+    <h3>Basic Exercises</h3>
+    <div class="exercise-group">
+      <div class="exercise-item">
+        <p><strong>3.1</strong> Given \(\mathbf{u} = \begin{bmatrix} 2 \\ -1 \\ 3 \end{bmatrix}\) and \(\mathbf{v} = \begin{bmatrix} 4 \\ 2 \\ -1 \end{bmatrix}\), compute \(\mathbf{u}^T \mathbf{v}\) and the angle between them.</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.2</strong> Let \(A = \begin{bmatrix} 3 & 1 \\ 2 & 4 \end{bmatrix}\) and \(B = \begin{bmatrix} 1 & -1 \\ 0 & 2 \end{bmatrix}\). Compute \(AB\) and \(BA\). Are they equal?</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.3</strong> Find the determinant and the inverse of \(A = \begin{bmatrix} 5 & 2 \\ 2 & 1 \end{bmatrix}\).</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.4</strong> A portfolio has weights \(\mathbf{w} = [0.6, 0.4]^T\) and covariance matrix \(\Sigma = \begin{bmatrix} 0.04 & 0.01 \\ 0.01 & 0.09 \end{bmatrix}\). Calculate the portfolio variance.</p>
+      </div>
+    </div>
+
+    <h3>Intermediate Exercises</h3>
+    <div class="exercise-group">
+      <div class="exercise-item">
+        <p><strong>3.5</strong> Find the eigenvalues and eigenvectors of \(M = \begin{bmatrix} 4 & -2 \\ 1 & 1 \end{bmatrix}\).</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.6</strong> Perform the Cholesky decomposition by hand for the matrix \(C = \begin{bmatrix} 4 & 2 \\ 2 & 10 \end{bmatrix}\).</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.7</strong> Use Cramer's Rule to solve the system: \(2x + y = 5\) and \(3x - 2y = 4\).</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.8</strong> Show that if \(\lambda\) is an eigenvalue of an invertible matrix \(A\), then \(\lambda^{-1}\) is an eigenvalue of \(A^{-1}\).</p>
+      </div>
+    </div>
+
+    <h3>Advanced Exercises</h3>
+    <div class="exercise-group">
+      <div class="exercise-item">
+        <p><strong>3.9</strong> Consider the objective function for minimum variance portfolio optimization: minimize \(\frac{1}{2} \mathbf{w}^T \Sigma \mathbf{w}\) subject to \(\mathbf{w}^T \mathbf{1} = 1\). Set up the Lagrangian using matrix notation and derive the closed-form solution for the optimal weights \(\mathbf{w}^*\).</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.10</strong> Prove that any correlation matrix (symmetric, 1s on diagonal, elements between -1 and 1) is not necessarily positive semi-definite. Construct a \(3 \times 3\) correlation matrix that is not PSD and explain the financial implication (e.g., arbitrage).</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.11</strong> Prove that the trace of a square matrix equals the sum of its eigenvalues, and the determinant equals the product of its eigenvalues.</p>
+      </div>
+      <div class="exercise-item">
+        <p><strong>3.12</strong> Let \(X\) be an \(m \times n\) matrix of mean-centered returns (m assets, n time periods). The covariance matrix is \(\Sigma = \frac{1}{n-1}XX^T\). Prove that \(\Sigma\) is always positive semi-definite.</p>
+      </div>
+    </div>
+
+    <h3>Selected Solutions</h3>
+    <div class="solution-item">
+      <p><strong>Solution 3.1:</strong> \(\mathbf{u}^T \mathbf{v} = (2)(4) + (-1)(2) + (3)(-1) = 8 - 2 - 3 = 3\). <br>
+      \(\|\mathbf{u}\| = \sqrt{4+1+9} = \sqrt{14}\). \(\|\mathbf{v}\| = \sqrt{16+4+1} = \sqrt{21}\). <br>
+      \(\cos(\theta) = \frac{3}{\sqrt{14}\sqrt{21}} \implies \theta \approx 79.9^\circ\).</p>
+    </div>
+    <div class="solution-item">
+      <p><strong>Solution 3.3:</strong> \(\det(A) = (5)(1) - (2)(2) = 1\). <br>
+      \(A^{-1} = \frac{1}{1} \begin{bmatrix} 1 & -2 \\ -2 & 5 \end{bmatrix} = \begin{bmatrix} 1 & -2 \\ -2 & 5 \end{bmatrix}\).</p>
+    </div>
+    <div class="solution-item">
+      <p><strong>Solution 3.4:</strong> \(\sigma^2 = \begin{bmatrix} 0.6 & 0.4 \end{bmatrix} \begin{bmatrix} 0.04 & 0.01 \\ 0.01 & 0.09 \end{bmatrix} \begin{bmatrix} 0.6 \\ 0.4 \end{bmatrix}\). <br>
+      \(\Sigma \mathbf{w} = \begin{bmatrix} 0.024 + 0.004 \\ 0.006 + 0.036 \end{bmatrix} = \begin{bmatrix} 0.028 \\ 0.042 \end{bmatrix}\). <br>
+      \(\sigma^2 = 0.6(0.028) + 0.4(0.042) = 0.0168 + 0.0168 = 0.0336\).</p>
+    </div>
+    <div class="solution-item">
+      <p><strong>Solution 3.6:</strong> Let \(L = \begin{bmatrix} l_{11} & 0 \\ l_{21} & l_{22} \end{bmatrix}\). <br>
+      \(l_{11}^2 = 4 \implies l_{11} = 2\). <br>
+      \(l_{11}l_{21} = 2 \implies 2l_{21} = 2 \implies l_{21} = 1\). <br>
+      \(l_{21}^2 + l_{22}^2 = 10 \implies 1 + l_{22}^2 = 10 \implies l_{22} = 3\). <br>
+      \(L = \begin{bmatrix} 2 & 0 \\ 1 & 3 \end{bmatrix}\).</p>
+    </div>
+    <div class="solution-item">
+      <p><strong>Solution 3.8:</strong> By definition, \(A\mathbf{v} = \lambda\mathbf{v}\). Multiply both sides by \(A^{-1}\): <br>
+      \(A^{-1}A\mathbf{v} = A^{-1}(\lambda\mathbf{v}) \implies \mathbf{v} = \lambda(A^{-1}\mathbf{v})\). <br>
+      Divide by \(\lambda\) (since \(A\) is invertible, \(\lambda \neq 0\)): \(A^{-1}\mathbf{v} = \frac{1}{\lambda}\mathbf{v}\). Thus \(\lambda^{-1}\) is an eigenvalue of \(A^{-1}\).</p>
+    </div>
+    <div class="solution-item">
+      <p><strong>Solution 3.9:</strong> \(L(\mathbf{w}, \lambda) = \frac{1}{2} \mathbf{w}^T \Sigma \mathbf{w} - \lambda(\mathbf{w}^T \mathbf{1} - 1)\). <br>
+      Take derivative w.r.t \(\mathbf{w}\): \(\nabla_{\mathbf{w}} L = \Sigma \mathbf{w} - \lambda \mathbf{1} = 0 \implies \mathbf{w} = \lambda \Sigma^{-1} \mathbf{1}\). <br>
+      Multiply by \(\mathbf{1}^T\): \(\mathbf{1}^T \mathbf{w} = \lambda \mathbf{1}^T \Sigma^{-1} \mathbf{1}\). <br>
+      Since \(\mathbf{1}^T \mathbf{w} = 1\), we have \(\lambda = \frac{1}{\mathbf{1}^T \Sigma^{-1} \mathbf{1}}\). <br>
+      Therefore, \(\mathbf{w}^* = \frac{\Sigma^{-1} \mathbf{1}}{\mathbf{1}^T \Sigma^{-1} \mathbf{1}}\).</p>
+    </div>
+    <div class="solution-item">
+      <p><strong>Solution 3.12:</strong> Let \(\mathbf{y}\) be any non-zero vector in \(\R^m\). <br>
+      We want to show \(\mathbf{y}^T \Sigma \mathbf{y} \geq 0\). <br>
+      \(\mathbf{y}^T (\frac{1}{n-1}XX^T) \mathbf{y} = \frac{1}{n-1} (\mathbf{y}^T X) (X^T \mathbf{y})\). <br>
+      Let \(\mathbf{z} = X^T \mathbf{y}\). Then \(\mathbf{y}^T X = (X^T \mathbf{y})^T = \mathbf{z}^T\). <br>
+      The expression becomes \(\frac{1}{n-1} \mathbf{z}^T \mathbf{z} = \frac{1}{n-1} \|\mathbf{z}\|^2\). <br>
+      Since the squared norm of any real vector is non-negative, \(\|\mathbf{z}\|^2 \geq 0\). Therefore \(\Sigma\) is PSD.</p>
+    </div>
+  </div>
+
+  <h2>10. Further Reading</h2>
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Strang, G. (2016). <em>Introduction to Linear Algebra</em> (5th ed.). Wellesley-Cambridge Press. (The foundational text for understanding matrix spaces and SVD).</li>
+        <li>Tsay, R. S. (2010). <em>Analysis of Financial Time Series</em>. John Wiley & Sons. (Excellent coverage of PCA applied to yield curves in Chapter 9).</li>
+        <li>Meucci, A. (2005). <em>Risk and Asset Allocation</em>. Springer. (Advanced matrix operations applied directly to portfolio construction and risk estimation).</li>
+        <li>Litterman, R., & Scheinkman, J. (1991). <em>Yield Curve and Hedging</em>. Journal of Fixed Income, 1(1), 7-18. (The seminal paper applying PCA to uncover the Level, Slope, and Curvature factors).</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch02_calculus.html">â† Previous Chapter (Calculus)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch04_probability.html">Next Chapter (Probability) â†’</a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 24: Utility Theory and Insurance Demand</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 24: Utility Theory and Insurance Demand</h1>
+
+  <div class="learning-objectives">
+    <h3>Learning Objectives</h3>
+    <ul>
+      <li>Understand the St. Petersburg Paradox and the foundations of von Neumann-Morgenstern Expected Utility Theory.</li>
+      <li>Define and compute certainty equivalents and risk premiums for risk-averse individuals.</li>
+      <li>Calculate and interpret Arrow-Pratt measures of absolute and relative risk aversion (ARA and RRA) for standard utility functions.</li>
+      <li>Explain the economic rationale for purchasing insurance and calculate the maximum premium an individual is willing to pay.</li>
+      <li>Apply Arrow's Theorem to deduce optimal insurance contracts and Borch's Theorem for Pareto optimal risk sharing.</li>
+    </ul>
+  </div>
+
+  <div class="prerequisites">
+    <h3>Prerequisites & Roadmap</h3>
+    <p>This chapter builds upon the foundational probability concepts introduced in earlier chapters and the basic mechanisms of insurance from <a href="ch23_insurance_fundamentals.html">Chapter 23</a>. We will use the results of this chapter to model policyholder behavior in survival models in <a href="ch25_survival_models.html">Chapter 25</a>.</p>
+  </div>
+
+  <h2>24.1 Intuition & Motivation</h2>
+  <p>Imagine you are offered a coin-tossing game: a fair coin is flipped repeatedly until a tails appears. If it appears on the \( n \)-th toss, you win \( 2^n \) dollars. How much would you pay to play this game? Mathematically, the expected payoff is infinite, but practically, most people would only pay a few dollars to play. This discrepancy, known as the <strong>St. Petersburg Paradox</strong>, perplexed 18th-century mathematicians until Daniel Bernoulli proposed a solution: people do not evaluate gambles based on expected wealth, but rather on expected <em>utility</em>. This concept forms the cornerstone of insurance demand. Without risk aversion, there would be no insurance industry, as individuals would simply self-insure. This chapter formalizes these intuitive concepts into a rigorous framework used by actuaries and financial economists.</p>
+
+  <h2>24.2 Formal Theory</h2>
+
+  <h3>Expected Utility and Risk Aversion</h3>
+  <div class="definition">
+    <div class="box-title">Definition 24.1: Expected Utility Hypothesis</div>
+    <div class="box-content">
+      According to the von Neumann-Morgenstern (vNM) axioms, a rational agent's preferences over uncertain prospects (gambles) can be represented by a utility function \( u(w) \). An agent prefers a random wealth \( W_1 \) over \( W_2 \) if and only if:
+      \[ \E[u(W_1)] > \E[u(W_2)] \]
+    </div>
+  </div>
+
+  <p>The shape of the utility function \( u(w) \) dictates the agent's attitude towards risk.</p>
+  <ul>
+    <li><strong>Risk Aversion:</strong> \( u''(w) < 0 \) (Strictly concave). The agent prefers a certain outcome over a gamble with the same expected value.</li>
+    <li><strong>Risk Neutrality:</strong> \( u''(w) = 0 \) (Linear). The agent is indifferent.</li>
+    <li><strong>Risk Loving:</strong> \( u''(w) > 0 \) (Strictly convex). The agent prefers the gamble.</li>
+  </ul>
+
+  <div class="definition">
+    <div class="box-title">Definition 24.2: Certainty Equivalent and Risk Premium</div>
+    <div class="box-content">
+      For a random wealth \( W \), the <strong>Certainty Equivalent (CE)</strong> is the guaranteed amount that yields the same expected utility as the gamble:
+      \[ u(CE) = \E[u(W)] \implies CE = u^{-1}(\E[u(W)]) \]
+      The <strong>Risk Premium (\( \pi \))</strong> is the amount of expected wealth an agent is willing to give up to avoid risk:
+      \[ \pi = \E[W] - CE \]
+    </div>
+  </div>
+
+  <h3>Arrow-Pratt Measures of Risk Aversion</h3>
+  <div class="definition">
+    <div class="box-title">Definition 24.3: Absolute and Relative Risk Aversion</div>
+    <div class="box-content">
+      The <strong>Arrow-Pratt measure of Absolute Risk Aversion (ARA)</strong> is defined as:
+      \[ ARA(w) = -\frac{u''(w)}{u'(w)} \]
+      The <strong>Relative Risk Aversion (RRA)</strong> is defined as:
+      \[ RRA(w) = w \cdot ARA(w) = -w\frac{u''(w)}{u'(w)} \]
+    </div>
+  </div>
+  
+  <p>Common utility families include:</p>
+  <ul>
+    <li><strong>CARA (Constant Absolute Risk Aversion):</strong> Exponential utility, \( u(w) = -e^{-\alpha w} \) (\( \alpha > 0 \)). \( ARA(w) = \alpha \).</li>
+    <li><strong>CRRA (Constant Relative Risk Aversion):</strong> Power utility, \( u(w) = \frac{w^{1-\gamma}}{1-\gamma} \) (\( \gamma > 0, \gamma \neq 1 \)) and Log utility, \( u(w) = \ln(w) \) (for \( \gamma = 1 \)). \( RRA(w) = \gamma \).</li>
+  </ul>
+
+  <h3>Insurance Demand and Optimal Design</h3>
+  <p>Why do people buy insurance? Suppose an individual has initial wealth \( w \) and faces a random loss \( X \). If they pay a premium \( P \) for full coverage, their final wealth is certain: \( w - P \). If they do not insure, their final wealth is \( w - X \). A risk-averse individual will buy insurance if:</p>
+  \[ u(w - P) \geq \E[u(w - X)] \]
+  <p>The maximum premium they are willing to pay, \( P_{max} \), satisfies \( u(w - P_{max}) = \E[u(w - X)] \), which implies \( w - P_{max} = CE(w - X) \), or \( P_{max} = \E[X] + \pi \).</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 24.1: Arrow's Theorem (1963)</div>
+    <div class="box-content">
+      Assuming the premium is based solely on the actuarial expected value of the claim (fair premium with a proportional loading), a risk-averse individual seeking to maximize expected utility will always choose an insurance policy with a <strong>straight deductible</strong> over any other contract structure (e.g., coinsurance) that has the same expected payout.
+    </div>
+  </div>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 24.2: Borch's Theorem</div>
+    <div class="box-content">
+      In a pool of agents exchanging risks, a risk-sharing arrangement is Pareto optimal if and only if the ratio of marginal utilities for any two agents is constant across all states of the world. Mathematically, for agents \( i \) and \( j \), there exists a constant \( k_{ij} \) such that:
+      \[ \frac{u_i'(W_i(\omega))}{u_j'(W_j(\omega))} = k_{ij} \]
+      for all states \( \omega \).
+    </div>
+  </div>
+
+  <h2>24.3 Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 24.1: Computing CE and Risk Premium</div>
+    <div class="box-content">
+      An individual has utility function \( u(w) = \ln(w) \). They face a situation where their final wealth \( W \) will be $10,000 with probability 0.9, and $5,000 with probability 0.1.<br>
+      <strong>Step 1: Expected Wealth</strong><br>
+      \( \E[W] = 0.9(10000) + 0.1(5000) = 9000 + 500 = \$9,500 \).<br>
+      <strong>Step 2: Expected Utility</strong><br>
+      \( \E[u(W)] = 0.9\ln(10000) + 0.1\ln(5000) \approx 0.9(9.2103) + 0.1(8.5172) = 8.2893 + 0.8517 = 9.1410 \).<br>
+      <strong>Step 3: Certainty Equivalent</strong><br>
+      \( u(CE) = \ln(CE) = 9.1410 \implies CE = e^{9.1410} \approx \$9,330.12 \).<br>
+      <strong>Step 4: Risk Premium</strong><br>
+      \( \pi = \E[W] - CE = 9500 - 9330.12 = \$169.88 \).
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 24.2: Maximum Premium for Full Insurance</div>
+    <div class="box-content">
+      An individual with wealth \( w = 20,000 \) and utility \( u(w) = \sqrt{w} \) faces a potential loss of \( X = 10,000 \) with probability \( 0.2 \). Find the maximum premium \( P \) they would pay for full insurance.<br>
+      <strong>Step 1: Expected Utility without insurance</strong><br>
+      \( \E[u(w-X)] = 0.8 \sqrt{20000} + 0.2 \sqrt{10000} = 0.8(141.42) + 0.2(100) = 113.137 + 20 = 133.137 \).<br>
+      <strong>Step 2: Utility with insurance</strong><br>
+      \( u(w-P) = \sqrt{20000 - P} \).<br>
+      <strong>Step 3: Equate and solve</strong><br>
+      \( \sqrt{20000 - P} = 133.137 \implies 20000 - P = (133.137)^2 = 17725.46 \)<br>
+      \( P_{max} = 20000 - 17725.46 = \$2,274.54 \).<br>
+      (Note: The expected loss is \( 0.2 \times 10000 = \$2,000 \). The individual is willing to pay up to $274.54 above the expected loss due to risk aversion.)
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 24.3: ARA and RRA Derivations</div>
+    <div class="box-content">
+      <strong>1. Exponential Utility (CARA):</strong> \( u(w) = -e^{-\alpha w} \)<br>
+      \( u'(w) = \alpha e^{-\alpha w} \)<br>
+      \( u''(w) = -\alpha^2 e^{-\alpha w} \)<br>
+      \( ARA(w) = -\frac{-\alpha^2 e^{-\alpha w}}{\alpha e^{-\alpha w}} = \alpha \) (Constant).<br>
+      \( RRA(w) = w \cdot \alpha = \alpha w \) (Increasing).<br><br>
+      <strong>2. Power Utility (CRRA):</strong> \( u(w) = \frac{w^{1-\gamma}}{1-\gamma} \)<br>
+      \( u'(w) = w^{-\gamma} \)<br>
+      \( u''(w) = -\gamma w^{-\gamma-1} \)<br>
+      \( ARA(w) = -\frac{-\gamma w^{-\gamma-1}}{w^{-\gamma}} = \frac{\gamma}{w} \) (Decreasing).<br>
+      \( RRA(w) = w \cdot \frac{\gamma}{w} = \gamma \) (Constant).
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 24.4: Arrow's Theorem Application</div>
+    <div class="box-content">
+      Consider a loss \( X \sim U[0, 100] \) and a premium budget of \( P = 10 \). The insurer prices at pure premium. Let's compare a deductible \( d \) and a coinsurance factor \( \alpha \) (where insurer pays \( \alpha X \)).<br>
+      <strong>Deductible:</strong> Insurer pays \( (X-d)_+ \). <br>
+      \( \E[(X-d)_+] = \int_d^{100} (x-d) \frac{1}{100} dx = \frac{(100-d)^2}{200} \). Setting to 10 gives \( (100-d)^2 = 2000 \implies d \approx 55.28 \).<br>
+      <strong>Coinsurance:</strong> Insurer pays \( \alpha X \).<br>
+      \( \E[\alpha X] = \alpha (50) = 10 \implies \alpha = 0.2 \).<br>
+      Arrow's theorem states that a risk-averse policyholder will strictly prefer the deductible \( d = 55.28 \) over the 20% coinsurance policy, because it eliminates the extreme right-tail risks completely, whereas coinsurance leaves the insured exposed to 80% of massive losses.
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 24.5: Borch's Theorem in Action</div>
+    <div class="box-content">
+      Two agents have CARA utility functions \( u_i(w) = -e^{-\alpha_i w} \) for \( i \in \{1, 2\} \). They face an aggregate risk \( X = X_1 + X_2 \). Let \( Y_1(X) \) and \( Y_2(X) \) be their wealth after risk sharing, with \( Y_1 + Y_2 = w_1 + w_2 - X \).<br>
+      Borch's theorem requires: \( \frac{u_1'(Y_1)}{u_2'(Y_2)} = k \).<br>
+      \( \frac{\alpha_1 e^{-\alpha_1 Y_1}}{\alpha_2 e^{-\alpha_2 Y_2}} = k \)<br>
+      Taking natural logs: \( \ln(\alpha_1) - \alpha_1 Y_1 - \ln(\alpha_2) + \alpha_2 Y_2 = \ln(k) \)<br>
+      Substitute \( Y_2 = w_1 + w_2 - X - Y_1 \):<br>
+      \( -\alpha_1 Y_1 + \alpha_2(w_1 + w_2 - X - Y_1) = \text{Constant} \)<br>
+      \( (\alpha_1 + \alpha_2)Y_1 = -\alpha_2 X + C \implies Y_1 = \frac{\alpha_2}{\alpha_1 + \alpha_2}(-X) + C' \).<br>
+      This shows the Pareto optimal risk sharing between CARA agents involves linear sharing of the aggregate risk, proportional to their risk tolerances (\( 1/\alpha_i \)).
+    </div>
+  </div>
+
+  <h2>24.4 Python Code</h2>
+  <pre><code class="language-python">
+import numpy as np
+
+def compute_ce_and_premium(wealth_outcomes, probabilities, utility_func, inv_utility_func):
+    """Computes Certainty Equivalent and Risk Premium for a given discrete distribution."""
+    expected_wealth = np.dot(wealth_outcomes, probabilities)
+    expected_utility = np.dot([utility_func(w) for w in wealth_outcomes], probabilities)
+    certainty_equivalent = inv_utility_func(expected_utility)
+    risk_premium = expected_wealth - certainty_equivalent
+    
+    return expected_wealth, certainty_equivalent, risk_premium
+
+# Example 24.1
+w_outcomes = np.array([10000, 5000])
+probs = np.array([0.9, 0.1])
+
+# Log utility functions
+u = lambda w: np.log(w)
+inv_u = lambda eu: np.exp(eu)
+
+ew, ce, rp = compute_ce_and_premium(w_outcomes, probs, u, inv_u)
+
+print(f"Expected Wealth: ${ew:.2f}")
+print(f"Certainty Equivalent: ${ce:.2f}")
+print(f"Risk Premium: ${rp:.2f}")
+# Output matches Example 24.1 calculations
+  </code></pre>
+
+  <h2>24.5 Diagrams and Visualizations</h2>
+  <p><em>(Placeholder for Figure 24.1: Utility Functions)</em><br>
+  A standard visualization plots Wealth \( W \) on the x-axis and Utility \( U(W) \) on the y-axis. A strictly concave curve represents a risk-averse individual. A secant line connecting two points \( (W_1, U(W_1)) \) and \( (W_2, U(W_2)) \) illustrates expected utility. Because the curve is strictly above the secant line, the utility of expected wealth \( U(\E[W]) \) is strictly greater than the expected utility \( \E[U(W)] \), visualizing Jensen's Inequality.</p>
+
+  <h2>24.6 Common Mistakes & Misconceptions</h2>
+  <div class="warning">
+    <div class="box-title">Watch Out!</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing expected value with expected utility:</strong> Expected value applies probabilities to the monetary amounts. Expected utility applies probabilities to the <em>utility</em> of those amounts.</li>
+        <li><strong>Misinterpreting the Risk Premium:</strong> The risk premium is a monetary value subtracted from the expected wealth, not a probability or a utility level.</li>
+        <li><strong>Assuming universal CARA/CRRA:</strong> Humans generally exhibit Decreasing Absolute Risk Aversion (DARA)—as they get richer, they are willing to take on more fixed absolute risks. CARA implies the willingness to take a $100 gamble is exactly the same whether you have $1k or $10M, which is empirically false.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Utility Theory in Pricing and Reinsurance</div>
+    <div class="box-content">
+      In practice, insurers use utility theory to model policyholder retention and price elasticity. When determining the optimal deductible for retail auto insurance, pricing teams estimate the average risk aversion of their target demographic. Furthermore, Borch's theorem provides the mathematical foundation for modern reinsurance pools and syndicates (like Lloyd's of London), proving that spreading independent risks across multiple risk-averse underwriters minimizes the aggregate risk premium required to support the policy.
+    </div>
+  </div>
+
+  <h2>24.7 Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <ul>
+      <li><strong>Expected Utility:</strong> \( \E[u(W)] = \sum p_i u(W_i) \) or \( \int u(w)f(w)dw \)</li>
+      <li><strong>Certainty Equivalent (CE):</strong> \( u(CE) = \E[u(W)] \)</li>
+      <li><strong>Risk Premium (\( \pi \)):</strong> \( \pi = \E[W] - CE \)</li>
+      <li><strong>Absolute Risk Aversion (ARA):</strong> \( ARA(w) = -u''(w)/u'(w) \)</li>
+      <li><strong>Relative Risk Aversion (RRA):</strong> \( RRA(w) = -w u''(w)/u'(w) \)</li>
+      <li><strong>Maximum Insurance Premium:</strong> \( P_{max} \) solves \( u(w - P_{max}) = \E[u(w - X)] \)</li>
+    </ul>
+  </div>
+
+  <div class="exercises">
+    <h2>24.8 Exercises</h2>
+    
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> An individual has utility function \( u(w) = w^{0.5} \). They are offered a gamble paying $144 with probability 0.5 and $400 with probability 0.5. Calculate the expected wealth, expected utility, and certainty equivalent.
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> For utility function \( u(w) = -e^{-0.05 w} \), compute the ARA and RRA evaluated at \( w = 100 \).
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> True or False: If a person is risk-neutral, their risk premium for any gamble is zero. Prove it mathematically.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>4.</strong> An agent has wealth \( w = 50,000 \) and utility \( u(w) = \ln(w) \). They face a loss of 20,000 with a 5% probability. What is the maximum premium they will pay to fully insure this loss?
+      </div>
+      <div class="exercise-item">
+        <strong>5.</strong> Compare a CARA utility function and a CRRA utility function in terms of Absolute Risk Aversion as wealth increases. What is the economic interpretation?
+      </div>
+      <div class="exercise-item">
+        <strong>6.</strong> Derive the optimal risk sharing rule (Borch's Theorem) for two agents with Log utility \( u(w) = \ln(w) \).
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> Show that for small risks (variance \( \sigma^2 \)), the risk premium \( \pi \) can be approximated by \( \frac{1}{2} \sigma^2 ARA(\E[W]) \). (Hint: Use Taylor expansions).
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>8.</strong> Consider an agent with utility \( u(w) = \frac{w^{1-3}}{1-3} \). Prove that their optimal investment fraction in a risky asset with expected return \( \mu \) and variance \( \sigma^2 \), relative to a risk-free rate \( r \), is independent of their initial wealth.
+      </div>
+      <div class="exercise-item">
+        <strong>9.</strong> Based on Arrow's theorem, formalize the proof that a deductible dominates a coinsurance policy for a strictly concave utility function when the premium depends only on the expected claim payout.
+      </div>
+      <div class="exercise-item">
+        <strong>10.</strong> Explain how the St. Petersburg paradox is resolved if the agent has logarithmic utility. Specifically, what is the Certainty Equivalent of the St. Petersburg gamble under \( u(w) = \ln(w) \)?
+      </div>
+    </div>
+
+    <h3>Selected Solutions</h3>
+    <div class="solution-item">
+      <strong>Solution to 1:</strong><br>
+      Expected Wealth = \( 0.5(144) + 0.5(400) = 72 + 200 = 272 \).<br>
+      Expected Utility = \( 0.5(12) + 0.5(20) = 6 + 10 = 16 \).<br>
+      CE = \( 16^2 = 256 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 2:</strong><br>
+      \( ARA = 0.05 \) (Constant).<br>
+      \( RRA = 100 \times 0.05 = 5 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 4:</strong><br>
+      Expected Utility = \( 0.95 \ln(50000) + 0.05 \ln(30000) \approx 0.95(10.8198) + 0.05(10.3090) = 10.2788 + 0.5154 = 10.7942 \).<br>
+      CE = \( e^{10.7942} \approx 48740.15 \).<br>
+      Maximum Premium = \( 50000 - 48740.15 = \$1,259.85 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 7:</strong><br>
+      Let \( w \) be non-random and \( X \) be a zero-mean risk with variance \( \sigma^2 \). <br>
+      \( \E[u(w + X)] \approx \E[u(w) + u'(w)X + \frac{1}{2}u''(w)X^2] = u(w) + \frac{1}{2}u''(w)\sigma^2 \).<br>
+      Also, \( \E[u(w + X)] = u(w - \pi) \approx u(w) - \pi u'(w) \).<br>
+      Equating the two: \( -\pi u'(w) = \frac{1}{2}u''(w)\sigma^2 \implies \pi = -\frac{1}{2}\frac{u''(w)}{u'(w)}\sigma^2 = \frac{1}{2}ARA(w)\sigma^2 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 10:</strong><br>
+      Payoff is \( 2^n \) with probability \( (1/2)^n \).<br>
+      \( \E[u(W)] = \sum_{n=1}^\infty (1/2)^n \ln(2^n) = \ln(2) \sum_{n=1}^\infty n (1/2)^n \).<br>
+      The sum \( \sum_{n=1}^\infty n x^n = \frac{x}{(1-x)^2} \). For \( x = 1/2 \), this equals 2.<br>
+      Thus, \( \E[u(W)] = 2 \ln(2) = \ln(4) \).<br>
+      The Certainty Equivalent is \( e^{\ln(4)} = \$4 \). The paradox is resolved.
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <h2>24.9 Further Reading</h2>
+    <ul>
+      <li>Pratt, J. W. (1964). <em>Risk Aversion in the Small and in the Large</em>. Econometrica.</li>
+      <li>Arrow, K. J. (1963). <em>Uncertainty and the Welfare Economics of Medical Care</em>. American Economic Review.</li>
+      <li>Borch, K. (1962). <em>Equilibrium in a Reinsurance Market</em>. Econometrica.</li>
+      <li>Kaas, R., Goovaerts, M., Dhaene, J., & Denuit, M. (2008). <em>Modern Actuarial Risk Theory</em> (2nd ed.). Springer.</li>
+    </ul>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch23_insurance_fundamentals.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch25_survival_models.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 29: Pension Mathematics</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 29: Pension Mathematics</h1>
+  
+  <section id="section-1-learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul class="learning-objectives">
+      <li>Differentiate between Defined Benefit (DB) and Defined Contribution (DC) pension plans, understanding their risk allocations.</li>
+      <li>Calculate normal cost and actuarial liability using cost methods such as Projected Unit Credit (PUC) and Entry Age Normal (EAN).</li>
+      <li>Incorporate multiple decrement models (mortality, withdrawal, retirement) and salary scales into pension valuation.</li>
+      <li>Apply accounting standards (like IAS 19 / Ind AS 19 and ASC 715) to measure pension obligations, focusing on the treatment of service cost and net interest.</li>
+      <li>Evaluate longevity risk and the methods used to hedge it, including longevity swaps and longevity bonds.</li>
+    </ul>
+  </section>
+
+  <section id="section-2-prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <div class="prerequisites">
+      <p>Before reading this chapter, you should be comfortable with:</p>
+      <ul>
+        <li><strong>Chapter 27: Multiple Decrement Models</strong> – Crucial for service tables handling mortality, withdrawal, and retirement.</li>
+        <li><strong>Chapter 25: Life Contingencies</strong> – Valuing annuities and lump sums upon retirement or death.</li>
+        <li><strong>Chapter 5: Financial Mathematics</strong> – Fundamentals of discounting and accumulating cash flows.</li>
+      </ul>
+      <p>This chapter sets the foundation for analyzing long-term institutional liabilities, a concept we will expand upon in <strong>Chapter 30: General Insurance</strong> regarding long-tail liabilities.</p>
+    </div>
+  </section>
+
+  <section id="section-3-intuition-motivation">
+    <h2>3. Intuition & Motivation</h2>
+    <p>Imagine a company promising to pay you half of your final salary every year after you retire, for the rest of your life. This is a classic Defined Benefit (DB) pension plan. How much money must the company set aside <em>today</em> to fulfill a promise that might only begin 30 years from now and last for another 30 years? The company must predict when you will retire, if you will quit before retiring, how much your salary will grow, what investment returns they will earn, and how long you will live after retiring.</p>
+    <p>If they set aside too little, the plan goes bankrupt and pensioners suffer. If they set aside too much, the company's profits take a massive, unnecessary hit. Balancing these risks is the core of pension mathematics, blending multiple decrement models, interest theory, and accounting rules to value these massive future liabilities.</p>
+  </section>
+
+  <section id="section-4-formal-theory">
+    <h2>4. Formal Theory</h2>
+
+    <h3>4.1 Pension Plan Types</h3>
+    <div class="definition">
+      <div class="box-title">Defined Benefit (DB) Plan</div>
+      <div class="box-content">
+        A retirement plan where the employer promises a specified pension payment, lump-sum, or combination thereof on retirement. The benefit is typically determined by a formula based on the employee's earnings history, tenure of service, and age. The <em>employer</em> bears the investment and longevity risks.
+      </div>
+    </div>
+    
+    <div class="definition">
+      <div class="box-title">Defined Contribution (DC) Plan</div>
+      <div class="box-content">
+        A retirement plan in which the employer, employee, or both make contributions on a regular basis. Future benefits fluctuate based on investment earnings. The <em>employee</em> bears the investment and longevity risks.
+      </div>
+    </div>
+
+    <p>Hybrid plans, such as <strong>Cash Balance Plans</strong>, combine features of both. They look like DC plans to the employee (an account balance grows each year) but are legally DB plans because the employer guarantees the interest credit and conversion to a lifetime annuity.</p>
+
+    <h3>4.2 DB Funding Methods</h3>
+    <p>To fund a DB plan, actuaries use funding methods to allocate the total expected cost of a pension over an employee's working lifetime. Two primary methods are Projected Unit Credit (PUC) and Entry Age Normal (EAN).</p>
+
+    <div class="definition">
+      <div class="box-title">Projected Unit Credit (PUC) Method</div>
+      <div class="box-content">
+        Allocates the projected retirement benefit in equal units to each year of service. The Actuarial Liability (AL) is the present value of benefits accrued to date, based on projected final salaries. 
+        \[ AL_x = PV \left( \text{Projected Benefit for past service} \right) \]
+        The Normal Cost (NC) is the present value of the benefit allocated to the current year.
+        \[ NC_x = PV \left( \text{Projected Benefit for one year of service} \right) \]
+      </div>
+    </div>
+
+    <div class="theorem">
+      <div class="box-title">PUC Formulation</div>
+      <div class="box-content">
+        Let:
+        <ul>
+          <li>\( x \) = current age</li>
+          <li>\( r \) = retirement age</li>
+          <li>\( S_r \) = projected final salary at retirement</li>
+          <li>\( n \) = years of past service</li>
+          <li>\( k \) = accrual rate (e.g., 1.5% per year)</li>
+          <li>\( \ddot{a}_r \) = annuity factor at retirement</li>
+          <li>\( v = (1+i)^{-1} \) = discount factor</li>
+          <li>\( {}_{r-x}p_x^{(\tau)} \) = probability of surviving in service from age \( x \) to \( r \)</li>
+        </ul>
+        Total projected benefit at retirement: \( B = k \cdot (r - (x - n)) \cdot S_r \)
+        <br>
+        Under PUC:
+        \[ AL_x = \left[ k \cdot n \cdot S_r \right] \cdot \ddot{a}_r \cdot v^{r-x} \cdot {}_{r-x}p_x^{(\tau)} \]
+        \[ NC_x = \left[ k \cdot 1 \cdot S_r \right] \cdot \ddot{a}_r \cdot v^{r-x} \cdot {}_{r-x}p_x^{(\tau)} \]
+      </div>
+    </div>
+
+    <p><strong>Entry Age Normal (EAN)</strong> calculates a level normal cost (usually as a percentage of salary) from entry age to retirement age. EAN typically results in higher early funding compared to PUC, generating higher actuarial liabilities but more stable normal costs as a percentage of payroll.</p>
+
+    <h3>4.3 Salary Scales and Projections</h3>
+    <p>Actuaries use a salary scale function \( s_x \) to project current salaries to future ages, incorporating merit, inflation, and productivity increases.</p>
+    <p>If the current salary at age \( x \) is \( S_x \), the projected salary at age \( t \) is:</p>
+    \[ S_t = S_x \frac{s_t}{s_x} \]
+
+    <h3>4.4 Multiple Decrements and Service Tables</h3>
+    <p>Employees leave a pension plan through various decrements: death (\( d \)), withdrawal/resignation (\( w \)), and retirement (\( r \)). A service table tracks the active members, denoted \( l_x^{(\tau)} \). The probability of surviving in service is:</p>
+    \[ {}_{t}p_x^{(\tau)} = \frac{l_{x+t}^{(\tau)}}{l_x^{(\tau)}} \]
+
+    <h3>4.5 Accounting Standards (IAS 19 / Ind AS 19, ASC 715)</h3>
+    <p>Accounting standards dictate how pension liabilities appear on corporate balance sheets. Under IAS 19 (and its Indian equivalent Ind AS 19), companies must use the PUC method.</p>
+    <ul>
+      <li><strong>Defined Benefit Obligation (DBO):</strong> The liability measured using PUC.</li>
+      <li><strong>Fair Value of Plan Assets (FVPA):</strong> Market value of assets set aside.</li>
+      <li><strong>Net Defined Benefit Liability/(Asset):</strong> \( DBO - FVPA \).</li>
+      <li><strong>Service Cost:</strong> Current year's NC + past service cost (from plan amendments). Recognized in P&L.</li>
+      <li><strong>Net Interest:</strong> Discount rate applied to the Net DB Liability. Recognized in P&L.</li>
+      <li><strong>Remeasurements:</strong> Actuarial gains/losses and return on assets excluding interest. Recognized in Other Comprehensive Income (OCI).</li>
+    </ul>
+
+    <h3>4.6 Indian Pension Landscape: Gratuity</h3>
+    <p>In India, the Payment of Gratuity Act, 1972 mandates a lump sum payout on exit (death, resignation, retirement) after 5 years of continuous service. The formula is typically 15/26 of final drawn salary for each year of service. Actuaries value this under Ind AS 19 using PUC, requiring multiple decrement models since payouts happen upon multiple exit types.</p>
+  </section>
+
+  <section id="section-5-worked-examples">
+    <h2>5. Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 29.1: Compute PUC normal cost and actuarial liability</div>
+      <div class="box-content">
+        <strong>Problem:</strong> An employee joined a company at age 30 and is now exactly 40. The retirement age is 65. Current salary is $80,000. Salary scale \( s_x = 1.04^x \). Benefit formula: 2% of final salary per year of service, paid as a life annuity. Discount rate \( i = 5\% \). Annuity factor at 65, \( \ddot{a}_{65} = 12.0 \). Probability of staying in service to 65, \( {}_{25}p_{40}^{(\tau)} = 0.60 \). Calculate the PUC AL and NC at age 40.<br><br>
+        <strong>Solution:</strong><br>
+        1. Current age \( x=40 \). Past service \( n = 40 - 30 = 10 \) years.<br>
+        2. Project salary to age 64 (the year prior to retirement, representing the "final" salary rate):
+        \[ S_{64} = 80,000 \times \frac{1.04^{64}}{1.04^{40}} = 80,000 \times 1.04^{24} = 80,000 \times 2.5633 = \$205,064.36 \]
+        3. Determine accrued benefit (for AL) and 1-year benefit (for NC):
+        \[ B_{accrued} = 10 \times 0.02 \times 205,064.36 = \$41,012.87 \text{ per year} \]
+        \[ B_{normal} = 1 \times 0.02 \times 205,064.36 = \$4,101.29 \text{ per year} \]
+        4. Calculate AL and NC at age 40 by discounting back 25 years and multiplying by survival probability:
+        \[ AL_{40} = 41,012.87 \times 12.0 \times (1.05)^{-25} \times 0.60 = 41,012.87 \times 12.0 \times 0.2953 \times 0.60 = \$87,204 \]
+        \[ NC_{40} = 4,101.29 \times 12.0 \times (1.05)^{-25} \times 0.60 = 4,101.29 \times 12.0 \times 0.2953 \times 0.60 = \$8,720 \]
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 29.2: Gratuity valuation under Ind AS 19</div>
+      <div class="box-content">
+        <strong>Problem:</strong> An employee age 50 has 10 years of service. Salary is INR 1,200,000 per annum. Salary growth is 7% p.a. Discount rate is 8%. Retirement is at 60. The probability of leaving exactly at age 60 (retirement) from age 50 is 0.85. The gratuity benefit is \( \frac{15}{26} \times \text{Final Monthly Salary} \times \text{Years of Service} \). Ignore mid-year exits for simplicity, focus only on the retirement decrement. Find the Gratuity DBO (AL).<br><br>
+        <strong>Solution:</strong><br>
+        1. Years of service at 60 will be 20. But for DBO, we look at accrued service, which is 10.<br>
+        2. Projected monthly salary at age 59 (last drawn): \( S_{59} = \frac{1,200,000}{12} \times 1.07^9 = 100,000 \times 1.8385 = \text{INR } 183,846 \)<br>
+        3. Accrued gratuity lump sum at 60:
+        \[ \text{Lump Sum} = \frac{15}{26} \times 183,846 \times 10 = \text{INR } 1,060,650 \]
+        4. Discount to age 50 (10 years) at 8% and multiply by probability:
+        \[ DBO = 1,060,650 \times (1.08)^{-10} \times 0.85 = 1,060,650 \times 0.46319 \times 0.85 = \text{INR } 417,562 \]
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 29.3: DC Contribution Rate for Replacement Ratio</div>
+      <div class="box-content">
+        <strong>Problem:</strong> An employee starts at age 25, retires at 65. Salary grows exactly at inflation (2% p.a.). Real return on investments is 4% p.a. They want a pension equal to 60% of their final salary, via a life annuity at 65. The real annuity factor at 65 is 15. What level percentage of salary (\( c \)) must be contributed each year?<br><br>
+        <strong>Solution:</strong><br>
+        Since both salary and contributions grow with inflation, we can do the entire calculation in <em>real</em> terms (inflation-adjusted).<br>
+        Real salary \( S_t = S \). Real return \( i_{real} = 4\% \).<br>
+        Future value of contributions at 65:
+        \[ FV = c \cdot S \cdot \ddot{s}_{\overline{40}|4\%} = c \cdot S \cdot \frac{1.04^{40} - 1}{d} \quad (\text{where } d = 1 - 1.04^{-1} \approx 0.03846) \]
+        \[ \ddot{s}_{\overline{40}|4\%} = 98.826 \]
+        Required accumulation to buy annuity:
+        \[ \text{Cost} = (0.60 \times S) \times 15 = 9.0 \times S \]
+        Equating the two:
+        \[ c \cdot S \cdot 98.826 = 9.0 \cdot S \]
+        \[ c = \frac{9.0}{98.826} = 0.0910 \text{ or } 9.1\% \]
+        The contribution rate must be 9.1% of salary.
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 29.4: Service table calculations</div>
+      <div class="box-content">
+        <strong>Problem:</strong> A simplified service table for a group of 1000 employees at age 55 shows:<br>
+        Age 55: \( l_{55} = 1000 \). Decrements during the year: death = 5, withdrawal = 45.<br>
+        Age 56: Decrements during the year: death = 6, withdrawal = 40.<br>
+        Find the probability that a 55-year-old survives in service to age 57.<br><br>
+        <strong>Solution:</strong><br>
+        Total decrements at 55 = 5 + 45 = 50. Therefore, \( l_{56} = 1000 - 50 = 950 \).<br>
+        Total decrements at 56 = 6 + 40 = 46. Therefore, \( l_{57} = 950 - 46 = 904 \).<br>
+        The probability of surviving in service is:
+        \[ {}_{2}p_{55}^{(\tau)} = \frac{l_{57}}{l_{55}} = \frac{904}{1000} = 0.904 \text{ (or 90.4%)} \]
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 29.5: EAN vs PUC Normal Costs</div>
+      <div class="box-content">
+        <strong>Problem:</strong> Why does Entry Age Normal (EAN) typically have a higher Normal Cost in early years compared to Projected Unit Credit (PUC)?<br><br>
+        <strong>Solution:</strong><br>
+        PUC allocates the projected benefit evenly over years of service. Because the cost of 1 unit of benefit at age 30 is heavily discounted compared to 1 unit at age 60, the PUC Normal Cost starts very low and rises steeply as the employee ages (due to the discount factor \( v^{r-x} \) getting closer to 1, and survival probability getting closer to 1).<br>
+        EAN computes a level cost as a percentage of salary. It essentially "front-loads" the funding to keep the rate stable. Thus, at younger ages, EAN NC > PUC NC. At older ages, PUC NC > EAN NC.
+      </div>
+    </div>
+  </section>
+
+  <section id="section-6-python-code">
+    <h2>6. Python Code</h2>
+    <p>This script calculates the PUC Actuarial Liability and Normal Cost over an employee's career.</p>
+    <pre><code class="language-python">
+import numpy as np
+
+def calculate_puc(entry_age, current_age, retirement_age, current_salary, 
+                  salary_growth, discount_rate, accrual_rate, annuity_factor, prob_survival):
+    """
+    Calculate Projected Unit Credit (PUC) Actuarial Liability and Normal Cost.
+    """
+    past_service = current_age - entry_age
+    years_to_retirement = retirement_age - current_age
+    
+    # Project salary to the year prior to retirement
+    projected_final_salary = current_salary * ((1 + salary_growth) ** (years_to_retirement - 1))
+    
+    # Calculate accrued and normal benefits
+    accrued_benefit = past_service * accrual_rate * projected_final_salary
+    normal_benefit = 1 * accrual_rate * projected_final_salary
+    
+    # Discount factor
+    v = (1 + discount_rate) ** (-years_to_retirement)
+    
+    # Present Value
+    al = accrued_benefit * annuity_factor * v * prob_survival
+    nc = normal_benefit * annuity_factor * v * prob_survival
+    
+    return al, nc
+
+# Example 29.1 execution
+al_40, nc_40 = calculate_puc(entry_age=30, current_age=40, retirement_age=65, 
+                             current_salary=80000, salary_growth=0.04, 
+                             discount_rate=0.05, accrual_rate=0.02, 
+                             annuity_factor=12.0, prob_survival=0.60)
+
+print(f"Actuarial Liability at age 40: ${al_40:,.2f}")
+print(f"Normal Cost at age 40: ${nc_40:,.2f}")
+    </code></pre>
+  </section>
+
+  <section id="section-7-diagrams">
+    <h2>7. Diagrams Description</h2>
+    <p><strong>Figure 29.1: Normal Cost Progression (PUC vs EAN)</strong><br>
+    A line chart displaying Age on the x-axis (from 30 to 65) and Normal Cost as a % of Salary on the y-axis. The EAN line is perfectly horizontal, indicating a level percentage of payroll. The PUC line starts significantly below the EAN line at age 30, curves upward exponentially, crosses the EAN line around age 50, and ends significantly higher by age 65. This visualizes why PUC is often criticized for back-loading pension costs.</p>
+  </section>
+
+  <section id="section-8-common-mistakes">
+    <h2>8. Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Common Mistakes</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Confusing Current vs Projected Salary in PUC:</strong> The "Projected" in PUC means you must base the liability for <em>past</em> service on the salary the employee will earn at <em>retirement</em>, not their current salary. Using current salary calculates the Traditional Unit Credit (TUC) liability, which is not permitted under IAS 19 for final-salary plans.</li>
+          <li><strong>Ignoring the Discount Rate Duration:</strong> Net Interest cost on the income statement is derived using corporate bond yields. A mismatch in duration between the bonds used for the yield curve and the actual pension liabilities can lead to massive volatility in OCI remeasurements.</li>
+          <li><strong>Misunderstanding Gratuity Vesting:</strong> In India, gratuity vests after 5 years. Many beginners value the liability as zero for those with &lt;5 years of service. Actuarial standards require valuing the liability from day one, applying a high withdrawal decrement probability to reflect the chance they leave before vesting.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="section-9-industry-application">
+    <h2>9. Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Corporate Pension Risk Transfer (PRT)</div>
+      <div class="box-content">
+        Many large multinational corporations view their DB pension plans as massive, non-core hedge funds attached to their balance sheets. The volatility of the Net DB Liability affects corporate credit ratings and dividend capacity.<br><br>
+        To mitigate this, companies engage in Pension Risk Transfers. They execute "Buy-Outs" where they pay a lump sum premium to a life insurance company to take over the liabilities entirely. Alternatively, they use "Longevity Swaps" with reinsurers, where the pension scheme pays a fixed premium, and the reinsurer pays the actual realized pension payouts, thus transferring the longevity risk (the risk that retirees live longer than expected) off the corporate balance sheet.
+      </div>
+    </div>
+  </section>
+
+  <section id="section-10-summary">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <h3>Key Takeaways</h3>
+      <ul>
+        <li>DB plans guarantee the output (benefit); DC plans fix the input (contribution).</li>
+        <li>PUC calculates liability based on service to date and projected final salary.</li>
+        <li>EAN aims for a level normal cost over the working lifetime.</li>
+      </ul>
+      <h3>Formula Cheat-Sheet</h3>
+      <ul>
+        <li><strong>Salary Scale:</strong> \( S_t = S_x \frac{s_t}{s_x} \)</li>
+        <li><strong>PUC Actuarial Liability:</strong> \( AL_x = [k \cdot n \cdot S_r] \cdot \ddot{a}_r \cdot v^{r-x} \cdot {}_{r-x}p_x^{(\tau)} \)</li>
+        <li><strong>Net DB Liability:</strong> \( DBO - \text{Fair Value of Plan Assets} \)</li>
+        <li><strong>DC Target Contribution:</strong> \( c = \frac{\text{Target Cost at Retirement}}{S \cdot \ddot{s}_{\overline{n}|j}} \)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="section-11-exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercises">
+      
+      <div class="exercise-group">
+        <h3>Basic</h3>
+        
+        <div class="exercise-item">
+          <strong>1.</strong> Explain the main difference in risk allocation between DB and DC pension plans.
+        </div>
+        <div class="solution-item">
+          <em>Solution:</em> In a DB plan, the employer bears the investment risk (if assets underperform) and longevity risk (if retirees live longer). In a DC plan, the employee bears these risks, as their retirement income depends purely on their account balance and how long it lasts.
+        </div>
+
+        <div class="exercise-item">
+          <strong>2.</strong> An employee aged 45 has a current salary of $50,000. If the salary scale is \( s_x = 1.03^x \), calculate the projected salary at age 60.
+        </div>
+        <div class="solution-item">
+          <em>Solution:</em> \( S_{60} = 50,000 \times \frac{1.03^{60}}{1.03^{45}} = 50,000 \times 1.03^{15} = 50,000 \times 1.55797 = \$77,898.35 \)
+        </div>
+
+        <div class="exercise-item">
+          <strong>3.</strong> Define Normal Cost and Actuarial Liability under the PUC method.
+        </div>
+        <div class="solution-item">
+          <em>Solution:</em> Actuarial Liability (AL) is the present value of the projected retirement benefit allocated to past service. Normal Cost (NC) is the present value of the projected benefit allocated to the current year of service.
+        </div>
+
+        <div class="exercise-item">
+          <strong>4.</strong> Identify where "Remeasurement gains/losses" are recorded under IAS 19.
+        </div>
+        
+        <div class="exercise-item">
+          <strong>5.</strong> What is the formula for Indian statutory Gratuity?
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Intermediate</h3>
+        
+        <div class="exercise-item">
+          <strong>6.</strong> Calculate the PUC Normal Cost for a 35-year-old employee entering at 35. Retirement is 65. Salary is $60,000, 3% growth. Discount rate 6%. Accrual 1.5%. Annuity factor at 65 is 14. Probability of survival in service is 0.5.
+        </div>
+        <div class="solution-item">
+          <em>Solution:</em><br>
+          \( S_{64} = 60,000 \times 1.03^{29} = 141,393 \)<br>
+          \( B_{normal} = 1 \times 0.015 \times 141,393 = 2,120.90 \)<br>
+          \( NC_{35} = 2,120.90 \times 14 \times (1.06)^{-30} \times 0.5 = 2,120.90 \times 14 \times 0.1741 \times 0.5 = \$2,583.56 \)
+        </div>
+
+        <div class="exercise-item">
+          <strong>7.</strong> Using the data from Question 6, calculate the Actuarial Liability at age 45.
+        </div>
+        <div class="solution-item">
+          <em>Solution:</em> Past service = 10. Current age = 45. Distance to retirement = 20.<br>
+          (Assuming current salary at 45 is \( 60,000 \times 1.03^{10} = 80,635 \), so projected is still 141,393. Assume prob survival from 45 to 65 is 0.70).<br>
+          \( B_{accrued} = 10 \times 0.015 \times 141,393 = 21,209 \)<br>
+          \( AL_{45} = 21,209 \times 14 \times (1.06)^{-20} \times 0.70 = 21,209 \times 14 \times 0.3118 \times 0.70 = \$64,813 \)
+        </div>
+
+        <div class="exercise-item">
+          <strong>8.</strong> Under IAS 19, how is Net Interest calculated on the income statement?
+        </div>
+        <div class="solution-item">
+          <em>Solution:</em> Net Interest = Discount Rate \(\times\) (Defined Benefit Obligation - Fair Value of Plan Assets) at the start of the period.
+        </div>
+
+        <div class="exercise-item">
+          <strong>9.</strong> Compare systematic vs idiosyncratic longevity risk.
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Advanced</h3>
+        
+        <div class="exercise-item">
+          <strong>10.</strong> Prove that for a plan with no exits before retirement other than death, the EAN normal cost percentage is given by \( c = \frac{PV(\text{Total Projected Benefit at Entry})}{\text{PV(Future Salaries at Entry)}} \).
+        </div>
+
+        <div class="exercise-item">
+          <strong>11.</strong> An Indian company values its Gratuity obligation. For a 40-year-old, salary INR 100,000/month, past service 15 yrs. Salary growth 6%, discount 7%, retirement 58. Calculate the PUC DBO assuming decrements only at retirement (prob 0.8) and death mid-way (age 49, prob 0.05).
+        </div>
+
+        <div class="exercise-item">
+          <strong>12.</strong> Explain the mechanism of a Longevity Swap and how it impacts the Net DB liability on a corporate balance sheet.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="section-12-further-reading">
+    <h2>12. Further Reading</h2>
+    <div class="further-reading">
+      <ul>
+        <li>Bowers, N. L., et al. (1997). <em>Actuarial Mathematics</em> (2nd ed.). Society of Actuaries.</li>
+        <li>Anderson, A. W. (2006). <em>Pension Mathematics for Actuaries</em> (3rd ed.). ACTEX Publications.</li>
+        <li>International Accounting Standards Board (IASB). (2011). <em>IAS 19 Employee Benefits</em>.</li>
+        <li>Blake, D., et al. (2006). "Living with mortality: Longevity bonds and other mortality-linked securities." <em>British Actuarial Journal</em>, 12(1), 153-228.</li>
+      </ul>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch28_multiple_life.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch30_general_insurance.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

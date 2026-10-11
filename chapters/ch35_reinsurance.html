@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 35: Reinsurance</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 35: Reinsurance and Alternative Risk Transfer</h1>
+
+  <section id="section-1-learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <div class="learning-objectives">
+      <ul>
+        <li>Understand the strategic, operational, and financial rationale for reinsurance (e.g., capital relief, capacity, variance reduction).</li>
+        <li>Differentiate structurally and operationally between Treaty and Facultative reinsurance, and Proportional (Quota Share, Surplus) versus Non-Proportional (Excess of Loss, Stop-Loss).</li>
+        <li>Master pricing methodologies for Excess of Loss (XL) treaties including Experience Rating (Burning Cost) and Exposure Rating (ILFs).</li>
+        <li>Evaluate the impact of alternative risk transfer (ART) mechanisms such as catastrophe bonds and Industry Loss Warranties (ILWs).</li>
+        <li>Formulate the mathematical optimality of reinsurance using Arrow’s theorem and risk measure minimization.</li>
+        <li>Analyze the nuances of the Indian reinsurance market, particularly the mandatory cessions to GIC Re and operations of foreign branches.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="section-2-prerequisites">
+    <h2>2. Prerequisites &amp; Roadmap</h2>
+    <div class="prerequisites">
+      <p>This chapter builds heavily upon the foundations established in previous chapters:</p>
+      <ul>
+        <li><strong>Chapter 12: Aggregate Risk Models</strong> — for understanding how multiple losses aggregate.</li>
+        <li><strong>Chapter 13: Risk Measures</strong> — specifically Value at Risk (VaR) and Tail Value at Risk (TVaR) for measuring residual risk.</li>
+        <li><strong>Chapter 33: Ratemaking</strong> — basic premium calculation is essential before calculating reinsurance ceding commissions.</li>
+      </ul>
+      <p>Next, we will explore <em>Chapter 36: Extreme Value Theory and Copulas</em>, which offers advanced tools to model the exact catastrophic tails that reinsurance protects against.</p>
+    </div>
+  </section>
+
+  <section id="section-3-intuition">
+    <h2>3. Intuition &amp; Motivation</h2>
+    <p>Imagine an insurer, "SafeGuard Gen", writing homeowner policies in coastal Florida or cyclone-prone Odisha (India). SafeGuard collects steady premiums and pays out attritional, day-to-day losses efficiently. However, in the event of a Category 5 hurricane or a severe super-cyclone, the correlated nature of the claims would cause the aggregate loss to skyrocket past the insurer’s total capital reserves. If SafeGuard goes bankrupt, thousands of policyholders are left destitute.</p>
+    <p>Reinsurance is the "insurance of insurance." By transferring a portion of the risk to a reinsurer—often a global entity with highly diversified exposures—SafeGuard protects its solvency, smooths its earnings volatility, and frees up statutory capital to write new business. It transforms an unbearable heavy-tailed risk into a manageable fixed cost (the reinsurance premium).</p>
+  </section>
+
+  <section id="section-4-formal-theory">
+    <h2>4. Formal Theory</h2>
+    
+    <h3>4.1 Treaty vs. Facultative</h3>
+    <p>Risk transfer occurs primarily via two modes:</p>
+    <ul>
+      <li><strong>Facultative Reinsurance:</strong> Negotiated on a per-risk (individual policy) basis. Often used for exceptionally large, complex, or unusual risks (e.g., a multi-billion-dollar oil rig). The reinsurer retains the "faculty" (option) to accept or decline.</li>
+      <li><strong>Treaty Reinsurance:</strong> A portfolio-level agreement where the reinsurer automatically accepts a specified portion of a defined class of business. Highly efficient and obligatory for both parties once signed.</li>
+    </ul>
+
+    <h3>4.2 Proportional Reinsurance</h3>
+    <p>The insurer and reinsurer share premiums and losses proportionally. The reinsurer pays the insurer a <em>Ceding Commission</em> to compensate for the insurer's original acquisition and administrative costs.</p>
+    <div class="definition">
+      <div class="box-title">Definition 35.1: Quota Share (QS) Treaty</div>
+      <div class="box-content">
+        A treaty where a fixed percentage \(\alpha\) (where \(0 < \alpha < 1\)) of every risk is ceded. 
+        \[ \text{Retained Loss} = (1-\alpha) X, \quad \text{Ceded Loss} = \alpha X \]
+        \[ \text{Retained Premium} = (1-\alpha) P, \quad \text{Ceded Premium} = \alpha P \]
+      </div>
+    </div>
+    
+    <div class="definition">
+      <div class="box-title">Definition 35.2: Surplus Share Treaty</div>
+      <div class="box-content">
+        The retention is defined as a fixed absolute currency amount \(R\) per risk (a "line"). The proportion ceded depends on the Sum Insured (\(SI\)) of each risk. If \(SI \le R\), the insurer retains 100%. If \(SI > R\), the ceded proportion is \(\alpha = \frac{SI - R}{SI}\).
+      </div>
+    </div>
+
+    <h3>4.3 Non-Proportional Reinsurance (Excess of Loss)</h3>
+    <p>The reinsurer only responds when a loss exceeds a predetermined deductible, called the <em>attachment point</em> or <em>priority</em> (\(D\)), up to a specified <em>limit</em> (\(L\)).</p>
+    
+    <div class="definition">
+      <div class="box-title">Definition 35.3: Excess of Loss (XL)</div>
+      <div class="box-content">
+        For a loss random variable \(X\), the ceded loss to an XL layer with deductible \(D\) and limit \(L\) is:
+        \[ X_{ceded} = \min(\max(X - D, 0), L) \]
+        The retained loss is \( X_{ret} = X - X_{ceded} \).
+      </div>
+    </div>
+
+    <p>This is further segmented into:</p>
+    <ul>
+      <li><strong>Per Risk XL:</strong> Applies to individual risks (e.g., one building burning down).</li>
+      <li><strong>Catastrophe (Per Occurrence) XL:</strong> Applies to the aggregate losses from a single event (e.g., a hurricane damaging 5,000 homes).</li>
+      <li><strong>Stop-Loss (Aggregate XL):</strong> Applies to the total annual aggregated losses of the insurer.</li>
+    </ul>
+
+    <h3>4.4 Pricing XL Treaties</h3>
+    <p>Pricing typically relies on <strong>Experience Rating</strong> (using historical data, also known as the Burning Cost method) and <strong>Exposure Rating</strong> (using industry standard curves like Increased Limits Factors).</p>
+    
+    <div class="theorem">
+      <div class="box-title">Formula 35.1: Burning Cost Rate</div>
+      <div class="box-content">
+        \[ \text{Burning Cost Rate} = \frac{\sum_{t=1}^n \text{Trended Layer Losses}_t}{\sum_{t=1}^n \text{On-Level Premium}_t \text{ or GNPI}_t} \]
+        The final rate charged is often loaded:
+        \[ \text{Rate Charged} = \frac{\text{Burning Cost Rate} + \text{Fixed Costs}}{1 - \text{Profit Margin} - \text{Brokerage}} \]
+        *GNPI stands for Gross Net Premium Income.
+      </div>
+    </div>
+
+    <h3>4.5 Alternative Risk Transfer (ART)</h3>
+    <p>ART instruments provide reinsurance-like protection funded directly by capital markets.</p>
+    <ul>
+      <li><strong>Catastrophe Bonds (Cat Bonds):</strong> Debt instruments where the principal is forgiven if a specific catastrophe trigger (e.g., parametric earthquake magnitude, or modeled industry loss) is met.</li>
+      <li><strong>Industry Loss Warranties (ILWs):</strong> Contracts where payout occurs if total industry losses exceed a specified threshold, rather than the insurer's actual losses.</li>
+    </ul>
+
+    <h3>4.6 Optimality of Reinsurance</h3>
+    <div class="theorem">
+      <div class="box-title">Theorem 35.1: Arrow's Theorem for Reinsurance (1963)</div>
+      <div class="box-content">
+        Assume an insurer seeks to maximize expected utility of wealth (with a risk-averse utility function) and the reinsurance premium is calculated purely on expected ceded loss plus a constant proportional loading. Then, the optimal reinsurance contract that maximizes expected utility, subject to a fixed premium budget, is a <strong>Stop-Loss (Aggregate Excess of Loss) contract</strong>.
+      </div>
+    </div>
+  </section>
+
+  <section id="section-5-worked-examples">
+    <h2>5. Worked Examples</h2>
+
+    <div class="example">
+      <div class="box-title">Example 35.1: Quota Share Treaty Economics</div>
+      <div class="box-content">
+        <strong>Problem:</strong> SafeGuard Gen writes a portfolio of motor insurance with a total Gross Written Premium (GWP) of INR 1,000,000,000. They enter a 40% Quota Share treaty. The reinsurer pays a 25% ceding commission. Gross claims for the year are INR 750,000,000. Calculate the net cash flows and underwriting profit for the insurer and reinsurer, ignoring expenses.<br><br>
+        <strong>Solution:</strong><br>
+        1. <strong>Ceded Premium:</strong> \( 40\% \times 1,000,000,000 = \text{INR } 400,000,000 \)<br>
+        2. <strong>Retained Premium:</strong> \( 60\% \times 1,000,000,000 = \text{INR } 600,000,000 \)<br>
+        3. <strong>Ceding Commission received by Insurer:</strong> \( 25\% \times 400,000,000 = \text{INR } 100,000,000 \)<br>
+        4. <strong>Gross Claims:</strong> INR 750,000,000<br>
+        5. <strong>Ceded Claims (paid by reinsurer):</strong> \( 40\% \times 750,000,000 = \text{INR } 300,000,000 \)<br>
+        6. <strong>Retained Claims:</strong> \( 60\% \times 750,000,000 = \text{INR } 450,000,000 \)<br>
+        <br>
+        <strong>Insurer's Underwriting Result:</strong><br>
+        Retained Premium + Ceding Comm. - Retained Claims = \( 600m + 100m - 450m = \text{INR } 250,000,000 \).<br>
+        <strong>Reinsurer's Underwriting Result:</strong><br>
+        Ceded Premium - Ceding Comm. - Ceded Claims = \( 400m - 100m - 300m = \text{INR } 0 \). (Break-even).
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 35.2: Surplus Share Mechanics</div>
+      <div class="box-content">
+        <strong>Problem:</strong> An insurer has a 3-line surplus treaty with a retention of $1,000,000. This means the treaty provides capacity up to 3 times the retention ($3M) on top of the retention. The total capacity is $4,000,000. Determine the retained and ceded percentages and amounts for three risks with sums insured: (A) $800,000, (B) $2,000,000, (C) $5,000,000. Risk B suffers a loss of $500,000. How much does the reinsurer pay?<br><br>
+        <strong>Solution:</strong><br>
+        <strong>Risk A (SI = $800,000):</strong><br>
+        Since SI < Retention, Retained = 100%. Ceded = 0%.<br><br>
+        <strong>Risk B (SI = $2,000,000):</strong><br>
+        Retention = $1,000,000 (50%).<br>
+        Surplus (Ceded) = $2,000,000 - $1,000,000 = $1,000,000 (50%).<br>
+        For a loss of $500,000 on B, the reinsurer pays 50% = $250,000.<br><br>
+        <strong>Risk C (SI = $5,000,000):</strong><br>
+        Retention = $1,000,000.<br>
+        Treaty limit is 3 lines = $3,000,000.<br>
+        The remaining $1,000,000 exceeds treaty capacity and must be placed facultatively or retained net (if allowed). The treaty takes $3M / $5M = 60%.
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 35.3: Burning Cost XL Pricing</div>
+      <div class="box-content">
+        <strong>Problem:</strong> Pricing a $5M xs $5M Per Occurrence treaty. Over the last 3 years, the adjusted GNPI and trended losses > $5M are:<br>
+        Year 1: GNPI $40M, Losses: $7M, $12M<br>
+        Year 2: GNPI $45M, Losses: $6M<br>
+        Year 3: GNPI $50M, Losses: None<br>
+        Loading factor is 100/80 (i.e., pure premium is divided by 0.8). Calculate the Rate on Line (RoL).<br><br>
+        <strong>Solution:</strong><br>
+        Apply layer logic \(\min(\max(X - 5M, 0), 5M)\) to each loss:<br>
+        Y1: $7M loss \(\rightarrow\) $2M to layer. $12M loss \(\rightarrow\) layer is exhausted, $5M to layer. Total Y1 = $7M.<br>
+        Y2: $6M loss \(\rightarrow\) $1M to layer.<br>
+        Y3: $0 to layer.<br>
+        Total layer losses = $8M.<br>
+        Total GNPI = 40 + 45 + 50 = $135M.<br>
+        Burning Cost Rate (Pure Premium Rate) = \( 8 / 135 = 5.925\% \).<br>
+        Loaded Rate = \( 5.925\% / 0.8 = 7.407\% \).<br>
+        Estimated Treaty Premium for Year 4 (assuming GNPI $55M) = \( 7.407\% \times 55M = \$4,073,850 \).<br>
+        Rate on Line (Premium / Limit) = \( \$4.07M / \$5M = 81.4\% \).
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 35.4: Cat Bond Pricing</div>
+      <div class="box-content">
+        <strong>Problem:</strong> A $100M parametric Cat Bond triggers a 100% principal wipeout if an earthquake of magnitude > 7.5 occurs in a specific zone. Modeler estimates the annual probability of attachment (trigger) is 1.2% (Expected Loss = 1.2%). The risk-free rate is 4%. If investors demand a spread of 4.5% over the risk-free rate, what is the expected return to the investor?<br><br>
+        <strong>Solution:</strong><br>
+        Coupon Yield = Risk-Free + Spread = \( 4\% + 4.5\% = 8.5\% \).<br>
+        Total payout to investor if NO trigger = 108.5% of principal.<br>
+        Total payout if trigger = 8.5% (assuming coupon is paid before wipeout, though often it is lost too. Let's assume standard loss of principal only at year end).<br>
+        Expected payout = \( 0.988 \times 108.5 + 0.012 \times 8.5 = 107.198 + 0.102 = 107.3\% \).<br>
+        Expected return = 7.3%.<br>
+        The investor's risk premium over risk-free rate is \( 7.3\% - 4\% = 3.3\% \).
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 35.5: Variance Reduction (Reinsurance Optimization)</div>
+      <div class="box-content">
+        <strong>Problem:</strong> Aggregate loss \( S \sim \text{Normal}(\mu=100, \sigma=40) \). An insurer considers a 50% Quota Share (QS) vs an Aggregate XL (Stop-Loss) treaty that covers \( S > 100 \) up to infinity. Both cost a pure premium equivalent. Compare the variance of the retained risk.<br><br>
+        <strong>Solution:</strong><br>
+        Original Variance: \( Var(S) = 40^2 = 1600 \).<br>
+        <strong>1. 50% Quota Share:</strong><br>
+        Retained loss \( R_{QS} = 0.5 S \).<br>
+        \( Var(R_{QS}) = (0.5)^2 Var(S) = 0.25 \times 1600 = 400 \).<br>
+        <strong>2. Stop-Loss (deductible = 100 = \mu):</strong><br>
+        Retained loss \( R_{SL} = \min(S, 100) \).<br>
+        This heavily truncates the right tail. Calculating variance of a truncated normal requires integration (or tabular lookups). For a standard normal \( Z \), variance of \( \min(Z, 0) \) is \( 1/2 - 1/(2\pi) \approx 0.34 \).<br>
+        Thus \( Var(R_{SL}) \approx 40^2 \times 0.34 = 545 \). <br>
+        <em>Note:</em> To make pure premiums equal, the QS premium is 50, whereas the pure premium for SL at the mean is \( \sigma / \sqrt{2\pi} \approx 15.9 \). For exactly equal premium spent, the Stop-Loss deductible would be much lower, drastically reducing retained variance below that of the QS, validating Arrow's Theorem.
+      </div>
+    </div>
+  </section>
+
+  <section id="section-6-python">
+    <h2>6. Python Code</h2>
+    <p>This script calculates the Burning Cost for a given Excess of Loss treaty.</p>
+    <pre><code class="language-python">
+import numpy as np
+import pandas as pd
+
+def calculate_burning_cost(gnpi_history, loss_history, deductible, limit, loading_factor):
+    """
+    Calculate XL Treaty Rate on Line and Estimated Premium based on Burning Cost.
+    
+    gnpi_history: list of floats (historical GNPI)
+    loss_history: list of lists of floats (losses in each historical year)
+    deductible: float
+    limit: float
+    loading_factor: float (e.g., 100/80 = 1.25)
+    """
+    total_gnpi = sum(gnpi_history)
+    layer_losses = []
+    
+    for losses in loss_history:
+        year_layer_loss = 0
+        for loss in losses:
+            # Apply layer logic: min(max(loss - deductible, 0), limit)
+            layer_loss = min(max(loss - deductible, 0), limit)
+            year_layer_loss += layer_loss
+        layer_losses.append(year_layer_loss)
+        
+    total_layer_loss = sum(layer_losses)
+    
+    # Calculate rates
+    pure_rate = total_layer_loss / total_gnpi
+    loaded_rate = pure_rate * loading_factor
+    
+    return {
+        "Total GNPI": total_gnpi,
+        "Total Layer Loss": total_layer_loss,
+        "Pure BC Rate": round(pure_rate, 4),
+        "Loaded Rate": round(loaded_rate, 4),
+        "Rate on Line (RoL)": round(loaded_rate * np.mean(gnpi_history) / limit, 4)
+    }
+
+# Data from Example 35.3
+gnpi = [40, 45, 50]
+losses = [[7, 12], [6], []]
+
+results = calculate_burning_cost(gnpi, losses, deductible=5, limit=5, loading_factor=1.25)
+for k, v in results.items():
+    print(f"{k}: {v}")
+    </code></pre>
+  </section>
+
+  <section id="section-7-diagrams">
+    <h2>7. Diagrams Description</h2>
+    <p><strong>Figure 35.1: Proportional vs Non-Proportional Sharing</strong><br>
+    A side-by-side bar chart showing a total risk exposure. On the left (Quota Share), a vertical split runs all the way up, demonstrating that the reinsurer shares in attritional, large, and catastrophic losses equally. On the right (Excess of Loss), a horizontal line represents the attachment point. The area below remains solid blue (insurer's retention), and the block above is shaded red (reinsurer's liability up to the limit).</p>
+    
+    <p><strong>Figure 35.2: The Reinsurance Tower</strong><br>
+    A classic stack diagram showing how an insurer builds catastrophe protection. The bottom layer is the "Retention" (e.g., $0 to $10M). Above it sits "First Layer XL" ($10M xs $10M). Above that is "Second Layer XL" ($30M xs $20M). The peak might be a Cat Bond layer. This illustrates how different capacities and pricing are layered to reach the 1-in-250 year PML (Probable Maximum Loss).</p>
+  </section>
+
+  <section id="section-8-warnings">
+    <h2>8. Common Mistakes &amp; Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Warning: "Free" Capital vs. Cost of Capital</div>
+      <div class="box-content">
+        A common misconception is that reinsurance automatically increases profitability by allowing more volume. Reinsurance always carries a cost (the reinsurer's profit margin). It reduces Expected Return in exchange for lower Volatility (Variance) and lower Capital Requirements. It is an arbitrage of the Cost of Capital between the primary insurer and the global reinsurer.
+      </div>
+    </div>
+    <div class="warning">
+      <div class="box-title">Warning: Limit Exhaustion</div>
+      <div class="box-content">
+        In XL treaties, students often forget that treaties have an <em>Annual Aggregate Limit</em> or a reinstatement provision. If a treaty covers "$5M xs $5M", and one $10M loss occurs, the layer is exhausted. If a second $10M loss occurs, the primary insurer bears it entirely unless the treaty includes a "Reinstatement" clause (usually requiring an additional reinstatement premium).
+      </div>
+    </div>
+  </section>
+
+  <section id="section-9-industry">
+    <h2>9. Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Industry Context: Indian Reinsurance Landscape &amp; Mandatory Cessions</div>
+      <div class="box-content">
+        In the Indian market, regulatory structure significantly shapes reinsurance strategy. The Insurance Regulatory and Development Authority of India (IRDAI) mandates that all primary insurers cede a fixed percentage (historically between 4% and 5%, recently adjusted based on class) of their domestic business to the national reinsurer, <strong>GIC Re</strong> (General Insurance Corporation of India). This is known as the "Order of Preference" or obligatory cession.<br><br>
+        Furthermore, when seeking additional facultative or treaty capacity, insurers must follow a strict hierarchy: offering the risk first to GIC Re, then to Foreign Reinsurance Branches (FRBs) operating in India (like Swiss Re India, Munich Re India), and only then to Cross Border Reinsurers (CBRs) or the Lloyd's India market. This aims to maximize domestic retention of premium while maintaining solvency.
+      </div>
+    </div>
+  </section>
+
+  <section id="section-10-formula-sheet">
+    <h2>10. Summary &amp; Formula Cheat-Sheet</h2>
+    <div class="formula-sheet">
+      <ul>
+        <li><strong>Quota Share:</strong> Retained = \((1-\alpha)X\); Ceded = \(\alpha X\).</li>
+        <li><strong>Surplus Cession %:</strong> \(\alpha = \max\left(0, \frac{SI - Retention}{SI}\right)\)</li>
+        <li><strong>Excess of Loss Ceded:</strong> \( X_{ceded} = \min(\max(X - D, 0), L) \)</li>
+        <li><strong>Burning Cost Rate:</strong> \( \frac{\text{Sum of Layer Losses}}{\text{Sum of GNPI}} \)</li>
+        <li><strong>Rate on Line (RoL):</strong> \( \frac{\text{Premium}}{\text{Limit}} \)</li>
+        <li><strong>Payback Period:</strong> \( \frac{1}{\text{RoL}} \) (Number of years for reinsurer to recoup a total limit loss).</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="section-11-exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercises">
+      <div class="exercise-group">
+        <h3>Basic</h3>
+        <div class="exercise-item">
+          <strong>1.</strong> An insurer enters a 30% Quota Share treaty. For a risk with premium INR 10,000 and a loss of INR 50,000, calculate the ceded premium, retained premium, ceded loss, and retained loss.
+        </div>
+        <div class="exercise-item">
+          <strong>2.</strong> A surplus treaty has a retention of $500,000. A building is insured for $2,000,000. What percentage of any loss is ceded to the reinsurer?
+        </div>
+        <div class="exercise-item">
+          <strong>3.</strong> Given an XL treaty of $2M xs $1M, how much does the reinsurer pay for a loss of (a) $500k, (b) $1.5M, (c) $4M?
+        </div>
+        <div class="exercise-item">
+          <strong>4.</strong> Define "Rate on Line" and calculate it if the premium for a $10M XL layer is $2M.
+        </div>
+      </div>
+      
+      <div class="exercise-group">
+        <h3>Intermediate</h3>
+        <div class="exercise-item">
+          <strong>5.</strong> Over 5 years, GNPI is $100M per year. Losses to a $5M xs $5M layer have been: $0, $2M, $5M, $1M, $0. Calculate the loaded premium rate if the loading factor is 1.5.
+        </div>
+        <div class="exercise-item">
+          <strong>6.</strong> A primary insurer has a 5-line surplus treaty with a retention of INR 1 Crore. A factory is insured for INR 8 Crores. Calculate the net retention, the treaty cession, and the facultative requirement.
+        </div>
+        <div class="exercise-item">
+          <strong>7.</strong> Explain the difference between a Catastrophe Bond and an Industry Loss Warranty (ILW). Why might a sponsor prefer one over the other?
+        </div>
+        <div class="exercise-item">
+          <strong>8.</strong> An XL treaty has a single paid reinstatement at 100% additional premium. The limit is $10M. A total loss occurs. The initial premium was $1M. What is the total cost to the primary insurer for the year (ignoring the underlying deductible)?
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h3>Advanced</h3>
+        <div class="exercise-item">
+          <strong>9.</strong> Prove that under the conditions of Arrow's Theorem, a Stop-Loss treaty is optimal for an insurer maximizing a strictly concave utility function.
+        </div>
+        <div class="exercise-item">
+          <strong>10.</strong> An insurer models its annual aggregate loss as a Log-Normal distribution with \(\mu=10\) and \(\sigma=0.5\). Calculate the pure premium for an aggregate stop-loss treaty attaching at $50,000. (Use numerical integration or standard normal CDF tables).
+        </div>
+        <div class="exercise-item">
+          <strong>11.</strong> Discuss the impact of IRDAI's mandatory cession on the capital adequacy of a newly established, high-growth Indian general insurer versus a mature player.
+        </div>
+        <div class="exercise-item">
+          <strong>12.</strong> A cat bond has an expected loss of 2% and an attachment probability of 2.5%. The risk-free rate is 5%. Using a Sharpe-ratio style metric for cat bonds (Spread / Expected Loss), compare it to a corporate bond with an expected loss of 0.5% yielding 7%. Which offers better risk-adjusted return?
+        </div>
+      </div>
+
+      <div class="solutions">
+        <h3>Selected Solutions</h3>
+        <div class="solution-item">
+          <strong>Solution to 1:</strong> Ceded Premium = 30% of 10,000 = 3,000. Retained Premium = 7,000. Ceded Loss = 30% of 50,000 = 15,000. Retained Loss = 35,000.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 2:</strong> Retention = $500k. Surplus = $1.5M. Percentage ceded = 1.5M / 2.0M = 75%.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 3:</strong> Layer is $2M limit above $1M deductible. (a) Loss $500k < $1M -> Reinsurer pays 0. (b) Loss $1.5M -> Reinsurer pays $500k. (c) Loss $4M -> Reinsurer pays the max limit: $2M.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 5:</strong> Total Layer Losses = 0 + 2M + 5M + 1M + 0 = 8M. Total GNPI = 500M. Pure rate = 8/500 = 1.6%. Loaded rate = 1.6% * 1.5 = 2.4%.
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 6:</strong> Retention = 1 Cr. Treaty Limit = 5 lines = 5 Cr. Total Treaty Capacity = 6 Cr. Sum Insured is 8 Cr. Therefore: Retained = 1 Cr (12.5%). Treaty Cession = 5 Cr (62.5%). Facultative Reinsurance needed = 2 Cr (25%).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 8:</strong> Initial Premium paid = $1M. Loss occurs, so reinstatement premium triggered. Reinstatement cost = 100% of initial = $1M. Total premium paid = $2M. (Insurer also bears the deductible on the loss).
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="section-12-further-reading">
+    <h2>12. Further Reading</h2>
+    <div class="further-reading">
+      <ul>
+        <li>Clark, D. R. (2014). <em>Basics of Reinsurance Pricing</em>. Casualty Actuarial Society (CAS) Study Note.</li>
+        <li>Bühlmann, H. (1970). <em>Mathematical Methods in Risk Theory</em>. Springer. (For foundational optimality theory).</li>
+        <li>Patrik, G. (2001). <em>Reinsurance</em>. In Foundations of Casualty Actuarial Science (4th ed.).</li>
+        <li>Albrecher, H., Beirlant, J., &amp; Teugels, J. L. (2017). <em>Reinsurance: Actuarial and Statistical Aspects</em>. Wiley.</li>
+      </ul>
+    </div>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch34_loss_reserving.html">← Previous Chapter (Loss Reserving)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch36_evt_copulas.html">Next Chapter (EVT &amp; Copulas) →</a>
+  </nav>
+
+</body>
+</html>

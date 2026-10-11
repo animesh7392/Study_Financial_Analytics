@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 18: Credit Risk</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 18: Credit Risk</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the fundamental credit risk parameters: PD, LGD, EAD, Expected Loss (EL), and Unexpected Loss (UL).</li>
+        <li>Derive and apply the Merton Structural Model to calculate a firm's Probability of Default and credit spread.</li>
+        <li>Model default using Reduced-Form (Intensity) Models based on Poisson processes and hazard rates.</li>
+        <li>Price Credit Default Swaps (CDS) and bootstrap hazard rates from market spreads.</li>
+        <li>Analyze rating transition matrices, CDO tranches, Gaussian copulas, and counterparty credit risk metrics like CVA.</li>
+        <li>Navigate the regulatory landscape: Basel II IRB, Basel III enhancements, and Basel IV frameworks.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter synthesizes concepts from several previous areas:</p>
+      <ul>
+        <li><strong>Chapters 4 & 5 (Probability & Distributions):</strong> Required for Poisson processes, Gaussian distributions, and copulas.</li>
+        <li><strong>Chapter 11 (Bonds):</strong> Required for yield curves, corporate bonds, and spreads.</li>
+        <li><strong>Chapter 15 (Options & Merton Model):</strong> The Black-Scholes framework forms the foundation of structural credit risk models.</li>
+      </ul>
+      <p>Looking ahead, the next chapter, <strong>Chapter 19: Market Risk</strong>, will contrast with credit risk to give a full picture of risk management and Value-at-Risk methodologies.</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>Consider a commercial bank that issues a \$10 million loan to a mid-sized manufacturing company. While the bank expects regular interest payments and full principal repayment, there is always a chance the company might face financial distress and default. If a default happens, the bank will likely recover only a fraction of its \$10 million claim.</p>
+  <p>How does the bank quantify this risk? It must answer three key questions:</p>
+  <ol>
+    <li>What is the probability that the borrower defaults?</li>
+    <li>If they default, how much will the bank actually lose?</li>
+    <li>How much is at risk at the exact moment of default?</li>
+  </ol>
+  <p>Credit risk encompasses all possible financial losses arising from a counterparty's failure to meet their obligations. The ability to mathematically model and price this risk is the engine behind modern fixed income markets, banking regulation, and complex credit derivatives.</p>
+
+  <h2>2. Formal Theory</h2>
+
+  <h3>2.1 Credit Risk Parameters</h3>
+  <p>The foundations of credit risk management rest on identifying and estimating key risk components.</p>
+  <div class="definition">
+    <div class="box-title">Definition 18.1: Expected Loss (EL)</div>
+    <div class="box-content">
+      The Expected Loss is the average anticipated loss over a given time horizon. It is determined by:
+      \[
+      \text{EL} = \text{PD} \times \text{LGD} \times \text{EAD}
+      \]
+      Where:
+      <ul>
+        <li><strong>PD (Probability of Default):</strong> The likelihood that a borrower defaults over a given horizon (usually 1 year).</li>
+        <li><strong>LGD (Loss Given Default):</strong> The percentage of the exposure that will not be recovered if default occurs. Note that $\text{LGD} = 1 - \text{Recovery Rate (RR)}$.</li>
+        <li><strong>EAD (Exposure at Default):</strong> The estimated total outstanding amount at the time of default.</li>
+      </ul>
+    </div>
+  </div>
+  <p>While Expected Loss represents the cost of doing business (covered by pricing and provisions), <strong>Unexpected Loss (UL)</strong> represents the volatility of losses and determines the required economic capital.</p>
+
+  <h3>2.2 Merton Structural Model</h3>
+  <p>The Merton model (1974) links a firm's capital structure to its default probability using option pricing theory.</p>
+  <p>Assume the total value of a firm's assets \( V_t \) follows a Geometric Brownian Motion:</p>
+  \[
+  \dd V_t = \mu_V V_t \dd t + \sigma_V V_t \dd W_t
+  \]
+  <p>The firm has a simple capital structure: equity \( E \) and a single zero-coupon debt issue with face value \( D \) maturing at time \( T \). Default occurs if the firm's asset value at \( T \) is less than the debt obligation: \( V_T < D \).</p>
+  <p>The equity holders have a residual claim on the firm's assets. At maturity \( T \), the value of equity is:</p>
+  \[
+  E_T = \max(V_T - D, 0)
+  \]
+  <p>This is the payoff of a European call option on the firm's assets with strike price \( D \). Using the Black-Scholes formula:</p>
+  \[
+  E_0 = V_0 \Phi(d_1) - D e^{-rT} \Phi(d_2)
+  \]
+  <p>Where:</p>
+  \[
+  d_1 = \frac{\ln(V_0 / D) + (r + \sigma_V^2 / 2)T}{\sigma_V \sqrt{T}}, \quad d_2 = d_1 - \sigma_V \sqrt{T}
+  \]
+  <div class="theorem">
+    <div class="box-title">Theorem 18.1: Distance to Default and PD</div>
+    <div class="box-content">
+      In the physical (real-world) measure, assuming the firm assets grow at rate \( \mu_V \), the <strong>Distance to Default (DD)</strong> is the number of standard deviations the firm's asset value is away from the default threshold \( D \):
+      \[
+      \text{DD} = \frac{\ln(V_0 / D) + (\mu_V - \sigma_V^2 / 2)T}{\sigma_V \sqrt{T}}
+      \]
+      The real-world Probability of Default is then:
+      \[
+      \text{PD}_{\text{real}} = \Phi(-\text{DD})
+      \]
+      The risk-neutral Probability of Default replaces \( \mu_V \) with the risk-free rate \( r \):
+      \[
+      \text{PD}_{\text{RN}} = \Phi(-d_2)
+      \]
+    </div>
+  </div>
+
+  <h3>2.3 Reduced-Form (Intensity) Models</h3>
+  <p>Structural models are computationally elegant but often fit market data poorly because firm value isn't directly observable. Reduced-form models abstract away from the firm's balance sheet and model default as an exogenous random event (a Poisson process).</p>
+  <p>Let \( \tau \) be the random time of default. The hazard rate (or default intensity) \( \lambda(t) \) defines the instantaneous probability of default given survival up to time \( t \):</p>
+  \[
+  \lambda(t) = \lim_{\Delta t \to 0} \frac{1}{\Delta t} \P(t < \tau \leq t + \Delta t \mid \tau > t)
+  \]
+  <p>The survival probability \( S(t) \), the probability that default occurs after time \( t \), is:</p>
+  \[
+  S(t) = \P(\tau > t) = \exp\left( - \int_0^t \lambda(s) \dd s \right)
+  \]
+  <p>If \( \lambda \) is constant, \( S(t) = e^{-\lambda t} \).</p>
+
+  <h3>2.4 Credit Spreads and CDS Pricing</h3>
+  <p>A credit spread \( s \) is the premium over the risk-free rate demanded by investors to bear credit risk. In a simple constant hazard rate model with Recovery Rate \( R \), the credit spread can be approximated by:</p>
+  \[
+  s \approx \lambda(1 - R) = \lambda \cdot \text{LGD}
+  \]
+  <p>A <strong>Credit Default Swap (CDS)</strong> is a contract where the protection buyer pays a periodic premium (the CDS spread) to the protection seller in exchange for a compensation payment if a credit event occurs.</p>
+  <p><strong>Premium Leg (PL):</strong> The present value of all premiums paid until maturity or default.</p>
+  <p><strong>Protection Leg (DL):</strong> The present value of the expected payout upon default.</p>
+  <p>At inception, the fair CDS spread \( s \) is chosen such that \( \text{PL} = \text{DL} \).</p>
+
+  <h3>2.5 Credit Valuation Adjustment (CVA)</h3>
+  <p>CVA is the market value of counterparty credit risk for over-the-counter (OTC) derivatives. It is the difference between the risk-free portfolio value and the true portfolio value factoring in counterparty default.</p>
+  \[
+  \text{CVA} = \text{LGD} \int_0^T \text{EE}(t) \cdot \dd \text{PD}(t)
+  \]
+  <p>Where \( \text{EE}(t) \) is the Discounted Expected Exposure at time \( t \).</p>
+
+  <h3>2.6 CDOs and Copula Models</h3>
+  <p>Collateralized Debt Obligations (CDOs) pool multiple debt instruments and slice the aggregate credit risk into tranches (e.g., Equity, Mezzanine, Senior). Pricing tranches requires modeling the joint default probability of many names.</p>
+  <p>The <strong>Gaussian Copula</strong> (introduced by David Li, 2000) maps individual survival times to standard normal variables, then uses a multivariate normal distribution with a correlation matrix to model joint defaults. The assumption of constant, simplistic correlation structures in copulas was a critical failure point during the 2008 financial crisis.</p>
+
+  <h3>2.7 Basel Credit Frameworks</h3>
+  <p>Global banking regulation mandates capital reserves for credit risk.</p>
+  <ul>
+    <li><strong>Basel II IRB:</strong> Internal Ratings-Based approach uses the Vasicek single-factor model to determine regulatory capital.</li>
+    <li><strong>Basel III:</strong> Added the Capital Conservation Buffer (CCB), leverage ratio, and liquidity coverage ratio.</li>
+    <li><strong>Basel IV:</strong> Implements an output floor to restrict the benefit banks get from internal models compared to Standardized Approaches (SA-CCR).</li>
+  </ul>
+
+  <h2>3. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 18.1: Merton Model PD and Spread</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A firm has total assets \( V_0 = \$100 \) million and zero-coupon debt of \( D = \$80 \) million due in \( T = 1 \) year. The asset volatility is \( \sigma_V = 25\% \), the expected return on assets is \( \mu_V = 8\% \), and the risk-free rate is \( r = 3\% \). Calculate the real-world PD, risk-neutral PD, and the credit spread on the debt.</p>
+      <p><strong>Solution:</strong></p>
+      <p>1. Calculate Distance to Default (DD):</p>
+      \[
+      \text{DD} = \frac{\ln(100 / 80) + (0.08 - 0.25^2 / 2) \times 1}{0.25 \sqrt{1}} = \frac{0.2231 + (0.08 - 0.03125)}{0.25} = \frac{0.2719}{0.25} = 1.0876
+      \]
+      <p>2. Real-world PD:</p>
+      \[
+      \text{PD}_{\text{real}} = \Phi(-1.0876) \approx 13.84\%
+      \]
+      <p>3. Calculate \( d_2 \) for risk-neutral PD:</p>
+      \[
+      d_1 = \frac{\ln(100 / 80) + (0.03 + 0.25^2 / 2)}{0.25} = \frac{0.2231 + 0.06125}{0.25} = 1.1374
+      \]
+      \[
+      d_2 = d_1 - \sigma_V \sqrt{T} = 1.1374 - 0.25 = 0.8874
+      \]
+      \[
+      \text{PD}_{\text{RN}} = \Phi(-0.8874) \approx 18.74\%
+      \]
+      <p>4. Value the Debt and Credit Spread:</p>
+      <p>The value of debt is \( B_0 = V_0 - E_0 \). We first find equity \( E_0 \):</p>
+      \[
+      E_0 = 100 \times \Phi(1.1374) - 80 e^{-0.03} \Phi(0.8874) = 100(0.8723) - 80(0.9704)(0.8126) = 87.23 - 63.09 = \$24.14 \text{ M}
+      \]
+      \[
+      B_0 = 100 - 24.14 = \$75.86 \text{ M}
+      \]
+      <p>Yield on debt \( y \) is found via \( B_0 = D e^{-yT} \Rightarrow y = -\frac{1}{T}\ln(B_0/D) = -\ln(75.86 / 80) = 5.32\% \).</p>
+      <p>Credit Spread = \( y - r = 5.32\% - 3.00\% = 2.32\% = 232 \text{ bps} \).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 18.2: Bootstrapping Hazard Rates</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A corporate issuer's CDS spreads are 120 bps (1 yr), 145 bps (3 yr), and 160 bps (5 yr). Assuming a constant recovery rate of 40% (LGD = 60%), extract the piecewise constant hazard rates for the intervals [0,1], [1,3], and [3,5]. Use the approximation \( s = \lambda \times \text{LGD} \).</p>
+      <p><strong>Solution:</strong></p>
+      <p>Using the rule of thumb \( \lambda \approx s / \text{LGD} \):</p>
+      <p>1. For the first year (average hazard rate from 0 to 1):</p>
+      \[
+      \lambda_1 \approx \frac{0.0120}{0.60} = 0.0200 = 2.0\%
+      \]
+      <p>2. For the 3-year point, the average hazard rate over 3 years is:</p>
+      \[
+      \bar{\lambda}_3 \approx \frac{0.0145}{0.60} = 0.02417 = 2.417\%
+      \]
+      <p>To find the forward hazard rate \( \lambda_{1,3} \) for the period [1,3], we know the cumulative hazard is additive: \( 3 \bar{\lambda}_3 = 1 \cdot \lambda_1 + 2 \cdot \lambda_{1,3} \).</p>
+      \[
+      3(0.02417) = 0.0200 + 2 \lambda_{1,3} \implies 0.07251 - 0.0200 = 2 \lambda_{1,3} \implies \lambda_{1,3} = 2.625\%
+      \]
+      <p>3. For the 5-year point, average hazard rate over 5 years is:</p>
+      \[
+      \bar{\lambda}_5 \approx \frac{0.0160}{0.60} = 0.02667 = 2.667\%
+      \]
+      <p>The forward hazard rate \( \lambda_{3,5} \) for the period [3,5]:</p>
+      \[
+      5 \bar{\lambda}_5 = 3 \bar{\lambda}_3 + 2 \lambda_{3,5} \implies 5(0.02667) = 3(0.02417) + 2 \lambda_{3,5}
+      \]
+      \[
+      0.13335 = 0.07251 + 2 \lambda_{3,5} \implies \lambda_{3,5} = 3.042\%
+      \]
+      <p>The term structure of hazard rates is upward sloping: 2.00%, 2.625%, 3.042%.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 18.3: CDS Pricing - Protection and Premium Legs</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Price a 2-year CDS with a nominal principal of \$1,000,000. Annual premium payments are made at the end of each year. The risk-free rate is a flat 4% (continuous). The hazard rate is constant at 3%. Recovery rate is 40%. Assume default happens exactly mid-year for calculation purposes. Find the fair CDS spread in bps.</p>
+      <p><strong>Solution:</strong></p>
+      <p>First, calculate survival probabilities \( S(t) = e^{-0.03t} \) and discount factors \( Z(t) = e^{-0.04t} \):</p>
+      <ul>
+        <li>Year 1: \( S(1) = e^{-0.03} = 0.9704 \), \( Z(1) = e^{-0.04} = 0.9608 \)</li>
+        <li>Year 2: \( S(2) = e^{-0.06} = 0.9418 \), \( Z(2) = e^{-0.08} = 0.9231 \)</li>
+      </ul>
+      <p><strong>Premium Leg (PV of 1 bps per year):</strong></p>
+      <p>If the firm survives, 1 bps ($100 on 1M) is paid. PV of 1 bps spread = \( 100 \times [S(1)Z(1) + S(2)Z(2)] \).</p>
+      <p>\( S(1)Z(1) = 0.9704 \times 0.9608 = 0.9324 \)</p>
+      <p>\( S(2)Z(2) = 0.9418 \times 0.9231 = 0.8694 \)</p>
+      <p>Accrued premium on default (mid-year): default probability in year \( t \) is \( S(t-1) - S(t) \). Half a year of premium is paid.</p>
+      <ul>
+        <li>Year 1 default prob: \( 1 - 0.9704 = 0.0296 \). Mid-year discount: \( Z(0.5) = e^{-0.02} = 0.9802 \). PV = \( 0.5 \times 100 \times 0.0296 \times 0.9802 = 1.45 \)</li>
+        <li>Year 2 default prob: \( 0.9704 - 0.9418 = 0.0286 \). Mid-year discount: \( Z(1.5) = e^{-0.06} = 0.9418 \). PV = \( 0.5 \times 100 \times 0.0286 \times 0.9418 = 1.35 \)</li>
+      </ul>
+      <p>Total PV(1 bps) = \( 100 \times (0.9324 + 0.8694) + 1.45 + 1.35 = 180.18 + 2.80 = \$182.98 \).</p>
+      
+      <p><strong>Protection Leg:</strong> Payout is \( (1-R) \times 1M = 0.6 \times 1,000,000 = \$600,000 \). PV of protection:</p>
+      <ul>
+        <li>Year 1: \( 600,000 \times 0.0296 \times 0.9802 = \$17,408 \)</li>
+        <li>Year 2: \( 600,000 \times 0.0286 \times 0.9418 = \$16,161 \)</li>
+      </ul>
+      <p>Total PV(Protection) = \$33,569.</p>
+      
+      <p><strong>Fair Spread (bps):</strong> \( s = \frac{\text{PV(Protection)}}{\text{PV(1 bps)}} = \frac{33,569}{182.98} = 183.46 \text{ bps} \).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 18.4: CVA Calculation for a Swap</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Calculate the Unilateral CVA for an OTC derivative. The counterparty has a constant hazard rate of \( \lambda = 5\% \) per year. Recovery rate is 40%. The derivative matures in 2 years. The discounted expected exposure \( \text{EE}(t) \) is estimated to be constant at \$50,000 over the 2 years. </p>
+      <p><strong>Solution:</strong></p>
+      <p>CVA formula: \( \text{CVA} = \text{LGD} \int_0^T \text{EE}(t) \cdot \dd \text{PD}(t) \)</p>
+      <p>Here, \( \text{LGD} = 0.60 \), \( \text{EE}(t) = 50,000 \).</p>
+      <p>The cumulative probability of default is \( \text{PD}(t) = 1 - e^{-\lambda t} \). Thus, \( \dd \text{PD}(t) = \lambda e^{-\lambda t} \dd t \).</p>
+      <p>Since \( \text{EE}(t) \) is constant:</p>
+      \[
+      \text{CVA} = 0.60 \times 50,000 \times \int_0^2 0.05 e^{-0.05 t} \dd t
+      \]
+      <p>The integral evaluates to the probability of default over 2 years: \( 1 - e^{-0.10} \approx 1 - 0.9048 = 0.0952 \).</p>
+      \[
+      \text{CVA} = 30,000 \times 0.0952 = \$2,856
+      \]
+      <p>The bank must reduce the fair value of the derivative by \$2,856 to account for the risk that the counterparty defaults before settlement.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 18.5: Basel IRB Risk-Weighted Assets</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Under the Basel II/III Advanced IRB approach, a corporate loan of €10,000,000 (EAD) has a PD of 1.5%, an LGD of 45%, and an effective maturity of 2.5 years. The regulatory asset correlation \( \rho \) is specified as 0.15, and the maturity adjustment factor \( b(PD) = 0.11852 - 0.05478 \times \ln(PD) = 0.348 \). The Vasicek worst-case default rate (at 99.9% confidence) is \( WCDR = \Phi \left( \frac{\Phi^{-1}(PD) + \sqrt{\rho}\Phi^{-1}(0.999)}{\sqrt{1-\rho}} \right) \). Calculate the Capital Requirement (K) and Risk-Weighted Assets (RWA).</p>
+      <p><strong>Solution:</strong></p>
+      <p>1. Calculate WCDR:</p>
+      <p>\( \Phi^{-1}(0.015) = -2.170 \), \( \Phi^{-1}(0.999) = 3.090 \).</p>
+      \[
+      WCDR = \Phi \left( \frac{-2.170 + \sqrt{0.15}(3.090)}{\sqrt{1 - 0.15}} \right) = \Phi \left( \frac{-2.170 + 0.387 \times 3.090}{0.922} \right) = \Phi \left( \frac{-0.974}{0.922} \right) = \Phi(-1.056) = 14.55\%
+      \]
+      <p>2. Calculate Capital Requirement (K):</p>
+      <p>The formula for K in IRB is: \( K = [LGD \times WCDR - LGD \times PD] \times \frac{1 + (M - 2.5)b}{1 - 1.5b} \)</p>
+      <p>Since \( M = 2.5 \), the maturity adjustment term simplifies to \( \frac{1}{1 - 1.5(0.348)} = \frac{1}{0.478} = 2.092 \).</p>
+      \[
+      K = [0.45 \times 0.1455 - 0.45 \times 0.015] \times 2.092 = [0.0655 - 0.00675] \times 2.092 = 0.05875 \times 2.092 = 12.29\%
+      \]
+      <p>3. Calculate RWA:</p>
+      \[
+      RWA = K \times 12.5 \times EAD = 0.1229 \times 12.5 \times 10,000,000 = €15,362,500
+      \]
+      <p>The bank must hold 8% of RWA as capital: \( 0.08 \times 15,362,500 = €1,229,000 \).</p>
+    </div>
+  </div>
+
+
+  <h2>4. Python Code</h2>
+  <p>The following script models a firm's credit risk using the Merton structural framework, outputting both real-world and risk-neutral parameters.</p>
+  <pre><code class="language-python">
+import numpy as np
+from scipy.stats import norm
+
+class MertonModel:
+    def __init__(self, V_0, D, T, r, sigma_v, mu_v):
+        """
+        V_0: Current firm asset value
+        D: Face value of zero-coupon debt
+        T: Time to maturity of debt (years)
+        r: Risk-free interest rate (continuous)
+        sigma_v: Volatility of firm assets
+        mu_v: Expected return on firm assets (real-world)
+        """
+        self.V_0 = V_0
+        self.D = D
+        self.T = T
+        self.r = r
+        self.sigma_v = sigma_v
+        self.mu_v = mu_v
+        
+    def distance_to_default(self):
+        """Calculates real-world distance to default (DD)"""
+        numerator = np.log(self.V_0 / self.D) + (self.mu_v - (self.sigma_v ** 2) / 2) * self.T
+        denominator = self.sigma_v * np.sqrt(self.T)
+        return numerator / denominator
+        
+    def pd_real_world(self):
+        """Calculates real-world Probability of Default"""
+        return norm.cdf(-self.distance_to_default())
+        
+    def d1_d2(self):
+        """Calculates Black-Scholes d1 and d2 parameters"""
+        d1 = (np.log(self.V_0 / self.D) + (self.r + (self.sigma_v ** 2) / 2) * self.T) / (self.sigma_v * np.sqrt(self.T))
+        d2 = d1 - self.sigma_v * np.sqrt(self.T)
+        return d1, d2
+        
+    def pd_risk_neutral(self):
+        """Calculates risk-neutral Probability of Default"""
+        _, d2 = self.d1_d2()
+        return norm.cdf(-d2)
+        
+    def equity_value(self):
+        """Values equity as a European Call option on firm assets"""
+        d1, d2 = self.d1_d2()
+        return self.V_0 * norm.cdf(d1) - self.D * np.exp(-self.r * self.T) * norm.cdf(d2)
+        
+    def credit_spread(self):
+        """Calculates the continuously compounded credit spread on the debt"""
+        E_0 = self.equity_value()
+        B_0 = self.V_0 - E_0  # Value of Debt
+        yield_to_maturity = -(1 / self.T) * np.log(B_0 / self.D)
+        return yield_to_maturity - self.r
+
+# Execution matches Example 18.1
+model = MertonModel(V_0=100, D=80, T=1, r=0.03, sigma_v=0.25, mu_v=0.08)
+
+print(f"Real-world PD:     {model.pd_real_world():.2%}")
+print(f"Risk-neutral PD:   {model.pd_risk_neutral():.2%}")
+print(f"Equity Value:      ${model.equity_value():.2f}M")
+print(f"Credit Spread:     {model.credit_spread() * 10000:.0f} bps")
+  </code></pre>
+
+  <h2>5. Diagrams Description</h2>
+  <ul>
+    <li><strong>Figure 18.1: Distance to Default (Merton Model).</strong> A time-series chart showing the stochastic path of firm asset value \( V_t \) drifting upwards, with a horizontal red line representing the default boundary (Debt \( D \)). A normal distribution bell curve is overlaid at time \( T \), illustrating the probability mass that falls below \( D \).</li>
+    <li><strong>Figure 18.2: Term Structure of Credit Spreads.</strong> A multi-line graph plotting CDS spreads across maturities (1Y to 10Y) for an Investment Grade firm (upward sloping) and a Distressed firm (downward sloping or inverted), highlighting how short-term survival dominates pricing for risky entities.</li>
+    <li><strong>Figure 18.3: Rating Transition Matrix Heatmap.</strong> A grid showing S&P rating migrations over 1 year from AAA down to Default. The diagonal elements (maintaining the same rating) are heavily weighted (bright red/orange), while transitions to default from investment grade are near zero (dark blue).</li>
+  </ul>
+
+  <div class="warning">
+    <div class="box-title">6. Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Real-World and Risk-Neutral PDs:</strong> Real-world PDs (used for risk management and capital reserves) use historical asset drifts (\( \mu \)). Risk-neutral PDs (used for pricing derivatives like CDS) use the risk-free rate (\( r \)). Because \( \mu > r \), risk-neutral PDs are almost always higher than real-world PDs.</li>
+        <li><strong>The Credit Spread Puzzle:</strong> Students often mistakenly believe that the credit spread entirely compensates for expected default losses. In reality, credit spreads also contain significant liquidity premiums and tax premiums. The portion of the spread strictly covering expected loss is often much smaller than the total spread.</li>
+        <li><strong>Misunderstanding Recovery Rates:</strong> LGD and Recovery Rate are inversely related (LGD = 1 - RR). During systemic crises, PDs rise and Recovery Rates tend to fall simultaneously (positive correlation), a severe non-linear risk often ignored in simple models.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">7. Industry Application Box: The CDS-Bond Basis</div>
+    <div class="box-content">
+      <p>At a quantitative hedge fund or trading desk, traders heavily monitor the <strong>CDS-Bond Basis</strong>. Mathematically, the credit risk of holding a corporate bond and hedging it by buying CDS protection should perfectly offset, yielding exactly the risk-free rate (or LIBOR/SOFR).</p>
+      <p><em>Basis = CDS Spread - Bond Z-Spread</em></p>
+      <p>If the Basis is <strong>negative</strong>, the bond spread is wider than the CDS spread. A trader can execute a "Negative Basis Trade": buy the underpriced bond and buy CDS protection. The position is theoretically risk-free, locking in the basis difference as profit. However, in reality, basis trades involve funding constraints, margin calls on the CDS (MVA), and liquidity mismatches—precisely what caused massive hedge fund blowups during the 2008 crisis when the basis widened severely instead of converging.</p>
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <div class="box-title">8. Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Expected Loss:</strong> \( \text{EL} = \text{PD} \times \text{LGD} \times \text{EAD} \)</li>
+        <li><strong>Merton Distance to Default:</strong> \( \text{DD} = \frac{\ln(V_0 / D) + (\mu_V - \sigma_V^2 / 2)T}{\sigma_V \sqrt{T}} \)</li>
+        <li><strong>Merton Equity Value:</strong> \( E_0 = V_0 \Phi(d_1) - D e^{-rT} \Phi(d_2) \)</li>
+        <li><strong>Survival Probability (constant hazard):</strong> \( S(t) = e^{-\lambda t} \)</li>
+        <li><strong>Spread to Hazard Rate Rule of Thumb:</strong> \( s \approx \lambda \times \text{LGD} \)</li>
+        <li><strong>Credit Valuation Adjustment (CVA):</strong> \( \text{CVA} = \text{LGD} \int_0^T \text{EE}(t) \cdot \dd \text{PD}(t) \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>9. Exercises</h2>
+  <div class="exercises">
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> A retail loan portfolio has an EAD of ₹50,000,000. The estimated PD is 3.5%, and the recovery rate is expected to be 30%. Calculate the Expected Loss in INR.
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> Using the reduced-form model approximation, if a 5-year corporate bond yields 6% while the 5-year risk-free rate is 2%, and the recovery rate is 40%, what is the implied hazard rate \( \lambda \)?
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> What is the probability that a firm survives exactly 4 years given a constant hazard rate of 2.5%?
+      </div>
+      <div class="exercise-item">
+        <strong>4.</strong> In the Merton framework, what happens to the firm's equity value and credit spread if asset volatility \( \sigma_V \) increases?
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>5.</strong> A firm has asset value \( V_0 = \$200 \text{M} \), debt \( D = \$150 \text{M} \), \( T = 1 \), \( r = 4\% \), and \( \sigma_V = 30\% \). Calculate the risk-neutral probability of default.
+      </div>
+      <div class="exercise-item">
+        <strong>6.</strong> Given the parameters in Exercise 5, calculate the fair yield on the firm's zero-coupon debt.
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> A counterparty to an interest rate swap has a hazard rate of 6% per year and an LGD of 50%. The discounted expected exposure is constant at \$100,000. Calculate the unilateral CVA for a 3-year swap.
+      </div>
+      <div class="exercise-item">
+        <strong>8.</strong> Extract the forward hazard rate for year 2 (interval [1,2]) if the 1-year CDS spread is 90 bps and the 2-year CDS spread is 110 bps. Assume LGD is 60%.
+      </div>
+      <div class="exercise-item">
+        <strong>9.</strong> Discuss why copula models were essential for pricing CDO tranches, and why the Gaussian copula failed.
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>10.</strong> Prove that in a risk-neutral world, if the recovery rate is zero, the credit spread on a zero-coupon bond exactly equals the average hazard rate over its maturity.
+      </div>
+      <div class="exercise-item">
+        <strong>11.</strong> Under the Basel IRB formula, calculate the required capital K for a loan with PD=2%, LGD=50%, M=1 year, and \( \rho=0.20 \). (Assume the maturity adjustment factor equation applies as in Example 18.5).
+      </div>
+      <div class="exercise-item">
+        <strong>12.</strong> A firm's capital structure consists of senior debt (Face \$100M) and subordinated debt (Face \$50M). Model this using the Merton framework as options. Write down the payoff functions at maturity T for Senior Debt, Subordinated Debt, and Equity.
+      </div>
+    </div>
+  </div>
+
+  <h2>10. Solutions to Selected Exercises</h2>
+  <div class="solutions">
+    <div class="solution-item">
+      <strong>Solution to Exercise 1:</strong><br>
+      EL = PD × LGD × EAD<br>
+      LGD = 1 - Recovery Rate = 1 - 0.30 = 0.70<br>
+      EL = 0.035 × 0.70 × ₹50,000,000 = ₹1,225,000.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to Exercise 2:</strong><br>
+      Credit spread \( s = 6\% - 2\% = 4\% = 0.04 \).<br>
+      LGD = 1 - 0.40 = 0.60.<br>
+      \( \lambda \approx s / \text{LGD} = 0.04 / 0.60 = 0.0667 \) or 6.67%.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to Exercise 5:</strong><br>
+      \( d_1 = \frac{\ln(200/150) + (0.04 + 0.30^2/2)(1)}{0.30} = \frac{0.2877 + 0.085}{0.30} = 1.2423 \)<br>
+      \( d_2 = 1.2423 - 0.30 = 0.9423 \)<br>
+      \( \text{PD}_{\text{RN}} = \Phi(-0.9423) \approx 17.30\% \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to Exercise 7:</strong><br>
+      CVA = \( \text{LGD} \times \text{EE} \times \text{PD}(0 \to 3) \)<br>
+      \( \text{PD}(0 \to 3) = 1 - e^{-0.06 \times 3} = 1 - e^{-0.18} \approx 0.1647 \)<br>
+      CVA = \( 0.50 \times \$100,000 \times 0.1647 = \$8,235 \).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to Exercise 10:</strong><br>
+      With zero recovery, the payoff of a zero-coupon bond is 1 if no default, 0 if default. The expected payoff in the risk-neutral measure is the survival probability \( S(T) \).<br>
+      Bond price \( P(T) = e^{-rT} S(T) = e^{-rT} e^{-\bar{\lambda} T} = e^{-(r+\bar{\lambda})T} \).<br>
+      Yield \( y = r + \bar{\lambda} \). The credit spread is \( y - r = \bar{\lambda} \).
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">11. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Merton, R. C. (1974). <em>On the Pricing of Corporate Debt: The Risk Structure of Interest Rates</em>. Journal of Finance, 29(2), 449-470.</li>
+        <li>Hull, J. C., & White, A. (2000). <em>Valuing Credit Default Swaps I: No Counterparty Default Risk</em>. Journal of Derivatives, 8(1), 29-40.</li>
+        <li>Gregory, J. (2015). <em>The xVA Challenge: Counterparty Credit Risk, Funding, Collateral, and Capital</em>. John Wiley & Sons.</li>
+        <li>Schönbucher, P. J. (2003). <em>Credit Derivatives Pricing Models: Models, Pricing and Implementation</em>. John Wiley & Sons.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch17_ir_derivatives.html">← Previous Chapter (17: Interest Rate Derivatives)</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch19_market_risk.html">Next Chapter (19: Market Risk) →</a>
+  </nav>
+
+</body>
+</html>

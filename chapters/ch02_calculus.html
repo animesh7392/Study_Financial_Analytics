@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 2: Calculus for Quantitative Finance</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 2: Calculus</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand and apply the concepts of limits, continuity, and derivatives to functions of one variable, particularly in the context of financial metrics such as duration and convexity.</li>
+        <li>Master integration techniques and the Fundamental Theorem of Calculus, and evaluate definite, indefinite, and improper integrals relevant to probability and asset pricing.</li>
+        <li>Derive and apply Taylor Series expansions to approximate non-linear financial functions, estimating errors using the Lagrange remainder.</li>
+        <li>Extend single-variable calculus to multivariable functions using partial derivatives, gradients, and the Hessian matrix.</li>
+        <li>Solve constrained optimization problems using Lagrange multipliers, with direct application to modern portfolio theory.</li>
+        <li>Solve fundamental ordinary differential equations (ODEs), including separable and linear first-order equations, applied to continuous compounding and population dynamics.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds upon <strong>Chapter 1: Algebra and Functions</strong>. You should be comfortable with algebraic manipulation, the properties of exponentials and logarithms, and the concept of sequences and basic limits. The tools developed here will be indispensable for <strong>Chapter 3: Linear Algebra</strong> (particularly when combining matrices with multivariable derivatives) and the subsequent chapters on probability, stochastic calculus, and option pricing.</p>
+    </div>
+  </div>
+
+  <div class="remark">
+    <div class="box-title">Intuition & Motivation</div>
+    <div class="box-content">
+      <p>Consider a fixed-income portfolio manager navigating a volatile interest rate environment. The price of a bond is a non-linear function of the prevailing interest rate. If rates move slightly, how much will the bond price change? This is fundamentally a question of <strong>rates of change</strong>, addressed by the <em>derivative</em>. If the rate change is large, a simple linear approximation fails, and we must use higher-order derivatives (convexity) via <em>Taylor series</em>. </p>
+      <p>Furthermore, when building an optimal portfolio, the manager seeks to maximize expected return for a given level of risk. This requires finding the maximum of a multivariable function subject to constraints (e.g., weights summing to 1). This is the domain of <em>multivariable calculus</em> and <em>Lagrange multipliers</em>. Calculus is the mathematical engine that drives the quantification of risk and the optimization of reward.</p>
+    </div>
+  </div>
+
+  <h2>2.1 Limits and Continuity</h2>
+  
+  <h3>2.1.1 The Formal Definition of a Limit</h3>
+  <p>The foundation of all calculus is the limit. It describes the behavior of a function \(f(x)\) as its argument \(x\) gets infinitely close to a certain value \(c\).</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 2.1: Limit (Epsilon-Delta)</div>
+    <div class="box-content">
+      <p>Let \(f\) be a function defined on an open interval containing \(c\) (except possibly at \(c\)). We say that the limit of \(f(x)\) as \(x\) approaches \(c\) is \(L\), written as:</p>
+      \[ \lim_{x \to c} f(x) = L \]
+      <p>if, for every number \(\epsilon > 0\), there exists a corresponding number \(\delta > 0\) such that for all \(x\):</p>
+      \[ 0 < |x - c| < \delta \implies |f(x) - L| < \epsilon \]
+    </div>
+  </div>
+
+  <p>Intuitively, you can make \(f(x)\) as close to \(L\) as you want (within \(\epsilon\)) by forcing \(x\) to be sufficiently close to \(c\) (within \(\delta\)).</p>
+
+  <h3>2.1.2 Continuity and the Intermediate Value Theorem</h3>
+  <p>A function is continuous if it has no breaks, jumps, or holes.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 2.2: Continuity</div>
+    <div class="box-content">
+      <p>A function \(f\) is continuous at a point \(x=c\) if:</p>
+      <ol>
+        <li>\(f(c)\) is defined.</li>
+        <li>\(\lim_{x \to c} f(x)\) exists.</li>
+        <li>\(\lim_{x \to c} f(x) = f(c)\).</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 2.1: Intermediate Value Theorem (IVT)</div>
+    <div class="box-content">
+      <p>If \(f\) is continuous on a closed interval \([a, b]\), and \(N\) is any number strictly between \(f(a)\) and \(f(b)\), then there exists at least one number \(c\) in the open interval \((a, b)\) such that \(f(c) = N\).</p>
+    </div>
+  </div>
+  <p>The IVT guarantees that a continuous function must pass through every value between its endpoints. In finance, this guarantees the existence of a Yield to Maturity (YTM) for a bond, given its price is between the sum of undiscounted cash flows and zero.</p>
+
+  <h3>2.1.3 L'Hôpital's Rule</h3>
+  <p>When evaluating limits of quotients, we sometimes encounter indeterminate forms like \(0/0\) or \(\infty/\infty\).</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 2.2: L'Hôpital's Rule</div>
+    <div class="box-content">
+      <p>Suppose \(f\) and \(g\) are differentiable and \(g'(x) \neq 0\) near \(c\) (except possibly at \(c\)). If \(\lim_{x \to c} f(x) = 0\) and \(\lim_{x \to c} g(x) = 0\) (or both are \(\pm\infty\)), then:</p>
+      \[ \lim_{x \to c} \frac{f(x)}{g(x)} = \lim_{x \to c} \frac{f'(x)}{g'(x)} \]
+      <p>provided the limit on the right exists.</p>
+    </div>
+  </div>
+
+  <h2>2.2 Derivatives</h2>
+
+  <h3>2.2.1 Definition and Geometric Interpretation</h3>
+  <p>The derivative of a function measures its instantaneous rate of change.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 2.3: The Derivative</div>
+    <div class="box-content">
+      <p>The derivative of \(f\) at \(x\), denoted \(f'(x)\) or \(\dv{f}{x}\), is defined as:</p>
+      \[ f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h} \]
+      <p>provided this limit exists.</p>
+    </div>
+  </div>
+  
+  <p>Geometrically, \(f'(c)\) is the slope of the tangent line to the curve \(y = f(x)\) at the point \((c, f(c))\). The tangent line equation is \(y - f(c) = f'(c)(x - c)\).</p>
+
+  <h3>2.2.2 Derivative Rules</h3>
+  <ul>
+    <li><strong>Linearity:</strong> \(\dv{}{x}[af(x) + bg(x)] = af'(x) + bg'(x)\)</li>
+    <li><strong>Product Rule:</strong> \(\dv{}{x}[f(x)g(x)] = f'(x)g(x) + f(x)g'(x)\)</li>
+    <li><strong>Quotient Rule:</strong> \(\dv{}{x}\left[\frac{f(x)}{g(x)}\right] = \frac{f'(x)g(x) - f(x)g'(x)}{[g(x)]^2}\)</li>
+    <li><strong>Chain Rule:</strong> \(\dv{}{x}[f(g(x))] = f'(g(x))g'(x)\)</li>
+  </ul>
+
+  <div class="example">
+    <div class="box-title">Example 2.1: Computing Bond Price Derivative (Modified Duration)</div>
+    <div class="box-content">
+      <p>Consider a zero-coupon bond paying Face Value \(F\) at maturity \(T\). Under continuous compounding with interest rate \(r\), the price is:</p>
+      \[ P(r) = F e^{-rT} \]
+      <p>Compute the derivative of \(P\) with respect to \(r\), and express the relative change \(\frac{1}{P}\dv{P}{r}\).</p>
+      <p><strong>Solution:</strong></p>
+      <p>Using the chain rule, where the outer function is exponential and inner is \(-rT\):</p>
+      \[ \dv{P}{r} = F \cdot e^{-rT} \cdot \dv{}{r}(-rT) = F e^{-rT} (-T) = -T \cdot P(r) \]
+      <p>The relative rate of change is:</p>
+      \[ \frac{1}{P(r)} \dv{P}{r} = \frac{-T \cdot P(r)}{P(r)} = -T \]
+      <p>In finance, the negative of this relative derivative is the <em>Modified Duration</em>. Here, for a continuous zero-coupon bond, Modified Duration = \(T\). This tells us that a 1% increase in rates will lead to an approximate \(T\%\) decrease in bond price.</p>
+    </div>
+  </div>
+
+  <h2>2.3 Integration</h2>
+  
+  <p>Integration is the inverse operation to differentiation and allows us to compute areas, accumulations, and expected values in probability.</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 2.3: Fundamental Theorem of Calculus (FTC)</div>
+    <div class="box-content">
+      <p><strong>Part I:</strong> If \(f\) is continuous on \([a, b]\), then the function \(F\) defined by \(F(x) = \int_a^x f(t) \dd t\) is differentiable on \((a, b)\), and \(F'(x) = f(x)\).</p>
+      <p><strong>Part II:</strong> If \(f\) is continuous on \([a, b]\) and \(F\) is any antiderivative of \(f\), then:</p>
+      \[ \int_a^b f(x) \dd x = F(b) - F(a) \]
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 2.5: Improper Integral of the Exponential Distribution</div>
+    <div class="box-content">
+      <p>In actuarial science, time-until-default is often modeled with an exponential distribution. The probability density function (PDF) is \(f(t) = \lambda e^{-\lambda t}\) for \(t \geq 0\). Show that the total probability integrates to 1.</p>
+      <p><strong>Solution:</strong></p>
+      <p>We must evaluate the improper integral:</p>
+      \[ \int_0^\infty \lambda e^{-\lambda t} \dd t = \lim_{b \to \infty} \int_0^b \lambda e^{-\lambda t} \dd t \]
+      <p>The antiderivative of \(\lambda e^{-\lambda t}\) is \(-e^{-\lambda t}\). Applying FTC Part II:</p>
+      \[ \lim_{b \to \infty} \left[ -e^{-\lambda t} \right]_0^b = \lim_{b \to \infty} \left( -e^{-\lambda b} - (-e^0) \right) \]
+      <p>Since \(\lambda > 0\), \(\lim_{b \to \infty} e^{-\lambda b} = 0\).</p>
+      \[ 0 - (-1) = 1 \]
+    </div>
+  </div>
+
+  <h2>2.4 Taylor Series</h2>
+  
+  <p>Taylor series allow us to approximate complex, non-linear functions with simple polynomials.</p>
+
+  <div class="theorem">
+    <div class="box-title">Theorem 2.4: Taylor's Theorem with Remainder</div>
+    <div class="box-content">
+      <p>If \(f\) is \(n+1\) times continuously differentiable on an interval containing \(a\) and \(x\), then:</p>
+      \[ f(x) = \sum_{k=0}^n \frac{f^{(k)}(a)}{k!} (x-a)^k + R_n(x) \]
+      <p>where the Lagrange remainder \(R_n(x)\) is given by \( R_n(x) = \frac{f^{(n+1)}(c)}{(n+1)!} (x-a)^{n+1} \) for some \(c\) between \(a\) and \(x\).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 2.2: Taylor Expansion of \(e^{rT}\)</div>
+    <div class="box-content">
+      <p>Find the Maclaurin series (Taylor series at \(a=0\)) for \(f(r) = e^{rT}\) up to the second degree.</p>
+      <p><strong>Solution:</strong></p>
+      <ul>
+        <li>\(f(r) = e^{rT} \implies f(0) = 1\)</li>
+        <li>\(f'(r) = T e^{rT} \implies f'(0) = T\)</li>
+        <li>\(f''(r) = T^2 e^{rT} \implies f''(0) = T^2\)</li>
+      </ul>
+      <p>The 2nd degree polynomial is:</p>
+      \[ P_2(r) = 1 + Tr + \frac{T^2}{2}r^2 \]
+      <p>For small \(r\), \(e^{rT} \approx 1 + rT\), showing the equivalence of continuous and simple interest for very short periods.</p>
+    </div>
+  </div>
+
+  <div class="remark">
+    <div class="box-title">Python Code: Taylor Approximation</div>
+    <div class="box-content">
+      <pre><code class="language-python">import numpy as np
+
+def taylor_exp_approx(r, T, degree):
+    """Approximates e^(r*T) using Taylor series up to specified degree."""
+    approx = 1.0
+    term = 1.0
+    for n in range(1, degree + 1):
+        term = term * (r * T) / n
+        approx += term
+    return approx
+
+r = 0.05
+T = 2.0
+true_val = np.exp(r * T)
+
+print(f"True value of e^(0.05*2) = {true_val:.5f}")
+for d in [1, 2, 3]:
+    approx = taylor_exp_approx(r, T, d)
+    error = abs(true_val - approx)
+    print(f"Degree {d}: Approx = {approx:.5f}, Error = {error:.5f}")
+      </code></pre>
+      <p><strong>Output:</strong></p>
+      <pre>
+True value of e^(0.05*2) = 1.10517
+Degree 1: Approx = 1.10000, Error = 0.00517
+Degree 2: Approx = 1.10500, Error = 0.00017
+Degree 3: Approx = 1.10517, Error = 0.00000
+      </pre>
+    </div>
+  </div>
+
+  <h2>2.5 Multivariable Calculus & Constrained Optimization</h2>
+
+  <p>In finance, outcomes depend on many variables (e.g., weights of various assets in a portfolio). We extend the derivative concept via <em>partial derivatives</em>, holding all other variables constant.</p>
+
+  <div class="definition">
+    <div class="box-title">Definition 2.4: Gradient and Hessian</div>
+    <div class="box-content">
+      <p>For a scalar function \(f(x_1, \ldots, x_n)\), the <strong>Gradient</strong> \(\nabla f\) is the vector of first partial derivatives:</p>
+      \[ \nabla f = \begin{bmatrix} \pdv{f}{x_1} \\ \vdots \\ \pdv{f}{x_n} \end{bmatrix} \]
+      <p>The <strong>Hessian matrix</strong> \(H\) is the \(n \times n\) matrix of second-order partial derivatives, where \(H_{ij} = \frac{\partial^2 f}{\partial x_i \partial x_j}\).</p>
+    </div>
+  </div>
+
+  <h3>2.5.1 Lagrange Multipliers</h3>
+  <p>To optimize a function \(f(\mathbf{x})\) subject to an equality constraint \(g(\mathbf{x}) = 0\), we define the Lagrangian:</p>
+  \[ \mathcal{L}(\mathbf{x}, \lambda) = f(\mathbf{x}) - \lambda g(\mathbf{x}) \]
+  <p>The critical points are found by solving \(\nabla \mathcal{L} = 0\).</p>
+
+  <div class="example">
+    <div class="box-title">Example 2.3: Lagrange Multiplier for a 2-Asset Portfolio</div>
+    <div class="box-content">
+      <p>An investor allocates wealth between two uncorrelated assets. Asset 1 has variance \(\sigma_1^2 = 0.04\), Asset 2 has variance \(\sigma_2^2 = 0.09\). The portfolio variance is \(V(w_1, w_2) = 0.04w_1^2 + 0.09w_2^2\). Find the weights \(w_1, w_2\) that minimize variance subject to \(w_1 + w_2 = 1\).</p>
+      <p><strong>Solution:</strong></p>
+      <p>Set up the Lagrangian:</p>
+      \[ \mathcal{L}(w_1, w_2, \lambda) = 0.04w_1^2 + 0.09w_2^2 - \lambda(w_1 + w_2 - 1) \]
+      <p>Take partial derivatives and set to zero:</p>
+      \[ \pdv{\mathcal{L}}{w_1} = 0.08w_1 - \lambda = 0 \implies \lambda = 0.08w_1 \]
+      \[ \pdv{\mathcal{L}}{w_2} = 0.18w_2 - \lambda = 0 \implies \lambda = 0.18w_2 \]
+      \[ \pdv{\mathcal{L}}{\lambda} = -(w_1 + w_2 - 1) = 0 \implies w_1 + w_2 = 1 \]
+      <p>Equating \(\lambda\): \(0.08w_1 = 0.18w_2 \implies w_1 = \frac{0.18}{0.08}w_2 = 2.25w_2\).</p>
+      <p>Substitute into constraint: \(2.25w_2 + w_2 = 1 \implies 3.25w_2 = 1 \implies w_2 \approx 0.3077\).</p>
+      <p>Then \(w_1 = 1 - 0.3077 = 0.6923\).</p>
+    </div>
+  </div>
+
+  <h2>2.6 Ordinary Differential Equations (ODEs)</h2>
+  
+  <p>An ODE relates a function to its derivatives. In finance, asset prices over time are often modeled as differential equations.</p>
+
+  <div class="example">
+    <div class="box-title">Example 2.4: Continuous Compounding ODE</div>
+    <div class="box-content">
+      <p>The rate of growth of a bank account \(A(t)\) under continuous compounding is proportional to the current amount: \(\dv{A}{t} = rA(t)\). Solve this separable ODE for \(A(t)\) given initial deposit \(A_0\).</p>
+      <p><strong>Solution:</strong></p>
+      \[ \frac{\dd A}{A} = r \dd t \]
+      <p>Integrate both sides:</p>
+      \[ \int \frac{1}{A} \dd A = \int r \dd t \implies \ln|A| = rt + C \]
+      <p>Exponentiate:</p>
+      \[ A(t) = e^{rt+C} = e^C e^{rt} = K e^{rt} \]
+      <p>Using initial condition \(A(0) = A_0\), we get \(K = A_0\). Thus, \(A(t) = A_0 e^{rt}\).</p>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application Box</div>
+    <div class="box-content">
+      <p><strong>Quantitative Asset Management:</strong> The Mean-Variance optimization framework (Markowitz) directly utilizes the Hessian and Lagrange multipliers. Large hedge funds solve constrained optimization problems with thousands of variables daily to rebalance portfolios, maximizing expected alpha subject to risk, liquidity, and sector constraints. Furthermore, numerical ODE and PDE solvers are the backbone of exotic derivatives pricing engines.</p>
+    </div>
+  </div>
+
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Forgetting the Chain Rule:</strong> When differentiating complex functions (like pricing formulas), missing the derivative of the inner function is a common pitfall.</li>
+        <li><strong>Misinterpreting the Lagrange Multiplier:</strong> \(\lambda\) is not just a mathematical trick; it represents the <em>shadow price</em> (the marginal rate of change of the objective function with respect to a relaxation of the constraint).</li>
+        <li><strong>Differentiating discontinuous functions:</strong> A function must be continuous to be differentiable. Options payoffs (like digital options) have discontinuities, requiring generalized derivatives (Dirac delta).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="formula-sheet">
+    <div class="box-title">Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Derivative definition:</strong> \( f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h} \)</li>
+        <li><strong>Chain Rule:</strong> \( \dv{}{x}[f(g(x))] = f'(g(x))g'(x) \)</li>
+        <li><strong>Integration by Parts:</strong> \( \int u \dd v = uv - \int v \dd u \)</li>
+        <li><strong>Taylor Series:</strong> \( f(x) \approx f(a) + f'(a)(x-a) + \frac{f''(a)}{2}(x-a)^2 \)</li>
+        <li><strong>Lagrangian:</strong> \( \mathcal{L}(\mathbf{x}, \lambda) = f(\mathbf{x}) - \lambda g(\mathbf{x}) \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="exercises">
+    <div class="box-title">Exercises</div>
+    <div class="box-content">
+      <div class="exercise-group">
+        <h4>Basic</h4>
+        <div class="exercise-item">
+          <p><strong>1.</strong> Compute the derivative of \(f(x) = \ln(1+x^2)\).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>2.</strong> Evaluate the indefinite integral \(\int x e^{x} \dd x\) using integration by parts.</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>3.</strong> Find the first two non-zero terms of the Maclaurin series for \(\sin(x)\).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>4.</strong> For \(f(x, y) = x^2 y + \sin(xy)\), find \(\pdv{f}{x}\) and \(\pdv{f}{y}\).</p>
+        </div>
+      </div>
+      
+      <div class="exercise-group">
+        <h4>Intermediate</h4>
+        <div class="exercise-item">
+          <p><strong>5.</strong> Use L'Hôpital's rule to evaluate \(\lim_{x \to 0} \frac{e^x - 1 - x}{x^2}\).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>6.</strong> Find the local extrema of \(f(x) = x^3 - 3x + 2\) and classify them using the second derivative test.</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>7.</strong> Evaluate the improper integral \(\int_1^\infty \frac{1}{x^2} \dd x\).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>8.</strong> Solve the initial value problem \(\dv{y}{t} + 2ty = 0\) with \(y(0) = 5\).</p>
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h4>Advanced</h4>
+        <div class="exercise-item">
+          <p><strong>9.</strong> Use the Lagrange remainder to bound the error when approximating \(\cos(0.5)\) with a 2nd degree Maclaurin polynomial.</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>10.</strong> Consider a bond with price \(P(y) = \sum_{t=1}^T \frac{C}{(1+y)^t} + \frac{F}{(1+y)^T}\). Derive an expression for Macaulay duration \(D\) by evaluating \( -\frac{1+y}{P}\dv{P}{y} \).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>11.</strong> Use Lagrange multipliers to find the maximum volume of a rectangular box inscribed in the ellipsoid \(\frac{x^2}{a^2} + \frac{y^2}{b^2} + \frac{z^2}{c^2} = 1\).</p>
+        </div>
+        <div class="exercise-item">
+          <p><strong>12.</strong> Prove the quotient rule using the product rule and the chain rule.</p>
+        </div>
+      </div>
+      
+      <h4>Selected Solutions</h4>
+      <div class="solution-item">
+        <p><strong>Solution to 1:</strong> Using the chain rule, \(f'(x) = \frac{1}{1+x^2} \cdot 2x = \frac{2x}{1+x^2}\).</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 2:</strong> Let \(u=x, \dd v = e^x \dd x\). Then \(\dd u = \dd x, v = e^x\). \(\int x e^x \dd x = x e^x - \int e^x \dd x = x e^x - e^x + C\).</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 5:</strong> Form is \(0/0\). Apply L'Hôpital's: \(\lim_{x \to 0} \frac{e^x - 1}{2x}\). Still \(0/0\). Apply again: \(\lim_{x \to 0} \frac{e^x}{2} = \frac{1}{2}\).</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 8:</strong> Separable ODE. \(\frac{\dd y}{y} = -2t \dd t \implies \ln|y| = -t^2 + C \implies y(t) = K e^{-t^2}\). \(y(0)=5 \implies K=5\), so \(y(t) = 5e^{-t^2}\).</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 10:</strong> \(\dv{P}{y} = \sum_{t=1}^T -t C (1+y)^{-t-1} - T F (1+y)^{-T-1}\). Multiplying by \(-\frac{1+y}{P}\) yields \( \frac{\sum t C(1+y)^{-t} + T F(1+y)^{-T}}{P} \), the standard formula for Macaulay duration.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution to 12:</strong> Let \(Q(x) = f(x)[g(x)]^{-1}\). By product rule: \(Q'(x) = f'(x)[g(x)]^{-1} + f(x)\dv{}{x}([g(x)]^{-1})\). By chain rule, \(\dv{}{x}([g(x)]^{-1}) = -1[g(x)]^{-2}g'(x)\). Combine terms over common denominator \([g(x)]^2\) to obtain the standard quotient rule.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Stewart, J. (2020). <em>Calculus: Early Transcendentals</em> (9th ed.). Cengage Learning. (Excellent text for single and multivariable fundamentals).</li>
+        <li>Shreve, S. E. (2004). <em>Stochastic Calculus for Finance I: The Binomial Asset Pricing Model</em>. Springer. (Transitioning calculus to finance).</li>
+        <li>Simon, C. P., & Blume, L. (1994). <em>Mathematics for Economists</em>. W. W. Norton & Company. (In-depth coverage of Lagrange multipliers and optimization).</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch01_algebra.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch03_linear_algebra.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

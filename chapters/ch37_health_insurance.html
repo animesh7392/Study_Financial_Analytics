@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 37: Health Insurance and Morbidity</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+
+  <h1>Chapter 37: Health Insurance and Morbidity</h1>
+
+  <section class="learning-objectives">
+    <h2>1. Learning Objectives</h2>
+    <ul>
+      <li>Differentiate among health insurance products, including Managed Care, Disability Income, and Long-Term Care.</li>
+      <li>Model morbidity using incidence rates, recovery rates, and continuance tables.</li>
+      <li>Calculate Per Member Per Month (PMPM) costs using utilization, unit costs, and age-sex factors.</li>
+      <li>Understand regulatory requirements like Medical Loss Ratio (MLR), ACA's 80/20 rule, and IRDAI health guidelines.</li>
+      <li>Apply risk adjustment methodologies (like HHS-HCC) and estimate IBNR reserves for health claims.</li>
+    </ul>
+  </section>
+
+  <section class="prerequisites">
+    <h2>2. Prerequisites & Roadmap</h2>
+    <p>
+      This chapter builds upon survival models (Chapter 4), reserving (Chapter 12), and short-term insurance pricing (Chapter 20). Unlike mortality, which is a singular decrement, morbidity deals with multiple states (active, sick, recovered, disabled, dead) and non-absorbing states. As we saw in Chapter 36 on Copulas, dependence between risks is crucial, and here we see dependence between utilization and demographic factors. We next transition to Catastrophe Modelling in Chapter 38.
+    </p>
+  </section>
+
+  <section>
+    <h2>3. Intuition & Motivation</h2>
+    <p>
+      Imagine pricing a policy that pays out not when someone dies, but when they get sick. When people get sick, they often recover, or they might suffer long-term disability. Their behavior also changes if they have insurance—they are more likely to visit doctors (moral hazard). In health insurance, actuaries track frequency (utilization of services) and severity (unit cost of services). A slight shift in a population’s demographic makeup or a change in provider contracting can swing a profitable portfolio into massive losses. Thus, understanding morbidity and health service utilization is paramount.
+    </p>
+  </section>
+
+  <section>
+    <h2>4. Formal Theory</h2>
+    <div class="theorem"><div class="box-title">Theorem 37.1: PMPM Cost Decomposition</div><div class="box-content"><p>The expected PMPM cost decomposes multiplicatively across service categories, enabling isolation of utilization vs unit cost drivers.</p></div></div>
+
+    
+    <h3>4.1 Health Insurance Products</h3>
+    <p>Health insurance covers financial losses arising from sickness, accidental injury, or disability. The primary types are:</p>
+    <ul>
+      <li><strong>Indemnity Plans:</strong> Reimburses a percentage of actual medical expenses, usually subject to deductibles and coinsurance.</li>
+      <li><strong>Managed Care (HMO, PPO, POS):</strong> Networks of providers. Health Maintenance Organizations (HMO) require gatekeeper referrals; Preferred Provider Organizations (PPO) offer out-of-network coverage at a higher cost.</li>
+      <li><strong>Critical Illness:</strong> Pays a lump sum upon diagnosis of a covered severe condition (e.g., cancer, stroke).</li>
+      <li><strong>Hospital Cash:</strong> Pays a fixed amount per day of hospitalization, regardless of actual expenses.</li>
+      <li><strong>Government Schemes:</strong> Medicare/Medicaid in the US, and Ayushman Bharat (PM-JAY) in India.</li>
+    </ul>
+
+    <div class="definition">
+      <div class="box-title">Definition: Morbidity</div>
+      <div class="box-content">
+        Morbidity refers to the incidence or prevalence of a disease, illness, or disability within a population. While mortality studies death, morbidity studies sickness and recovery.
+      </div>
+    </div>
+
+    <h3>4.2 Claim Cost Models (PMPM)</h3>
+    <p>Health insurance costs are often expressed on a Per Member Per Month (PMPM) basis.</p>
+    \[ \text{PMPM} = \frac{\text{Total Expected Claims}}{\text{Total Member Months}} \]
+    <p>Alternatively, using utilization and unit costs:</p>
+    \[ \text{PMPM} = \frac{\text{Utilization per 1,000 members per year} \times \text{Unit Cost}}{12,000} \]
+    <p>Expected claim costs are adjusted using <strong>Age-Sex Factors (ASF)</strong> and <strong>Area Factors</strong> to account for demographic and geographic variations in utilization and provider costs.</p>
+
+    <h3>4.3 Morbidity Tables & Disability Income</h3>
+    <p>Disability Income (DI) insurance replaces lost income when the insured is unable to work. Pricing relies on the <strong>active-disabled-recovered</strong> model.</p>
+    <ul>
+      <li><strong>Incidence Rate (\(i_x\)):</strong> Probability an active person aged \(x\) becomes disabled.</li>
+      <li><strong>Continuance Table (\(l_{[x]+t}\)):</strong> Tracks the number of disabled lives remaining disabled at duration \(t\) from onset at age \(x\).</li>
+    </ul>
+    <p>The Inception-Annuity method prices DI by treating a disability claim as an annuity. The present value of future benefits at the onset of disability is the Disabled Life Reserve (DLR).</p>
+
+    <h3>4.4 Long-Term Care (LTC) Insurance</h3>
+    <p>LTC covers assistance with Activities of Daily Living (ADLs: bathing, dressing, eating, transferring, toileting, continence). Benefit triggers usually require failure of 2 or more ADLs. Pricing LTC is challenged by long durations between issue and claim, anti-selection, medical advances extending disabled life, and inflation.</p>
+
+    <h3>4.5 Medical Loss Ratio (MLR)</h3>
+    <div class="definition">
+      <div class="box-title">Definition: Medical Loss Ratio</div>
+      <div class="box-content">
+        MLR is the percentage of premium revenue spent on clinical services and quality improvement.
+        \[ \text{MLR} = \frac{\text{Incurred Claims} + \text{Quality Improvement Expenses}}{\text{Earned Premium} - \text{Taxes and Fees}} \]
+      </div>
+    </div>
+    <p>The US Affordable Care Act (ACA) requires an 80% MLR for individual/small group markets (85% for large groups). Insurers missing this target must issue rebates. In India, IRDAI monitors the Incurred Claims Ratio (ICR) closely.</p>
+
+    <h3>4.6 Risk Adjustment</h3>
+    <p>Risk adjustment compensates insurers who enroll sicker members in community-rated markets. The US uses the HHS-HCC (Hierarchical Condition Categories) model, which assigns a risk score to each member based on demographics and diagnoses. Funds are transferred from insurers with lower-risk pools to those with higher-risk pools.</p>
+
+    <h3>4.7 Health Insurance Pricing & Indian Health Insurance</h3>
+    <p>Pricing can be <strong>Experience Rating</strong> (based on the group's own past claims) or <strong>Community Rating</strong> (everyone pays the same base rate, perhaps adjusted by age bands). In India, IRDAI has standardized products (e.g., Arogya Sanjeevani) and enforces portability guidelines. Third-Party Administrators (TPAs) handle cashless claims networks.</p>
+  </section>
+
+  <section>
+    <h2>5. Worked Examples</h2>
+    
+    <div class="example">
+      <div class="box-title">Example 37.1: PMPM Cost Calculation with Age-Sex Factors</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A health plan has a base utilization of 360 hospital days per 1,000 members per year. The base unit cost per day is USD 2,500. A specific employer group has an Age-Sex Factor (ASF) of 1.15 and an Area Factor of 0.95. Calculate the expected medical PMPM for this group.</p>
+        <p><strong>Solution:</strong></p>
+        <p>1. Calculate base annual cost per 1,000 members:</p>
+        \[ \text{Annual Base Cost} = 360 \times 2,500 = 900,000 \text{ USD} \]
+        <p>2. Calculate base PMPM:</p>
+        \[ \text{Base PMPM} = \frac{900,000}{12 \times 1,000} = 75.00 \text{ USD} \]
+        <p>3. Apply demographic and geographic factors:</p>
+        \[ \text{Adjusted PMPM} = 75.00 \times 1.15 \times 0.95 = 81.9375 \text{ USD} \]
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 37.2: Disability Income Premium Using Continuance Table</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> A 1-year DI policy pays INR 10,000 per month of disability, payable at the end of the month, up to 12 months. No elimination period. For age 40, incidence rate \(i_{40} = 0.005\). The continuance table gives the average months of disability per claim as 4.2. Ignore interest. Calculate the net premium.</p>
+        <p><strong>Solution:</strong></p>
+        <p>1. Claim Frequency = \(i_{40} = 0.005\)</p>
+        <p>2. Average Claim Severity = 4.2 months \(\times\) INR 10,000 = INR 42,000</p>
+        <p>3. Net Premium = Frequency \(\times\) Severity = \(0.005 \times 42,000 = \text{INR } 210\).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 37.3: Community vs Experience Rating</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> Group A has 100 employees, Group B has 200 employees. Group A's historical claims are USD 400 PMPM, Group B's are USD 600 PMPM. What is the community rate? What is the blended rate for Group A if it is 60% experience rated and 40% community rated?</p>
+        <p><strong>Solution:</strong></p>
+        <p>1. Community Rate (Weighted Average):</p>
+        \[ \text{CR} = \frac{100 \times 400 + 200 \times 600}{100 + 200} = \frac{40,000 + 120,000}{300} = 533.33 \text{ USD} \]
+        <p>2. Blended Rate for Group A (Credibility weighted):</p>
+        \[ \text{Rate}_A = 0.60(400) + 0.40(533.33) = 240 + 213.33 = 453.33 \text{ USD} \]
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 37.4: MLR Calculation and Rebate Determination</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An insurer in the US individual market (target MLR 80%) has Earned Premium of USD 100M, Taxes and Fees of USD 5M, Incurred Claims of USD 70M, and Quality Improvement Expenses of USD 2M. Calculate the MLR and the rebate owed.</p>
+        <p><strong>Solution:</strong></p>
+        <p>1. Adjusted Premium = \(100 - 5 = 95\text{M}\)</p>
+        <p>2. MLR Numerator = \(70 + 2 = 72\text{M}\)</p>
+        <p>3. MLR = \(72 / 95 = 75.79\%\)</p>
+        <p>4. Since MLR < 80%, a rebate is owed. Required spend = \(80\% \times 95\text{M} = 76\text{M}\).</p>
+        <p>5. Rebate = \(76\text{M} - 72\text{M} = 4\text{M} \text{ USD}\).</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <div class="box-title">Example 37.5: IBNR Estimation using Development Factors</div>
+      <div class="box-content">
+        <p><strong>Problem:</strong> An insurer uses the chain-ladder method. Incurred claims for the month are INR 5,000,000 paid so far. The age-to-ultimate development factor for this lag month is 1.25. Calculate the IBNR.</p>
+        <p><strong>Solution:</strong></p>
+        <p>1. Ultimate Claims = Paid Claims \(\times\) Development Factor = \(5,000,000 \times 1.25 = 6,250,000\)</p>
+        <p>2. IBNR = Ultimate Claims - Paid Claims = \(6,250,000 - 5,000,000 = \text{INR } 1,250,000\).</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>6. Python Code</h2>
+    <p>This script calculates PMPM claims for a portfolio adjusted by age-sex factors and applies a simple chain-ladder IBNR estimation.</p>
+    <pre><code class="language-python">
+import numpy as np
+
+def calculate_pmpm(utilization_per_1000, unit_cost, asf=1.0, area_factor=1.0):
+    base_pmpm = (utilization_per_1000 * unit_cost) / 12000.0
+    adjusted_pmpm = base_pmpm * asf * area_factor
+    return adjusted_pmpm
+
+def calculate_ibnr(paid_claims, development_factors):
+    # paid_claims and development_factors are arrays matching by lag
+    ultimate_claims = paid_claims * development_factors
+    ibnr = ultimate_claims - paid_claims
+    return np.sum(ibnr)
+
+# Example 37.1 Reproduction
+util = 360
+cost = 2500
+asf = 1.15
+area = 0.95
+pmpm = calculate_pmpm(util, cost, asf, area)
+print(f"Adjusted PMPM: ${pmpm:.4f}")
+
+# Example 37.5 Reproduction
+paid = np.array([5000000])
+df = np.array([1.25])
+ibnr = calculate_ibnr(paid, df)
+print(f"Total IBNR: INR {ibnr:,.2f}")
+    </code></pre>
+  </section>
+
+  <section>
+    <h2>7. Diagrams Description</h2>
+    <p><strong>Figure 37.1: Active-Disabled-Recovered Transition State Diagram.</strong> A directed graph with three main nodes: Active, Disabled, and Dead. Arrows represent transition intensities (e.g., incidence rate from Active to Disabled, recovery rate from Disabled to Active, and mortality rates from all states to Dead).</p>
+    <p><strong>Figure 37.2: Health Care Utilization by Age.</strong> A line chart showing PMPM claim costs on the y-axis against Age on the x-axis. The curve is J-shaped: high at birth, very low in childhood, slowly rising through adulthood, and accelerating rapidly post-age 65.</p>
+  </section>
+
+  <section>
+    <h2>8. Common Mistakes & Misconceptions</h2>
+    <div class="warning">
+      <div class="box-title">Warning</div>
+      <div class="box-content">
+        <ul>
+          <li><strong>Confusing Morbidity and Mortality:</strong> Morbidity tracks sickness, while mortality tracks death. Sickness implies possible recovery, making state models more complex.</li>
+          <li><strong>Ignoring Trend:</strong> Health care inflation (trend) is usually significantly higher than general CPI. Failing to trend historical claims forward to the rating period is a fatal pricing error.</li>
+          <li><strong>Misunderstanding MLR:</strong> Taxes and fees are deducted from the denominator (Premium). Failing to do so artificially lowers the calculated MLR, triggering incorrect rebate estimates.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>9. Industry Application Box</h2>
+    <div class="industry">
+      <div class="box-title">Industry Application: TPA Networks in India</div>
+      <div class="box-content">
+        In the Indian health insurance market, Third Party Administrators (TPAs) play a massive role. They act as the bridge between insurers, hospitals, and policyholders, providing cashless claim settlements. Pricing actuaries at Indian insurers rely heavily on TPA data to analyze hospital room rent caps, utilization of specific standardized surgeries (like cataracts), and network provider discounting. The introduction of IRDAI's "Arogya Sanjeevani" forced the industry to adopt standardized terms, significantly reducing product complexity but increasing price competition.
+      </div>
+    </div>
+  </section>
+
+  <section class="formula-sheet">
+    <h2>10. Summary & Formula Cheat-Sheet</h2>
+    <ul>
+      <li><strong>PMPM Base:</strong> \( \frac{\text{Util/1000} \times \text{Unit Cost}}{12000} \)</li>
+      <li><strong>MLR:</strong> \( \frac{\text{Incurred Claims} + \text{Quality Exp}}{\text{Earned Prem} - \text{Taxes}} \)</li>
+      <li><strong>Community Rate:</strong> Weighted average of historical costs of all groups.</li>
+      <li><strong>Credibility Rate:</strong> \( Z \times \text{Experience Rate} + (1-Z) \times \text{Community Rate} \)</li>
+    </ul>
+  </section>
+
+  <section class="exercises">
+    <h2>11. Exercises</h2>
+    <div class="exercise-group">
+      <div class="exercise-item">
+        <p><strong>Problem 1:</strong> Calculate the base PMPM if the annual utilization is 420 admissions per 1,000 members and the average cost per admission is USD 8,000.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 1:</strong> PMPM = (420 * 8000) / 12000 = USD 280.00</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 2:</strong> A group has an ASF of 0.85 and an Area factor of 1.2. Base PMPM is INR 4,000. Calculate adjusted PMPM.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 2:</strong> Adjusted = 4000 * 0.85 * 1.2 = INR 4,080.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 3:</strong> Calculate MLR: Premium = 50M, Taxes = 2M, Claims = 40M, Quality = 1M.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 3:</strong> MLR = (40 + 1) / (50 - 2) = 41 / 48 = 85.42%</p>
+      </div>
+      
+      <div class="exercise-item">
+        <p><strong>Problem 4:</strong> What rebate is owed in Problem 3 if the target MLR is 85%?</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 4:</strong> Since 85.42% > 85%, no rebate is owed.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 5:</strong> Group A has 500 lives, expected claims 300 PMPM. Group B has 1500 lives, expected claims 200 PMPM. Find the community rate.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 5:</strong> (500*300 + 1500*200) / 2000 = (150k + 300k)/2000 = 450k/2000 = 225 PMPM.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 6:</strong> If Group A's credibility factor Z = 0.3, find the blended rate for Group A.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 6:</strong> Blended = 0.3(300) + 0.7(225) = 90 + 157.5 = 247.5 PMPM.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 7:</strong> Disability incidence is 0.002. Average duration is 6 months. Monthly benefit INR 20k. Find net premium.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 7:</strong> NP = 0.002 * (6 * 20000) = 0.002 * 120,000 = INR 240.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 8:</strong> Paid claims = 10M, age-to-ultimate DF = 1.15. Find IBNR.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 8:</strong> Ultimate = 11.5M. IBNR = 1.5M.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 9:</strong> Explain why medical advances might worsen LTC experience.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 9:</strong> Medical advances keep people alive longer despite having severe chronic conditions, thereby extending the duration of claims in disabled states.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 10:</strong> Define the 80/20 rule under the ACA.</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 10:</strong> The ACA mandates an 80% MLR for individual/small group markets; 80% of premiums (net of taxes) must be spent on care and quality, limiting admin and profit to 20%.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 11:</strong> What is an elimination period in DI?</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 11:</strong> A waiting period between the onset of disability and the start of benefit payments.</p>
+      </div>
+
+      <div class="exercise-item">
+        <p><strong>Problem 12:</strong> What is risk adjustment?</p>
+      </div>
+      <div class="solution-item">
+        <p><strong>Solution 12:</strong> Transfer of funds between insurers to account for differing morbidity profiles among their enrollees, discouraging cherry-picking.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="further-reading">
+    <h2>12. Further Reading</h2>
+    <ul>
+      <li>Bluhm, W. F. (2012). <em>Group Insurance</em>. ACTEX Publications.</li>
+      <li>Rosenbloom, J. S. (2011). <em>The Handbook of Employee Benefits</em>. McGraw-Hill.</li>
+      <li>American Academy of Actuaries (Various). <em>Practice Notes on Health Insurance</em>.</li>
+    </ul>
+  </section>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch36_evt_copulas.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch38_cat_modelling.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

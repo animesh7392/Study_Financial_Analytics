@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 40: Capital, Solvency and Regulation</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 40: Capital, Solvency and Regulation</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the purpose of economic capital and regulatory capital in the insurance and financial services sector.</li>
+        <li>Explain the Solvency II (EU) three-pillar framework and calculate standard formula Solvency Capital Requirement (SCR).</li>
+        <li>Compare international capital frameworks including US Risk-Based Capital (RBC) and Indian IRDAI Solvency Margin.</li>
+        <li>Understand the IFRS 17 measurement models (BBA, PAA, VFA) and their impact on profitability and capital.</li>
+        <li>Apply capital allocation methods such as the Euler principle and assess risk-adjusted performance using RORAC.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter builds heavily upon the principles of risk management introduced in Chapter 37 and Asset Liability Management (ALM) from Chapter 39. A solid understanding of Value at Risk (VaR), Conditional Tail Expectation (CTE/TVaR), and basic probability theory is required. In the next chapter, Chapter 41, we will explore the role of insurance analytics in enhancing these frameworks.</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation: Why Capital Matters</h2>
+  <p>Imagine setting up an insurance company. You collect premiums from thousands of policyholders, invest them, and promise to pay out if disaster strikes. What happens if a 1-in-200-year pandemic or earthquake occurs, or global stock markets crash simultaneously? If the claims exceed your collected premiums and investment returns, how do you pay? The answer is <strong>Capital</strong>.</p>
+  <p>Capital serves as a financial shock absorber. It protects policyholders against the risk that the insurer will be unable to meet its obligations. It also instills confidence in regulators, rating agencies, and financial markets. <em>Economic Capital</em> represents the amount of capital an insurer internally determines is necessary to remain solvent at a certain confidence level, while <em>Regulatory Capital</em> is the legally mandated minimum.</p>
+
+  <h2>2. Formal Theory: Economic Capital & Risk Aggregation</h2>
+  <p>Economic Capital (EC) is formally defined as the amount of risk capital required to cover unexpected losses over a specific time horizon at a given confidence level.</p>
+  
+  <div class="definition">
+    <div class="box-title">Definition 40.1: Economic Capital</div>
+    <div class="box-content">
+      <p>Given a loss variable \(L\) over a 1-year horizon, the Economic Capital at confidence level \(\alpha\) is typically defined using Value at Risk (VaR):</p>
+      \[ \text{EC}_\alpha = \text{VaR}_\alpha(L) - \E[L] \]
+      <p>Under Solvency II, \(\alpha = 99.5\%\), meaning the firm holds enough capital to survive a 1-in-200 year event.</p>
+    </div>
+  </div>
+
+  <p>When an insurer underwrites multiple lines of business or holds diverse assets, risks are not perfectly correlated. To aggregate risks, we use a correlation matrix \(R\). For a set of marginal risk capital amounts \(\mathbf{C} = [C_1, C_2, \dots, C_n]^T\), the diversified capital \(C_{\text{div}}\) using the variance-covariance approach is:</p>
+  \[ C_{\text{div}} = \sqrt{\mathbf{C}^T R \mathbf{C}} \]
+
+  <h2>3. Solvency II (EU) Framework</h2>
+  <p>Solvency II is a harmonized, risk-based regulatory regime in the European Union. It consists of three pillars:</p>
+  <ul>
+    <li><strong>Pillar 1: Quantitative Requirements.</strong> Valuation of assets and liabilities on a market-consistent basis, calculation of the Minimum Capital Requirement (MCR) and Solvency Capital Requirement (SCR).</li>
+    <li><strong>Pillar 2: Qualitative Requirements.</strong> Governance, Risk Management, and the Own Risk and Solvency Assessment (ORSA).</li>
+    <li><strong>Pillar 3: Reporting & Disclosure.</strong> Solvency and Financial Condition Report (SFCR) and Regular Supervisory Reporting (RSR).</li>
+  </ul>
+  <p>The Standard Formula SCR aggregates risk modules: Market, Counterparty Default, Life, Non-Life, Health, and Operational risks, applying prescribed correlation matrices.</p>
+
+  <h2>4. Risk-Based Capital (US)</h2>
+  <p>The US NAIC framework determines minimum capital based on size and risk profile. It applies factors to statutory accounting values, grouped into components:</p>
+  <ul>
+    <li><strong>C-1:</strong> Asset Risk (default and equity risk).</li>
+    <li><strong>C-2:</strong> Insurance/Pricing Risk.</li>
+    <li><strong>C-3:</strong> Interest Rate Risk / ALM Risk.</li>
+    <li><strong>C-4:</strong> Business Risk.</li>
+  </ul>
+  <p>The total RBC is calculated using a covariance formula. Ratios like Authorized Control Level (ACL) dictate regulatory intervention.</p>
+
+  <h2>5. Indian Solvency Framework</h2>
+  <p>In India, the Insurance Regulatory and Development Authority of India (IRDAI) mandates a factor-based Required Solvency Margin (RSM). Insurers must maintain an Available Solvency Margin (ASM) of at least 150% of the RSM. Although historically rule-based, IRDAI has been exploring a shift toward a Risk-Based Capital (RBC) framework, drawing inspiration from Solvency II.</p>
+
+  <h2>6. IFRS 17: Insurance Contracts</h2>
+  <p>IFRS 17 is the global accounting standard for insurance contracts. It drastically changes the presentation of financial statements.</p>
+  <div class="definition">
+    <div class="box-title">Definition 40.2: General Measurement Model (BBA)</div>
+    <div class="box-content">
+      <p>The Building Block Approach (BBA) values insurance liabilities as:</p>
+      \[ \text{Insurance Liability} = \text{BEL} + \text{RA} + \text{CSM} \]
+      <ul>
+        <li><strong>BEL (Best Estimate Liability):</strong> Present value of expected future cash flows.</li>
+        <li><strong>RA (Risk Adjustment):</strong> Compensation required for bearing non-financial risk.</li>
+        <li><strong>CSM (Contractual Service Margin):</strong> Unearned profit representing the margin the insurer expects to earn, recognized in P&L over the coverage period.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>7. Capital Allocation</h2>
+  <p>Capital allocation attributes total diversified firm capital to individual business lines for performance measurement.</p>
+  <div class="theorem">
+    <div class="box-title">Theorem 40.1: Euler Capital Allocation</div>
+    <div class="box-content">
+      <p>If a risk measure \(\rho\) is positively homogeneous of degree 1 (i.e., \(\rho(\lambda X) = \lambda \rho(X)\)), Euler's theorem dictates that capital can be allocated perfectly (summing to the total capital) using partial derivatives:</p>
+      \[ \text{Total Capital } C = \rho(X_1, \dots, X_n) = \sum_{i=1}^n x_i \frac{\partial \rho}{\partial x_i} \]
+      <p>where \(x_i\) are the exposures and \(\frac{\partial \rho}{\partial x_i}\) is the marginal capital.</p>
+    </div>
+  </div>
+
+  <h2>8. Risk-Adjusted Performance</h2>
+  <p>To evaluate whether a business line generates sufficient returns relative to its risk, we use Return on Risk-Adjusted Capital (RORAC):</p>
+  \[ \text{RORAC}_i = \frac{\text{Net Income}_i}{\text{Allocated Capital}_i} \]
+  <p>If \(\text{RORAC}_i\) exceeds the firm's hurdle rate (cost of equity), the business creates shareholder value.</p>
+
+  <h2>9. Stress Testing for Capital</h2>
+  <p>Stress testing involves examining the impact of exceptional but plausible adverse events on an insurer's solvency. Regulatory stress tests evaluate systemic shocks. Reverse stress testing identifies scenarios that would cause the insurer to breach its capital requirements, helping uncover hidden vulnerabilities and interconnectedness of risks.</p>
+
+  <h2>10. Group Capital</h2>
+  <p>For multinational insurance groups, group capital requirements account for consolidated supervision. It considers the fungibility of capital (the ability to move capital across borders) and the diversification benefits achieved at the group level, which are often restricted if local regulations forbid capital transfers.</p>
+
+  <hr>
+
+  <h2>Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 40.1: Solvency II SCR Standard Formula</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> An insurer has standalone risk capital requirements: Market Risk (\(C_{Mkt}\)) = €100m, Non-Life Underwriting Risk (\(C_{NL}\)) = €120m, Counterparty Default Risk (\(C_{Def}\)) = €20m. The Solvency II correlation matrix specifies \(\rho(Mkt, NL) = 0.25\), \(\rho(Mkt, Def) = 0.25\), \(\rho(NL, Def) = 0.5\). Calculate the Basic SCR (BSCR).</p>
+      <p><strong>Solution:</strong><br>
+      The covariance matrix \(R\) is:
+      \[
+      \begin{pmatrix}
+      1 & 0.25 & 0.25 \\
+      0.25 & 1 & 0.5 \\
+      0.25 & 0.5 & 1
+      \end{pmatrix}
+      \]
+      Let \( \mathbf{C} = (100, 120, 20)^T \).</p>
+      <p>
+      \(\text{BSCR}^2 = \sum_{i} \sum_{j} \rho_{ij} C_i C_j\) <br>
+      \(\text{BSCR}^2 = (100^2) + (120^2) + (20^2) + 2 \times [ (0.25)(100)(120) + (0.25)(100)(20) + (0.5)(120)(20) ] \) <br>
+      \(\text{BSCR}^2 = 10000 + 14400 + 400 + 2 \times [ 3000 + 500 + 1200 ] \) <br>
+      \(\text{BSCR}^2 = 24800 + 2 \times [ 4700 ] = 24800 + 9400 = 34200 \) <br>
+      \(\text{BSCR} = \sqrt{34200} \approx €184.93\text{m}\)
+      </p>
+      <p>The diversified capital is significantly less than the simple sum (€240m), reflecting the diversification benefit of €55.07m.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 40.2: Economic Capital VaR with Lognormal Loss</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> An insurer models its total aggregate losses \(L\) in INR using a Lognormal distribution, \(L \sim \text{Lognormal}(\mu, \sigma^2)\). The parameters for a 1-year horizon are \(\mu = 10\) and \(\sigma = 0.5\). Calculate the Economic Capital at a 99.5% confidence level.</p>
+      <p><strong>Solution:</strong><br>
+      1. Calculate expected loss: \(\E[L] = \exp(\mu + \sigma^2/2) = \exp(10 + 0.125) = \exp(10.125) \approx ₹24,959\).<br>
+      2. The 99.5th percentile of the standard normal \(Z\) is \(z_{0.995} \approx 2.576\).<br>
+      3. \(\text{VaR}_{99.5\%}(L) = \exp(\mu + z_{0.995}\sigma) = \exp(10 + 2.576 \times 0.5) = \exp(11.288) \approx ₹79,857\).<br>
+      4. \(\text{EC}_{99.5\%} = \text{VaR}_{99.5\%}(L) - \E[L] = 79,857 - 24,959 = ₹54,898\).
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 40.3: Euler Capital Allocation</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A firm has two business lines, Auto and Home. Their marginal risk capitals are \(C_A = 40\), \(C_H = 60\). They are correlated with \(\rho = 0.4\). Using variance-covariance aggregation, calculate the total capital and allocate it using the Euler method.</p>
+      <p><strong>Solution:</strong><br>
+      Total Capital \(C = \sqrt{C_A^2 + C_H^2 + 2\rho C_A C_H} = \sqrt{1600 + 3600 + 2(0.4)(40)(60)} = \sqrt{5200 + 1920} = \sqrt{7120} \approx 84.38\).</p>
+      <p>By Euler's allocation on the variance-covariance formula:
+      \( \text{Alloc}_A = \frac{C_A^2 + \rho C_A C_H}{C} \)
+      \( \text{Alloc}_H = \frac{C_H^2 + \rho C_A C_H}{C} \)
+      </p>
+      <p>
+      \( \text{Alloc}_A = \frac{1600 + 0.4(40)(60)}{84.38} = \frac{1600 + 960}{84.38} = \frac{2560}{84.38} \approx 30.34 \)<br>
+      \( \text{Alloc}_H = \frac{3600 + 960}{84.38} = \frac{4560}{84.38} \approx 54.04 \)<br>
+      Verify sum: \(30.34 + 54.04 = 84.38\).
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 40.4: IFRS 17 BBA Measurement</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> At inception, a life insurer expects to pay $800 in claims. Premium received is $1,000. Time value of money (discounting) reduces expected claims to a present value (BEL) of $750. The computed Risk Adjustment (RA) is $50. Calculate the initial CSM.</p>
+      <p><strong>Solution:</strong><br>
+      At inception, the insurance liability under IFRS 17 must equal the premium received (no day-1 profit is recognized).<br>
+      \(\text{Liability} = \text{BEL} + \text{RA} + \text{CSM}\)<br>
+      \(\text{Liability} = -1000 (\text{premium in}) + 750 (\text{PV claims out}) + 50 (\text{RA}) + \text{CSM} = 0 \)<br>
+      \( \text{CSM} = 1000 - 750 - 50 = \$200 \).<br>
+      The $200 CSM represents unearned profit and will be released into the P&L as insurance services are provided over the life of the contract.
+      </p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 40.5: RORAC Computation</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Using the allocations from Example 40.3, suppose Auto generates a net profit of 3.0 and Home generates 6.0. The firm's hurdle rate is 10%. Calculate RORAC and determine which line destroys/creates value.</p>
+      <p><strong>Solution:</strong><br>
+      \(\text{RORAC}_{Auto} = \frac{3.0}{30.34} \approx 9.89\% \)<br>
+      \(\text{RORAC}_{Home} = \frac{6.0}{54.04} \approx 11.10\% \)<br>
+      The Auto line's RORAC is 9.89%, which is below the 10% hurdle rate; it destroys economic value. The Home line (11.10%) exceeds the hurdle rate and creates value. The firm should consider repricing or reducing exposure to the Auto line.
+      </p>
+    </div>
+  </div>
+
+  <hr>
+
+  <h2>Python Code: Economic Capital Aggregation</h2>
+  <pre><code class="language-python">
+import numpy as np
+
+def calculate_diversified_capital(marginal_capitals, correlation_matrix):
+    """
+    Computes diversified economic capital using the variance-covariance approach.
+    """
+    C = np.array(marginal_capitals)
+    R = np.array(correlation_matrix)
+    
+    # C_div = sqrt( C^T * R * C )
+    variance = np.dot(C.T, np.dot(R, C))
+    return np.sqrt(variance)
+
+# Example 40.1 Data
+marginals = [100, 120, 20]
+correlations = [
+    [1.00, 0.25, 0.25],
+    [0.25, 1.00, 0.50],
+    [0.25, 0.50, 1.00]
+]
+
+diversified = calculate_diversified_capital(marginals, correlations)
+print(f"Sum of marginals: {sum(marginals):.2f}")
+print(f"Diversified Capital: {diversified:.2f}")
+print(f"Diversification Benefit: {sum(marginals) - diversified:.2f}")
+  </code></pre>
+  <p><strong>Output:</strong></p>
+  <pre>
+Sum of marginals: 240.00
+Diversified Capital: 184.93
+Diversification Benefit: 55.07
+  </pre>
+
+  <hr>
+
+  <h2>Diagrams Description</h2>
+  <p><strong>Figure 40.1: Solvency II Three-Pillar Framework</strong><br>
+  A diagram displaying three distinct pillars shaped like Greek columns. Pillar 1 (left) contains blocks labeled "MCR", "SCR", and "Technical Provisions". Pillar 2 (center) shows "Governance", "Risk Management", and "ORSA". Pillar 3 (right) lists "SFCR" and "Supervisory Reporting". A protective roof labeled "Policyholder Protection" sits atop the pillars.</p>
+  
+  <p><strong>Figure 40.2: IFRS 17 BBA Cash Flow Emergence</strong><br>
+  A stacked bar chart showing the composition of the Insurance Liability at inception. A large base represents BEL, a smaller block on top for RA, and the uppermost block for CSM. An arrow pointing right demonstrates the amortisation of the CSM and RA into P&L over the policy duration.</p>
+
+  <hr>
+
+  <div class="warning">
+    <div class="box-title">Common Mistakes & Misconceptions</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Accounting Capital with Economic Capital:</strong> Accounting equity is a backward-looking metric based on financial statements. Economic capital is forward-looking and based on risk distributions.</li>
+        <li><strong>Misinterpreting Diversification:</strong> Assuming that adding any new risk always increases total capital. If the new risk is negatively correlated with the existing portfolio, total capital might decrease.</li>
+        <li><strong>Over-relying on Standard Formula:</strong> The regulatory Standard Formula uses historical, industry-wide averages for correlations, which may poorly reflect a specific insurer's unique portfolio, leading to under- or over-capitalisation.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="industry">
+    <div class="box-title">Industry Application: Internal Models</div>
+    <div class="box-content">
+      <p>Under Solvency II, large global insurers (e.g., Allianz, AXA) develop bespoke "Internal Models" rather than using the Standard Formula. These models use Monte Carlo simulations mapping out millions of economic scenarios (interest rates, equity crashes, mortality spikes) using Copulas to model tail-dependencies. Regulators must approve these models, requiring the firm to prove that the model is actively used in day-to-day decision-making (the "Use Test").</p>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="formula-sheet">
+    <div class="box-title">Summary & Formula Cheat-Sheet</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Economic Capital (VaR):</strong> \(\text{EC}_\alpha = \text{VaR}_\alpha(L) - \E[L]\)</li>
+        <li><strong>Diversified Capital:</strong> \(C_{\text{div}} = \sqrt{\mathbf{C}^T R \mathbf{C}}\)</li>
+        <li><strong>Euler Allocation:</strong> \( C = \sum x_i \frac{\partial \rho}{\partial x_i} \)</li>
+        <li><strong>IFRS 17 Liability:</strong> \(\text{Liab} = \text{BEL} + \text{RA} + \text{CSM}\)</li>
+        <li><strong>RORAC:</strong> \(\frac{\text{Net Income}}{\text{Allocated Capital}}\)</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="exercises">
+    <h2>Exercises</h2>
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> Define Economic Capital and explain how it differs from Regulatory Capital.
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> List the three pillars of Solvency II and state the main objective of each.
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> An insurer has two independent business lines with capital requirements of $50m and $120m. Calculate the diversified capital requirement.
+      </div>
+      <div class="exercise-item">
+        <strong>4.</strong> In the US NAIC RBC formula, what does C-3 risk represent?
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>5.</strong> Marginal capitals are \(C_1 = 80, C_2 = 100, C_3 = 60\). The correlation is 0.3 between all pairs. Calculate the diversified capital.
+      </div>
+      <div class="exercise-item">
+        <strong>6.</strong> Under IFRS 17, an insurer receives $5,000 in premiums. The PV of expected claims is $4,100, and the Risk Adjustment is $300. Calculate the day-1 CSM. What happens if the PV of expected claims is $4,800?
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> Explain the "Use Test" requirement for Internal Models under Solvency II.
+      </div>
+      <div class="exercise-item">
+        <strong>8.</strong> A firm uses Euler allocation. Total capital is 200. Line A has marginal capital of 80 and a partial derivative \(\partial \rho / \partial x_A = 0.9\). Line B is the only other line. Determine its allocation.
+      </div>
+    </div>
+
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>9.</strong> Prove that if \(\rho(X) = \sqrt{\mathbf{X}^T R \mathbf{X}}\), then the sum of Euler allocations equals the total capital.
+      </div>
+      <div class="exercise-item">
+        <strong>10.</strong> An insurer models losses as a Pareto distribution \(F(x) = 1 - (1 + x/\theta)^{-\alpha}\) with \(\alpha = 3\), \(\theta = 1000\). Calculate the 99.5% VaR and the Economic Capital.
+      </div>
+      <div class="exercise-item">
+        <strong>11.</strong> Discuss the challenges of using standard Pearson correlation matrices for aggregating risks in extreme tail events, and propose an alternative mathematical approach.
+      </div>
+      <div class="exercise-item">
+        <strong>12.</strong> A group operates in a low-tax regime and a high-tax regime with strict capital controls. Explain how capital fungibility impacts the group's economic capital assessment.
+      </div>
+    </div>
+
+    <h3>Selected Solutions</h3>
+    <div class="solution-item">
+      <strong>Solution to 3:</strong> Independence means \(\rho = 0\). \(C_{\text{div}} = \sqrt{50^2 + 120^2} = \sqrt{2500 + 14400} = \sqrt{16900} = \$130\text{m}\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 5:</strong> \(\sum C_i^2 = 80^2 + 100^2 + 60^2 = 6400 + 10000 + 3600 = 20000\). Cross terms: \(2 \times 0.3 \times [(80)(100) + (80)(60) + (100)(60)] = 0.6 \times [8000 + 4800 + 6000] = 0.6 \times 18800 = 11280\). Total variance = \(20000 + 11280 = 31280\). \(C_{\text{div}} = \sqrt{31280} \approx 176.86\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 6:</strong> Normal scenario: \(\text{Liability} = 0 \implies \text{CSM} = 5000 - 4100 - 300 = \$600\). If PV claims = $4,800: \(\text{CSM} = 5000 - 4800 - 300 = -\$100\). Under IFRS 17, the contract is "onerous". The CSM cannot be negative; instead, a $100 loss component is recognized immediately in P&L.
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 8:</strong> Allocation to A = \( x_A \frac{\partial \rho}{\partial x_A} = 80 \times 0.9 = 72 \). Since Euler allocation ensures exact summation, Allocation to B = Total - Allocation to A = \(200 - 72 = 128\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 10:</strong> 
+      \(F(x) = 0.995 \implies 1 - (1 + x/1000)^{-3} = 0.995 \implies (1 + x/1000)^{-3} = 0.005\).<br>
+      \(1 + x/1000 = (0.005)^{-1/3} \approx 5.848\).<br>
+      \(\text{VaR}_{99.5\%} \approx 1000(5.848 - 1) = 4848\).<br>
+      \(\E[X] = \frac{\theta}{\alpha - 1} = \frac{1000}{2} = 500\).<br>
+      \(\text{EC} = 4848 - 500 = 4348\).
+    </div>
+    <div class="solution-item">
+      <strong>Solution to 11:</strong> Pearson correlation only measures linear dependence. In extreme events (e.g., global financial crises), risks often become highly correlated (tail dependence), which Pearson correlation understates. An alternative approach is to use Copulas (e.g., Gumbel or Clayton), which allow for explicit modeling of joint tail risks.
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>McNeil, A. J., Frey, R., & Embrechts, P. (2015). <em>Quantitative Risk Management: Concepts, Techniques and Tools</em>. Princeton University Press.</li>
+        <li>Wuthrich, M. V., & Merz, M. (2013). <em>Financial Modeling, Actuarial Valuation and Solvency in Insurance</em>. Springer.</li>
+        <li>European Insurance and Occupational Pensions Authority (EIOPA). (2014). <em>Guidelines on the Implementation of Solvency II</em>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch39_alm.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch41_insurance_analytics.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

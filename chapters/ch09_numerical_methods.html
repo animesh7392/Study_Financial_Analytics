@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 9: Numerical Methods and Optimization</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 9: Numerical Methods and Optimization</h1>
+
+  <!-- 1. Learning Objectives -->
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Implement root-finding algorithms to solve non-linear equations in finance, such as extracting implied volatility and determining internal rates of return.</li>
+        <li>Construct yield curves and volatility surfaces using various interpolation techniques, including polynomial and cubic splines.</li>
+        <li>Apply numerical integration and finite difference methods to price options and solve partial differential equations.</li>
+        <li>Design and execute Monte Carlo simulations utilizing variance reduction techniques (antithetic variates, control variates, importance sampling) for accurate pricing and risk estimation.</li>
+        <li>Formulate and solve convex, quadratic, and linear programming problems for applications such as Markowitz portfolio optimization and asset-liability management.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2. Prerequisites & Roadmap -->
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter bridges the gap between analytical theory and computational implementation. It builds heavily on:</p>
+      <ul>
+        <li><strong>Chapter 4 (Probability Theory):</strong> Central Limit Theorem and moments (crucial for Monte Carlo methods).</li>
+        <li><strong>Chapter 7 (Option Pricing Models):</strong> Black-Scholes formulas, which we will now numerically invert or approximate.</li>
+        <li><strong>Chapter 8 (Stochastic Calculus):</strong> SDEs and Itô's lemma, forming the foundation for our Monte Carlo simulations of asset paths.</li>
+      </ul>
+      <p>Looking ahead, the techniques mastered here will be heavily utilized in Chapter 10 (Time Value of Money) and Chapter 16 (Advanced Option Pricing via PDEs).</p>
+    </div>
+  </div>
+
+  <!-- 3. Intuition & Motivation -->
+  <h2>3. Intuition & Motivation</h2>
+  <p>Consider the daily reality of a quantitative analyst at an investment bank. The trading desk asks for the price of a complex exotic option—an Asian barrier option, for example. There is no neat, closed-form analytical formula like the Black-Scholes equation for this product. Even when formulas exist, they often require parameters that aren't directly observable, such as the market's expectation of future volatility.</p>
+  <p>How does the analyst proceed? They must simulate thousands of possible future paths for the underlying asset, calculate the payoff for each path, and average the results (Monte Carlo simulation). They must extract implied volatilities from vanilla options using algorithmic root-finding techniques (Newton-Raphson). Finally, when allocating capital across these complex instruments to minimize risk while achieving a target return, they must solve a large-scale constrained optimization problem (Quadratic Programming).</p>
+  <p>In modern finance and actuarial science, analytical solutions are the exception, not the rule. Real-world models incorporate discrete dividends, early exercise features, stochastic interest rates, and non-normal jump dynamics. To tackle these, we must rely on numerical methods.</p>
+
+  <!-- 4. Formal Theory -->
+  <h2>4. Formal Theory</h2>
+
+  <h3>4.1 Root Finding</h3>
+  <p>Root finding involves solving the equation \(f(x) = 0\) for \(x\). In finance, this frequently takes the form of finding the parameter that equates a model price to a market price.</p>
+
+  <div class="definition">
+    <div class="box-title">Bisection Method</div>
+    <div class="box-content">
+      <p>The bisection method is a simple, robust root-finding algorithm based on the Intermediate Value Theorem. If \(f(x)\) is continuous on \([a, b]\) and \(f(a)f(b) < 0\), a root exists in this interval.</p>
+      <p><strong>Algorithm:</strong></p>
+      <ol>
+        <li>Compute midpoint \(c = \frac{a+b}{2}\).</li>
+        <li>If \(f(c) == 0\) or \((b-a)/2 < \text{tolerance}\), return \(c\).</li>
+        <li>If \(f(a)f(c) < 0\), set \(b = c\); else set \(a = c\).</li>
+        <li>Repeat.</li>
+      </ol>
+      <p><strong>Convergence:</strong> Linear. The error bound after \(n\) iterations is \(E_n \le \frac{b-a}{2^{n+1}}\).</p>
+    </div>
+  </div>
+
+  <div class="theorem">
+    <div class="box-title">Newton-Raphson Method</div>
+    <div class="box-content">
+      <p>Uses the first derivative to find the root faster. Given an initial guess \(x_0\), the sequence is generated by:</p>
+      \[ x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)} \]
+      <p><strong>Derivation:</strong> From the Taylor series expansion \(f(x) \approx f(x_n) + f'(x_n)(x - x_n)\). Setting \(f(x) = 0\) yields the iteration step.</p>
+      <p><strong>Convergence:</strong> Quadratic (number of correct decimals doubles each step) when near the root, provided \(f'(x) \neq 0\). It fails or diverges if the initial guess is far from the root, or if the derivative approaches zero.</p>
+    </div>
+  </div>
+
+  <p>The <strong>secant method</strong> is an alternative when the derivative \(f'(x)\) is difficult to compute, approximating it via finite differences: \(f'(x_n) \approx \frac{f(x_n) - f(x_{n-1})}{x_n - x_{n-1}}\).</p>
+
+  <h3>4.2 Interpolation and Splines</h3>
+  <p>Market data is discrete (e.g., bond yields at 1, 2, 5, 10, 30 years). Interpolation allows us to estimate values at intermediate points (e.g., a 7-year yield).</p>
+
+  <p><strong>Polynomial Interpolation</strong> uses a single polynomial of degree \(N-1\) to fit \(N\) data points. Methods include Lagrange polynomials and Newton divided differences. However, high-degree polynomials suffer from <em>Runge's phenomenon</em>—severe oscillation at the edges of the interval.</p>
+
+  <div class="definition">
+    <div class="box-title">Cubic Splines</div>
+    <div class="box-content">
+      <p>A cubic spline is a piecewise cubic polynomial that is continuous up to its second derivative. Given points \((x_i, y_i)\) for \(i=0,\dots,n\), the spline \(S(x)\) consists of segments \(S_i(x)\) on \([x_i, x_{i+1}]\) such that:</p>
+      <ul>
+        <li>\(S_i(x_i) = y_i\) and \(S_i(x_{i+1}) = y_{i+1}\)</li>
+        <li>\(S_i'(x_{i+1}) = S_{i+1}'(x_{i+1})\)</li>
+        <li>\(S_i''(x_{i+1}) = S_{i+1}''(x_{i+1})\)</li>
+      </ul>
+      <p><strong>Natural Spline:</strong> \(S''(x_0) = 0\) and \(S''(x_n) = 0\).</p>
+      <p><strong>Clamped Spline:</strong> First derivatives at the endpoints are specified.</p>
+    </div>
+  </div>
+
+  <h3>4.3 Numerical Integration</h3>
+  <p>Used to evaluate integrals like \(\E[g(X)] = \int g(x)f(x)\dd x\) when analytical integration is impossible.</p>
+  <ul>
+    <li><strong>Trapezoidal Rule:</strong> Approximates area under \(f(x)\) using trapezoids. Error is \(O(h^2)\), where \(h\) is the step size.</li>
+    <li><strong>Simpson's Rule:</strong> Uses parabolic arcs. Error is \(O(h^4)\).</li>
+    <li><strong>Gaussian Quadrature:</strong> Chooses optimal evaluation points (nodes) and weights to exactly integrate polynomials up to degree \(2n-1\) using \(n\) points. Highly efficient for smooth functions.</li>
+  </ul>
+
+  <h3>4.4 Finite Differences</h3>
+  <p>Finite differences approximate derivatives, essential for solving PDEs like the Black-Scholes PDE.</p>
+  <ul>
+    <li><strong>Forward Difference:</strong> \(f'(x) \approx \frac{f(x+h) - f(x)}{h}\)</li>
+    <li><strong>Backward Difference:</strong> \(f'(x) \approx \frac{f(x) - f(x-h)}{h}\)</li>
+    <li><strong>Central Difference:</strong> \(f'(x) \approx \frac{f(x+h) - f(x-h)}{2h}\) (Error \(O(h^2)\))</li>
+    <li><strong>Second Derivative (Central):</strong> \(f''(x) \approx \frac{f(x+h) - 2f(x) + f(x-h)}{h^2}\)</li>
+  </ul>
+  <p>When solving PDEs, <em>stability</em> ensures errors do not amplify over time steps, and <em>consistency</em> ensures the numerical scheme approaches the true PDE as \(h \to 0\).</p>
+
+  <h3>4.5 Monte Carlo Simulation</h3>
+  <p>Monte Carlo evaluates expected values via random sampling. By the Strong Law of Large Numbers, \(\frac{1}{N}\sum_{i=1}^N g(X_i) \to \E[g(X)]\) as \(N \to \infty\).</p>
+  
+  <div class="theorem">
+    <div class="box-title">Standard Error and Confidence Intervals</div>
+    <div class="box-content">
+      <p>The estimator \(\hat{\mu}_N = \frac{1}{N}\sum_{i=1}^N Y_i\) has standard error \(SE = \frac{\sigma}{\sqrt{N}}\), where \(\sigma^2 = \Var(Y)\). By the Central Limit Theorem, an approximate 95% confidence interval is:</p>
+      \[ \hat{\mu}_N \pm 1.96 \frac{\hat{\sigma}}{\sqrt{N}} \]
+      <p>Note that standard error decreases as \(1/\sqrt{N}\). To halve the error, we must quadruple the number of simulations.</p>
+    </div>
+  </div>
+
+  <p><strong>Random Number Generation:</strong></p>
+  <ul>
+    <li><em>Pseudo-random:</em> Linear Congruential Generators (LCG) or Mersenne Twister (industry standard) generate uniform \(U(0,1)\) variables.</li>
+    <li><em>Inverse Transform:</em> \(X = F^{-1}(U)\) generates a variable with CDF \(F\).</li>
+    <li><em>Box-Muller:</em> Generates standard normals \(Z_1, Z_2\) from uniforms \(U_1, U_2\).</li>
+  </ul>
+
+  <h4>Variance Reduction Techniques</h4>
+  <p>Since \(1/\sqrt{N}\) convergence is slow, we use techniques to lower \(\sigma^2\).</p>
+  <ol type="a">
+    <li><strong>Antithetic Variates:</strong> For every path generated with random variables \(Z\), generate an antithetic path with \(-Z\). The estimator becomes \(\hat{\mu} = \frac{1}{N} \sum_{i=1}^{N/2} \frac{Y(Z_i) + Y(-Z_i)}{2}\). If \(Y(Z)\) and \(Y(-Z)\) are negatively correlated, variance is reduced.</li>
+    <li><strong>Control Variates:</strong> Use an asset with a known analytical price \(Y_C\). We estimate the unknown price \(Y\) via \(\hat{Y} = Y_{MC} - c(Y_{C, MC} - \E[Y_C])\). The optimal coefficient is \(c^* = \frac{\Cov(Y_{MC}, Y_{C, MC})}{\Var(Y_{C, MC})}\).</li>
+    <li><strong>Importance Sampling:</strong> Change the probability measure to sample more frequently from the "important" regions (e.g., out-of-the-money paths that finish in-the-money). Weighted by the Likelihood Ratio (Radon-Nikodym derivative).</li>
+    <li><strong>Stratified Sampling:</strong> Divide the sample space into strata and sample proportionally, ensuring representative coverage.</li>
+    <li><strong>Quasi-Random Sequences:</strong> Use low-discrepancy sequences (Sobol, Halton) instead of pseudo-random numbers to cover the domain more uniformly. Error convergence approaches \(O(1/N)\).</li>
+  </ol>
+
+  <h3>4.6 Convex and Quadratic Programming</h3>
+  <p><strong>Convexity:</strong> A function \(f(x)\) is convex if the line segment between any two points on its graph lies above the graph. In convex optimization, any local minimum is guaranteed to be a global minimum.</p>
+  
+  <p><strong>Quadratic Programming (QP):</strong> Optimizing a quadratic objective subject to linear constraints. Standard form:</p>
+  \[ \min_x \frac{1}{2} x^T Q x + c^T x \quad \text{subject to} \quad Ax \le b, \quad Ex = d \]
+  <p>where \(Q\) is a symmetric positive semi-definite matrix. Markowitz Portfolio Optimization is the quintessential QP problem.</p>
+
+  <h3>4.7 Gradient Descent and Variants</h3>
+  <p>For unconstrained optimization of differentiable functions. Update rule:</p>
+  \[ x_{k+1} = x_k - \alpha \nabla f(x_k) \]
+  <p>where \(\alpha\) is the learning rate. Stochastic Gradient Descent (SGD) computes the gradient on a mini-batch of data. Advanced optimizers like Adam incorporate momentum (moving averages of past gradients) to speed up convergence and navigate ravines.</p>
+
+  <h3>4.8 Linear Programming</h3>
+  <p>Optimization where both the objective and constraints are linear. Solved primarily via the Simplex method or Interior Point methods. Essential for asset-liability management (matching cash flows) and reinsurance optimization.</p>
+
+
+  <!-- 5. Worked Examples -->
+  <h2>5. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 9.1: Finding Implied Volatility using Newton-Raphson</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A European call option on a non-dividend paying stock trades at \(C_{mkt} = \$10.50\). The stock price is \(S = \$100\), strike \(K = \$100\), time to maturity \(T = 1\) year, and risk-free rate \(r = 0.05\). Find the implied volatility \(\sigma\).</p>
+      <p><strong>Solution:</strong> We need to solve \(f(\sigma) = C_{BS}(\sigma) - 10.50 = 0\).</p>
+      <p>The derivative \(f'(\sigma)\) is the option Vega: \(\mathcal{V} = S \sqrt{T} \phi(d_1)\), where \(\phi\) is the standard normal PDF.</p>
+      <p><em>Initial Guess:</em> \(\sigma_0 = 0.20\)</p>
+      <p>Step 1: Calculate \(C_{BS}(0.20)\) and \(\mathcal{V}(0.20)\).<br>
+      \(d_1 = \frac{\ln(100/100) + (0.05 + 0.20^2 / 2)(1)}{0.20 \sqrt{1}} = 0.35\)<br>
+      \(d_2 = d_1 - 0.20 = 0.15\)<br>
+      \(N(d_1) = 0.6368\), \(N(d_2) = 0.5596\)<br>
+      \(C_{BS}(0.20) = 100(0.6368) - 100e^{-0.05}(0.5596) = 10.45\)<br>
+      \(\mathcal{V}(0.20) = 100 \sqrt{1} \frac{1}{\sqrt{2\pi}} e^{-0.35^2/2} = 37.52\)</p>
+      <p><em>Iteration 1:</em><br>
+      \(\sigma_1 = \sigma_0 - \frac{C_{BS}(\sigma_0) - 10.50}{\mathcal{V}(\sigma_0)} = 0.20 - \frac{10.45 - 10.50}{37.52} = 0.2013\)</p>
+      <p>Repeating the process with \(\sigma_1\) will converge to approximately \(\sigma \approx 20.14\%\) in the next step. Newton-Raphson typically requires only 3-4 iterations for implied volatility.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 9.2: Monte Carlo with Antithetic Variates</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Price a European Call with \(S_0 = 50, K = 52, r = 0.05, \sigma = 0.3, T = 1\). Demonstrate antithetic variance reduction for a single path pair.</p>
+      <p><strong>Solution:</strong> Exact Black-Scholes price is $5.36. Asset price path equation: \(S_T = S_0 \exp((r - \sigma^2/2)T + \sigma \sqrt{T} Z)\).</p>
+      <p>Let's draw a standard normal sample: \(Z_1 = 1.2\).</p>
+      <p><em>Path 1:</em> \(S_{T,1} = 50 \exp((0.05 - 0.045)(1) + 0.3(1.2)) = 50 \exp(0.365) = 72.03\)<br>
+      Payoff 1 = \(\max(72.03 - 52, 0) = 20.03\)</p>
+      <p><em>Antithetic Path (use \(-Z_1 = -1.2\)):</em><br>
+      \(S_{T,2} = 50 \exp(0.005 - 0.36) = 50 \exp(-0.355) = 35.04\)<br>
+      Payoff 2 = \(\max(35.04 - 52, 0) = 0\)</p>
+      <p><em>Antithetic Estimate:</em> \(\frac{20.03 + 0}{2} e^{-0.05} = 9.52\).</p>
+      <p>If we had used two independent positive draws, the variance of the average payoff would be much higher. Because large positive payoffs are offset by zero payoffs in the antithetic pair, the variance across many such pairs is significantly reduced.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 9.3: Cubic Spline Yield Curve Interpolation</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> An actuary observes par yields: 1yr (4.0%), 3yr (4.5%), 5yr (5.1%). Use a natural cubic spline to set up the system of equations to interpolate the 4-year yield.</p>
+      <p><strong>Solution:</strong> We have points \((1, 4.0), (3, 4.5), (5, 5.1)\). Two intervals: \(I_1 = [1,3]\) and \(I_2 = [3,5]\).</p>
+      <p>Let \(M_i\) be the second derivative at knot \(i\). For a natural spline, \(M_0 = 0\) (at \(x=1\)) and \(M_2 = 0\) (at \(x=5\)). We need to find \(M_1\) (at \(x=3\)).</p>
+      <p>The system for interior knots in a cubic spline is:<br>
+      \(\frac{h_1}{6} M_0 + \frac{h_1+h_2}{3} M_1 + \frac{h_2}{6} M_2 = \frac{y_2 - y_1}{h_2} - \frac{y_1 - y_0}{h_1}\)</p>
+      <p>Here \(h_1 = 3-1 = 2\), \(h_2 = 5-3 = 2\). Also \(y_0=4.0, y_1=4.5, y_2=5.1\).<br>
+      Substituting:<br>
+      \(0 + \frac{2+2}{3} M_1 + 0 = \frac{5.1 - 4.5}{2} - \frac{4.5 - 4.0}{2}\)<br>
+      \(\frac{4}{3} M_1 = 0.30 - 0.25 = 0.05 \implies M_1 = 0.0375\)</p>
+      <p>With \(M_1\) found, we construct the spline equation for \(I_2 = [3,5]\) and substitute \(x=4\) to find the yield. (Result: approx 4.78%).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 9.4: Quasi-Monte Carlo for Asian Options</div>
+    <div class="box-content">
+      <p><strong>Context:</strong> An Asian option payoff depends on the average price path. This requires sampling in high dimensions (e.g., daily prices for a year = 252 dimensions).</p>
+      <p>Pseudo-random points tend to clump together, leaving gaps in high-dimensional space. Sobol sequences are deterministic low-discrepancy sequences that fill the space uniformly.</p>
+      <p><strong>Implementation Logic:</strong> Instead of drawing \(Z \sim N(0,1)\) using <code>numpy.random.randn()</code>, we generate a Sobol sequence in \([0,1]^{252}\), and apply the inverse Normal CDF (Box-Muller or Acklam's algorithm) to transform these uniform numbers into standard normals. This leads to drastically faster convergence for the Asian option price.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 9.5: Markowitz Portfolio via Quadratic Programming</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Three assets. Expected returns: \(\mu = [0.10, 0.12, 0.15]^T\).<br>
+      Covariance matrix \(\Sigma = \begin{pmatrix} 0.04 & 0.01 & 0.02 \\ 0.01 & 0.09 & 0.03 \\ 0.02 & 0.03 & 0.16 \end{pmatrix}\).<br>
+      Find weights \(w = [w_1, w_2, w_3]^T\) to minimize variance \(\frac{1}{2}w^T \Sigma w\) subject to \(\sum w_i = 1\) (fully invested) and \(w_i \ge 0\) (no short selling).</p>
+      <p><strong>Solution Formulation:</strong><br>
+      Minimize: \(\frac{1}{2} [w_1, w_2, w_3] \begin{pmatrix} 0.04 & 0.01 & 0.02 \\ 0.01 & 0.09 & 0.03 \\ 0.02 & 0.03 & 0.16 \end{pmatrix} \begin{bmatrix} w_1 \\ w_2 \\ w_3 \end{bmatrix}\)<br>
+      Subject to:<br>
+      Equality: \( [1, 1, 1] w = 1 \)<br>
+      Inequality: \( -w \le [0,0,0]^T \) (or \(w \ge 0\))</p>
+      <p>This is solved using convex optimization solvers (like CVXOPT in Python). The optimal weights will favor Asset 1 heavily due to its low variance, while utilizing Assets 2 and 3 for diversification benefits determined by the off-diagonal covariance terms.</p>
+    </div>
+  </div>
+
+  <!-- 6. Python Code -->
+  <h2>6. Python Code Implementation</h2>
+  <p>Below is a production-style script demonstrating Monte Carlo pricing of a European Call option, comparing Basic MC, Antithetic Variates, and Control Variates.</p>
+  
+  <pre><code class="language-python">
+import numpy as np
+import scipy.stats as si
+
+def black_scholes_call(S, K, T, r, sigma):
+    """Analytical Black-Scholes price."""
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    call = (S * si.norm.cdf(d1) - K * np.exp(-r * T) * si.norm.cdf(d2))
+    return call
+
+def monte_carlo_options(S, K, T, r, sigma, N):
+    """Compare Monte Carlo methods."""
+    # 1. Basic MC
+    Z = np.random.standard_normal(N)
+    ST_basic = S * np.exp((r - 0.5 * sigma**2) * T + sigma * np.sqrt(T) * Z)
+    payoffs_basic = np.maximum(ST_basic - K, 0) * np.exp(-r * T)
+    price_basic = np.mean(payoffs_basic)
+    se_basic = np.std(payoffs_basic, ddof=1) / np.sqrt(N)
+    
+    # 2. Antithetic Variates
+    Z_half = np.random.standard_normal(N // 2)
+    ST_anti_plus = S * np.exp((r - 0.5 * sigma**2) * T + sigma * np.sqrt(T) * Z_half)
+    ST_anti_minus = S * np.exp((r - 0.5 * sigma**2) * T + sigma * np.sqrt(T) * -Z_half)
+    
+    payoffs_plus = np.maximum(ST_anti_plus - K, 0) * np.exp(-r * T)
+    payoffs_minus = np.maximum(ST_anti_minus - K, 0) * np.exp(-r * T)
+    payoffs_anti = (payoffs_plus + payoffs_minus) / 2
+    
+    price_anti = np.mean(payoffs_anti)
+    se_anti = np.std(payoffs_anti, ddof=1) / np.sqrt(N // 2)
+    
+    # 3. Control Variates (using underlying asset as control)
+    # E[S_T] = S * exp(rT). Discounted expected value is S.
+    ST_cv = S * np.exp((r - 0.5 * sigma**2) * T + sigma * np.sqrt(T) * Z)
+    payoffs_cv_base = np.maximum(ST_cv - K, 0) * np.exp(-r * T)
+    control_asset = ST_cv * np.exp(-r * T)
+    
+    # Estimate optimal c*
+    cov_matrix = np.cov(payoffs_cv_base, control_asset)
+    c_star = cov_matrix[0, 1] / cov_matrix[1, 1]
+    
+    payoffs_cv = payoffs_cv_base - c_star * (control_asset - S)
+    price_cv = np.mean(payoffs_cv)
+    se_cv = np.std(payoffs_cv, ddof=1) / np.sqrt(N)
+    
+    return price_basic, se_basic, price_anti, se_anti, price_cv, se_cv
+
+# Parameters
+S0, K, T, r, sigma, N = 100, 100, 1.0, 0.05, 0.20, 100000
+true_price = black_scholes_call(S0, K, T, r, sigma)
+res = monte_carlo_options(S0, K, T, r, sigma, N)
+
+print(f"True BS Price: {true_price:.4f}")
+print(f"Basic MC:      Price = {res[0]:.4f}, SE = {res[1]:.4f}")
+print(f"Antithetic MC: Price = {res[2]:.4f}, SE = {res[3]:.4f} (Variance Reduction: {(res[1]/res[3])**2:.2f}x)")
+print(f"Control Var MC:Price = {res[4]:.4f}, SE = {res[5]:.4f} (Variance Reduction: {(res[1]/res[5])**2:.2f}x)")
+  </code></pre>
+
+  <!-- 7. Diagrams Description -->
+  <h2>7. Visualizing the Concepts</h2>
+  <div class="remark">
+    <div class="box-title">Figure 9.1: Interpolation Methods Compared</div>
+    <div class="box-content">
+      <p><em>Description:</em> A line chart showing a set of discrete yield curve data points (circles). A polynomial interpolation curve passes through the points but exhibits wild oscillations at the long end of the curve (Runge's phenomenon). A natural cubic spline curve smoothly connects the points without oscillation, demonstrating its superiority for yield curve construction.</p>
+    </div>
+  </div>
+  
+  <div class="remark">
+    <div class="box-title">Figure 9.2: Gradient Descent Optimization</div>
+    <div class="box-content">
+      <p><em>Description:</em> A contour plot of a convex cost function (like sum of squared errors in model calibration). A path drawn with arrows shows the standard gradient descent algorithm taking perpendicular steps across the contour lines. A second path shows Adam optimization taking a much smoother and more direct path to the global minimum at the center, highlighting the effect of momentum.</p>
+    </div>
+  </div>
+
+  <!-- 8. Common Mistakes -->
+  <h2>8. Common Mistakes & Misconceptions</h2>
+  <div class="warning">
+    <div class="box-title">Watch Out!</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Misinterpreting MC Error:</strong> Believing that running 10 times more simulations reduces the error by a factor of 10. The error scales with \(\sqrt{N}\), so it only reduces by a factor of \(\approx 3.16\).</li>
+        <li><strong>Blindly Applying Newton-Raphson:</strong> Using an initial guess too far from the root or on a function with zero derivatives. For implied volatility, if the market price violates arbitrage bounds (e.g., call price is less than \(S - K e^{-rT}\)), the algorithm will diverge.</li>
+        <li><strong>Overfitting with Interpolation:</strong> Using a 10th-degree polynomial to fit 11 data points. It fits perfectly but the interpolated values between points will be wild. Always prefer piecewise methods like splines.</li>
+        <li><strong>Improper Control Variates:</strong> Using a control variate that is not highly correlated with the target variable, or using a control variate whose expected value \(\E[Y_C]\) is not known exactly in closed form.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 9. Industry Application Box -->
+  <div class="industry">
+    <div class="box-title">Industry Application: Asset-Liability Management (ALM) at Life Insurers</div>
+    <div class="box-content">
+      <p>Life insurance companies possess long-term liabilities (payouts for death benefits over 30+ years). To ensure solvency, they must purchase assets to match these future cash flows. However, the exact timing of deaths is stochastic, and bonds do not exist for every single maturity.</p>
+      <p>Actuaries structure this as a large-scale Linear or Quadratic Programming problem. The objective is to minimize the cost of the asset portfolio, subject to constraints that the cash generated by the assets (coupons + principal) in every future time period \(t\) exceeds the simulated expected liability payouts at \(t\) (at a high confidence level). They utilize numerical interpolation (splines) to build the continuous yield curve to discount these cash flows, and Monte Carlo simulation to project mortality and interest rate paths.</p>
+    </div>
+  </div>
+
+  <!-- 10. Summary & Formula Cheat-Sheet -->
+  <h2>10. Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <div class="box-title">Key Formulas</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Newton-Raphson Update:</strong> \( x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)} \)</li>
+        <li><strong>Monte Carlo Standard Error:</strong> \( SE = \frac{\sigma}{\sqrt{N}} \)</li>
+        <li><strong>Control Variate Optimal Coef:</strong> \( c^* = \frac{\Cov(Y_{MC}, Y_{C, MC})}{\Var(Y_{C, MC})} \)</li>
+        <li><strong>Central Difference:</strong> \( f'(x) \approx \frac{f(x+h) - f(x-h)}{2h} \)</li>
+        <li><strong>Quadratic Program:</strong> \( \min_x \frac{1}{2} x^T Q x + c^T x \) subject to \(Ax \le b\)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 11. Exercises -->
+  <h2>11. Exercises</h2>
+  <div class="exercises">
+    <div class="exercise-group">
+      <h3>Basic</h3>
+      <div class="exercise-item">
+        <strong>1.</strong> State the convergence rate of the Bisection method versus the Newton-Raphson method. Which is guaranteed to find a root if bracketed?
+      </div>
+      <div class="exercise-item">
+        <strong>2.</strong> Calculate the central finite difference approximation for the first derivative of \(f(x) = x^3\) at \(x=2\) using \(h=0.1\). Compare to the exact value.
+      </div>
+      <div class="exercise-item">
+        <strong>3.</strong> Why does polynomial interpolation fail for a large number of data points? What is the preferred alternative?
+      </div>
+      <div class="exercise-item">
+        <strong>4.</strong> A Monte Carlo simulation with 10,000 paths yields an option price of INR 450 with a sample standard deviation of INR 20. Calculate the 95% confidence interval.
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Intermediate</h3>
+      <div class="exercise-item">
+        <strong>5.</strong> Perform two iterations of the Newton-Raphson method by hand to find the root of \(f(x) = x^2 - 5 = 0\), starting with \(x_0 = 2\).
+      </div>
+      <div class="exercise-item">
+        <strong>6.</strong> Set up the system of linear constraints for a Markowitz portfolio optimization with 4 assets, assuming a target return \(\mu^*\) is required, and short selling is limited to 20% of the portfolio.
+      </div>
+      <div class="exercise-item">
+        <strong>7.</strong> Explain the concept of Antithetic Variates. If the correlation between the standard paths and antithetic paths is +0.1, does this method reduce variance? Why or why not?
+      </div>
+      <div class="exercise-item">
+        <strong>8.</strong> Write the discrete formula for Simpson's Rule using three points \((x_0, x_1, x_2)\) with spacing \(h\).
+      </div>
+      <div class="exercise-item">
+        <strong>9.</strong> You are pricing a basket option on 5 assets using Monte Carlo. Would you prefer a standard pseudo-random number generator or a Sobol sequence? Justify your choice based on convergence rates.
+      </div>
+    </div>
+    
+    <div class="exercise-group">
+      <h3>Advanced</h3>
+      <div class="exercise-item">
+        <strong>10.</strong> Prove that the optimal control variate coefficient \(c^*\) that minimizes the variance of the estimator is given by \(\Cov(Y, X) / \Var(X)\).
+      </div>
+      <div class="exercise-item">
+        <strong>11.</strong> Formulate the calibration of the Heston stochastic volatility model to market option prices as a non-linear least squares optimization problem. Identify the objective function and parameters.
+      </div>
+      <div class="exercise-item">
+        <strong>12.</strong> Derive the error term \(O(h^2)\) for the central difference approximation of the first derivative using Taylor series expansions.
+      </div>
+    </div>
+  </div>
+
+  <h3>Solutions to Selected Exercises</h3>
+  <div class="solution-item">
+    <strong>Solution to 1:</strong> Bisection has linear convergence. Newton-Raphson has quadratic convergence (near the root). Bisection is guaranteed to find a root if the initial interval brackets it (Intermediate Value Theorem).
+  </div>
+  <div class="solution-item">
+    <strong>Solution to 2:</strong> \(f(x) = x^3\). True derivative at \(x=2\) is \(3(2^2) = 12\).<br>
+    Central difference: \(\frac{f(2.1) - f(1.9)}{0.2} = \frac{9.261 - 6.859}{0.2} = \frac{2.402}{0.2} = 12.01\). The error is \(0.01\).
+  </div>
+  <div class="solution-item">
+    <strong>Solution to 4:</strong> Standard error = \(\frac{20}{\sqrt{10000}} = \frac{20}{100} = 0.20\).<br>
+    95% CI: \(450 \pm 1.96(0.20) = [449.608, 450.392]\) INR.
+  </div>
+  <div class="solution-item">
+    <strong>Solution to 5:</strong> \(f(x) = x^2 - 5\), \(f'(x) = 2x\).<br>
+    \(x_1 = 2 - \frac{2^2 - 5}{2(2)} = 2 - \frac{-1}{4} = 2.25\).<br>
+    \(x_2 = 2.25 - \frac{2.25^2 - 5}{2(2.25)} = 2.25 - \frac{0.0625}{4.5} = 2.2361\). (Note \(\sqrt{5} \approx 2.23606\)).
+  </div>
+  <div class="solution-item">
+    <strong>Solution to 7:</strong> For variance reduction via antithetic variates, we require \(\Var(\frac{Y_1 + Y_2}{2}) < \frac{\Var(Y_1)}{2}\). This expands to \(\frac{1}{4}(\Var(Y_1) + \Var(Y_2) + 2\Cov(Y_1,Y_2))\). Since \(\Var(Y_1) = \Var(Y_2)\), we need \(\Cov(Y_1,Y_2) < 0\). If the correlation is +0.1, the covariance is positive, and the variance actually *increases* compared to independent sampling.
+  </div>
+  <div class="solution-item">
+    <strong>Solution to 10:</strong> Let \(\hat{Y} = Y - c(X - \E[X])\).<br>
+    \(\Var(\hat{Y}) = \Var(Y) + c^2 \Var(X) - 2c \Cov(Y, X)\).<br>
+    To minimize, take derivative with respect to \(c\) and set to zero:<br>
+    \(2c \Var(X) - 2 \Cov(Y, X) = 0 \implies c^* = \frac{\Cov(Y, X)}{\Var(X)}\).
+  </div>
+  <div class="solution-item">
+    <strong>Solution to 12:</strong> <br>
+    Taylor expansion forward: \(f(x+h) = f(x) + hf'(x) + \frac{h^2}{2}f''(x) + \frac{h^3}{6}f'''(x) + ...\)<br>
+    Taylor expansion backward: \(f(x-h) = f(x) - hf'(x) + \frac{h^2}{2}f''(x) - \frac{h^3}{6}f'''(x) + ...\)<br>
+    Subtracting the two: \(f(x+h) - f(x-h) = 2hf'(x) + \frac{2h^3}{6}f'''(x) + ...\)<br>
+    Divide by \(2h\): \(\frac{f(x+h) - f(x-h)}{2h} = f'(x) + \frac{h^2}{6}f'''(x) + ...\)<br>
+    The dominant error term is proportional to \(h^2\), hence \(O(h^2)\).
+  </div>
+
+  <!-- 12. Further Reading -->
+  <div class="further-reading">
+    <div class="box-title">Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Glasserman, P. (2003). <em>Monte Carlo Methods in Financial Engineering</em>. Springer. (The definitive text on variance reduction and QMC in finance).</li>
+        <li>Hull, J. C. (2021). <em>Options, Futures, and Other Derivatives</em> (11th Ed.). Pearson. (Chapter 21 on Trees and Finite Difference).</li>
+        <li>Press, W. H. et al. (2007). <em>Numerical Recipes: The Art of Scientific Computing</em> (3rd Ed.). Cambridge University Press.</li>
+        <li>Boyd, S., & Vandenberghe, L. (2004). <em>Convex Optimization</em>. Cambridge University Press.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch08_stochastic_calculus.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch10_time_value.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 41: Insurance Data Analytics</title>
+  <link rel="stylesheet" href="../css/textbook.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        tags: 'ams',
+        macros: {
+          E: ['\\mathbb{E}'],
+          Var: ['\\operatorname{Var}'],
+          Cov: ['\\operatorname{Cov}'],
+          P: ['\\mathbb{P}'],
+          R: ['\\mathbb{R}'],
+          N: ['\\mathbb{N}'],
+          dd: ['\\,\\mathrm{d}'],
+          dv: ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          pdv: ['\\frac{\\partial #1}{\\partial #2}', 2]
+        }
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+</head>
+<body>
+  <a href="../index.html">← Table of Contents</a>
+  
+  <h1>Chapter 41: Insurance Data Analytics</h1>
+
+  <div class="learning-objectives">
+    <div class="box-title">Learning Objectives</div>
+    <div class="box-content">
+      <ul>
+        <li>Understand the mechanics and pricing applications of Telematics and Usage-Based Insurance (UBI).</li>
+        <li>Apply geospatial analytics, text mining, and computer vision to modernize underwriting and claims management.</li>
+        <li>Develop and interpret Customer Lifetime Value (CLV) models using survival analysis.</li>
+        <li>Design parametric insurance products and model complex fraud networks using graph theory.</li>
+        <li>Navigate the landscape of InsurTech, digital twins, and ethical guidelines governing AI in insurance.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prerequisites">
+    <div class="box-title">Prerequisites & Roadmap</div>
+    <div class="box-content">
+      <p>This chapter synthesizes quantitative modeling techniques covered previously. You should be familiar with Generalized Linear Models (Chapter 25), Survival Analysis (Chapter 31), and basic Machine Learning algorithms (Chapter 35). It serves as a bridge between traditional actuarial science and modern data science, preparing you for the final Capstone in Chapter 42.</p>
+    </div>
+  </div>
+
+  <h2>1. Intuition & Motivation</h2>
+  <p>Consider the traditional auto insurance pricing model: a 25-year-old driver living in an urban area is charged a high premium based on broad demographic factors. However, this driver might only use their vehicle for a short, low-speed commute twice a week. Traditional models fail to capture this idiosyncratic risk profile. Enter <em>Insurance Data Analytics</em>. By harnessing telematics data from smartphones or on-board diagnostic (OBD) devices, insurers can measure actual driving behavior—speed, acceleration, braking, and time of day—and price the risk dynamically. This shift from proxy variables to behavioral variables exemplifies the revolution sweeping the insurance industry.</p>
+  <p>Beyond auto insurance, unstructured data is transforming every line of business. Claims departments use Natural Language Processing (NLP) to read adjuster notes, computer vision to assess vehicle damage from photos, and network analysis to uncover sophisticated fraud rings. The modern actuary and data scientist must navigate this landscape, not only to price risk more accurately but also to enhance customer retention through Customer Lifetime Value (CLV) modeling and develop innovative products like parametric insurance and digital twins.</p>
+
+  <h2>2. Formal Theory</h2>
+
+  <h3>2.1 Telematics and Usage-Based Insurance (UBI)</h3>
+  <p>Usage-Based Insurance (UBI) tailors premiums to individual usage patterns. There are two primary paradigms: <em>Pay-As-You-Drive (PAYD)</em>, which focuses on mileage, and <em>Pay-How-You-Drive (PHYD)</em>, which incorporates driving behavior.</p>
+  <div class="definition">
+    <div class="box-title">Telematics Driving Score</div>
+    <div class="box-content">
+      <p>A composite index \( S \in [0, 100] \) derived from kinematic vehicle data designed to reflect the risk of collision. The score typically incorporates hard braking, rapid acceleration, speeding, and cornering events.</p>
+    </div>
+  </div>
+  <p>Let \( \mathbf{X}_i(t) \) denote the telematics feature vector for driver \( i \) at time \( t \). The frequency of risky events (e.g., hard braking instances per 100 miles) is modeled as a Poisson process. The telematics score \( S_i \) is often constructed using a logistic regression or gradient boosting model predicting claim probability \( p_i \):</p>
+  <p>
+  \[
+  \text{logit}(p_i) = \beta_0 + \sum_{j=1}^k \beta_j g_j(\mathbf{X}_{ij})
+  \]
+  </p>
+  <p>where \( g_j(\cdot) \) are transformation functions (e.g., binning or splines) applied to the raw telematics features. The score is then mapped to a relativity multiplier \( M(S_i) \) applied to the base premium.</p>
+
+  <h3>2.2 Geospatial Analytics</h3>
+  <p>Geospatial analysis incorporates spatial dependencies into risk modeling. The proximity to perils such as coastlines, fault lines, or flood zones significantly alters the risk profile.</p>
+  <p>Let \( (lat_i, lon_i) \) be the coordinates of property \( i \). We can define a spatial weight matrix \( \mathbf{W} \) where \( w_{ij} \) represents the inverse distance or contiguity between locations \( i \) and \( j \). A spatial autoregressive (SAR) model extends standard GLMs:</p>
+  <p>
+  \[
+  \mathbf{y} = \rho \mathbf{W} \mathbf{y} + \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\epsilon}
+  \]
+  </p>
+  <p>where \( \rho \) captures the spatial correlation (e.g., the tendency for properties in the same neighborhood to experience similar burglary rates).</p>
+
+  <h3>2.3 Text Mining for Claims</h3>
+  <p>Claims data often includes unstructured text from First Notice of Loss (FNOL), adjuster notes, and medical reports. Natural Language Processing (NLP) extracts features from this text. Techniques like TF-IDF (Term Frequency-Inverse Document Frequency) or word embeddings (Word2Vec, BERT) map text into numerical vectors.</p>
+  <p>For a document \( d \) and term \( t \):</p>
+  <p>
+  \[
+  \text{TF-IDF}(t, d) = \frac{\text{count}(t, d)}{\sum_{k} \text{count}(k, d)} \times \log\left(\frac{N}{\text{df}_t}\right)
+  \]
+  </p>
+  <p>where \( N \) is the total number of documents and \( \text{df}_t \) is the number of documents containing term \( t \). These vectors are fed into classifiers for claims triage (e.g., fast-tracking simple claims or flagging potential fraud).</p>
+
+  <h3>2.4 Image Analytics</h3>
+  <p>Computer vision leverages Convolutional Neural Networks (CNNs) to analyze imagery. For auto claims, an image \( \mathbf{I} \) is processed through layers of convolutions to detect features (e.g., dents, broken glass) and estimate repair costs. In property insurance, satellite and drone imagery assess roof conditions or crop health (using the Normalized Difference Vegetation Index, NDVI).</p>
+
+  <h3>2.5 Fraud Detection Advanced</h3>
+  <p>While traditional fraud detection uses rules and supervised learning on individual claims, organized fraud involves networks of actors (colluding doctors, lawyers, auto shops, and claimants). Graph theory is employed here.</p>
+  <div class="definition">
+    <div class="box-title">Fraud Network Graph</div>
+    <div class="box-content">
+      <p>A graph \( G = (V, E) \) where vertices \( V \) represent entities (individuals, vehicles, service providers) and edges \( E \) represent relationships (e.g., same address, same accident). Fraud rings appear as dense subgraphs or cliques.</p>
+    </div>
+  </div>
+  <p>Metrics like Degree Centrality, Betweenness Centrality, and the clustering coefficient identify key nodes orchestrating the fraud.</p>
+
+  <h3>2.6 Customer Lifetime Value (CLV)</h3>
+  <p>Customer Lifetime Value is the present value of all future cash flows attributed to the customer relationship. It requires predicting retention probabilities over time.</p>
+  <p>Using survival analysis, let \( S(t) \) be the probability a customer remains with the insurer at time \( t \). The CLV is given by:</p>
+  <p>
+  \[
+  \text{CLV} = \sum_{t=1}^{T} \frac{S(t) \cdot (P_t - C_t - E_t)}{(1 + d)^t}
+  \]
+  </p>
+  <p>where \( P_t \) is premium, \( C_t \) is expected claims, \( E_t \) is expenses, and \( d \) is the discount rate. A Cox Proportional Hazards model or a discrete-time logistic model is typically used to estimate \( S(t) \).</p>
+
+  <h3>2.7 Pricing Innovation</h3>
+  <p>Parametric insurance triggers payouts based on the occurrence of an objective, measurable event (e.g., earthquake magnitude, cumulative rainfall) rather than actual loss assessment. This eliminates claims adjustment expenses and moral hazard.</p>
+  <div class="theorem">
+    <div class="box-title">Parametric Pricing Formula</div>
+    <div class="box-content">
+      <p>If the payout \( L(X) \) depends on index \( X \), the pure premium is \( \pi = \E[L(X)] \). For a rainfall index \( X \) with trigger \( x_0 \), tick size \( \Delta \), and limit \( M \):</p>
+      <p>
+      \[
+      L(X) = \min\left( M, \max(0, \Delta \cdot (x_0 - X)) \right)
+      \]
+      </p>
+      <p>The premium is calculated by integrating this payoff function against the probability density function \( f(x) \) of the index \( X \).</p>
+    </div>
+  </div>
+
+  <h3>2.8 Ethical AI in Insurance</h3>
+  <p>As algorithms govern pricing and underwriting, algorithmic fairness is paramount. A model exhibits Disparate Impact if its outcomes disproportionately affect protected classes (e.g., race, gender) even if those attributes are not explicitly used as inputs (due to proxy variables like zip code).</p>
+  <p>Regulatory frameworks (like the EU AI Act and guidelines by IRDAI/NAIC) mandate transparency and explainability. Techniques like SHAP (SHapley Additive exPlanations) are used to attribute the prediction output to individual features, ensuring the decision-making process is interpretable.</p>
+
+  <h3>2.9 InsurTech</h3>
+  <p>InsurTech encompasses technological innovations designed to squeeze out savings and efficiency from the current insurance industry model. This includes API ecosystems for embedded insurance (e.g., buying travel insurance seamlessly while booking a flight) and blockchain/smart contracts for automated, trustless claims settlements.</p>
+
+  <h3>2.10 Digital Twins</h3>
+  <p>A digital twin is a virtual representation of a physical asset (a factory, a fleet of ships) continuously updated with real-time IoT sensor data. Insurers use digital twins for predictive maintenance—intervening before a breakdown causes a massive business interruption loss—and for dynamic risk pricing based on real-time operational states.</p>
+
+
+  <h2>3. Worked Examples</h2>
+
+  <div class="example">
+    <div class="box-title">Example 41.1: Telematics Driving Score</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> An insurer tracks a driver over 1,000 miles. The telemetry records 12 hard braking events and 4 rapid accelerations. The baseline expected claim frequency is 0.05 claims per year. The telematics model modifies the base frequency \( \lambda_0 \) multiplicatively based on events per 100 miles: \( \lambda = \lambda_0 \times \exp(\beta_1 x_1 + \beta_2 x_2) \), where \( x_1 \) is hard braking per 100 miles, \( x_2 \) is rapid acceleration per 100 miles, \( \beta_1 = 0.15 \), and \( \beta_2 = 0.08 \). Calculate the revised expected claim frequency.</p>
+      <p><strong>Solution:</strong></p>
+      <p>1. Calculate rates per 100 miles:</p>
+      <p>\( x_1 = \frac{12}{1000/100} = \frac{12}{10} = 1.2 \)</p>
+      <p>\( x_2 = \frac{4}{10} = 0.4 \)</p>
+      <p>2. Calculate the multiplier:</p>
+      <p>\( M = \exp(0.15 \times 1.2 + 0.08 \times 0.4) = \exp(0.18 + 0.032) = \exp(0.212) \approx 1.2361 \)</p>
+      <p>3. Revised frequency:</p>
+      <p>\( \lambda = 0.05 \times 1.2361 = 0.0618 \) claims per year.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 41.2: Geospatial Risk Scoring</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A property located at coordinates A is evaluated for flood risk. The base pure premium for flood is ₹5,000. GIS analysis determines the distance \( d \) (in meters) to the nearest major water body is 150m. The elevation relative to the water level \( h \) is +2m. The pricing factor is given by \( F(d,h) = 1 + \max(0, 500 - d)/1000 \times \max(0, 5 - h)/5 \). Calculate the final premium.</p>
+      <p><strong>Solution:</strong></p>
+      <p>1. Calculate distance component:</p>
+      <p>\( \max(0, 500 - 150)/1000 = 350 / 1000 = 0.35 \)</p>
+      <p>2. Calculate elevation component:</p>
+      <p>\( \max(0, 5 - 2)/5 = 3 / 5 = 0.6 \)</p>
+      <p>3. Calculate Factor \( F \):</p>
+      <p>\( F = 1 + (0.35 \times 0.6) = 1 + 0.21 = 1.21 \)</p>
+      <p>4. Final Premium:</p>
+      <p>\( \pi = 5000 \times 1.21 = \text{₹}6,050 \).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 41.3: CLV with Survival Analysis</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A policyholder generates an annual profit margin of $150 (assumed received at year-end). The survival probability at the end of year \( t \) is given by a Weibull survival function \( S(t) = \exp(-(0.1 t)^{1.5}) \). The discount rate is 5%. Calculate the CLV over a 3-year horizon.</p>
+      <p><strong>Solution:</strong></p>
+      <p>1. Calculate survival probabilities \( S(t) \):</p>
+      <p>Year 1: \( S(1) = \exp(-(0.1 \times 1)^{1.5}) = \exp(-0.0316) \approx 0.9689 \)</p>
+      <p>Year 2: \( S(2) = \exp(-(0.1 \times 2)^{1.5}) = \exp(-0.0894) \approx 0.9144 \)</p>
+      <p>Year 3: \( S(3) = \exp(-(0.1 \times 3)^{1.5}) = \exp(-0.1643) \approx 0.8485 \)</p>
+      <p>2. Calculate discounted cash flows:</p>
+      <p>\( \text{DCF}_1 = \frac{150 \times 0.9689}{1.05} = 138.41 \)</p>
+      <p>\( \text{DCF}_2 = \frac{150 \times 0.9144}{1.05^2} = 124.41 \)</p>
+      <p>\( \text{DCF}_3 = \frac{150 \times 0.8485}{1.05^3} = 109.95 \)</p>
+      <p>3. CLV = \( 138.41 + 124.41 + 109.95 = \$372.77 \).</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 41.4: Fraud Network Graph Analysis</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> Consider a bipartite graph of 3 claims (\(C_1, C_2, C_3\)) and 4 entities (Doctor A, Lawyer B, Auto Shop C, Claimant D). </p>
+      <ul>
+        <li>\(C_1\) involves Doctor A, Lawyer B, Claimant D.</li>
+        <li>\(C_2\) involves Doctor A, Lawyer B, Auto Shop C.</li>
+        <li>\(C_3\) involves Doctor A, Auto Shop C.</li>
+      </ul>
+      <p>Construct the one-mode projection graph of entities (connecting entities if they share a claim) and calculate the degree of Doctor A and Lawyer B.</p>
+      <p><strong>Solution:</strong></p>
+      <p>In the one-mode projection, an edge exists between two entities if they co-occur in at least one claim.</p>
+      <p>Doctor A co-occurs with: Lawyer B (in \(C_1, C_2\)), Claimant D (in \(C_1\)), Auto Shop C (in \(C_2, C_3\)).</p>
+      <p>Degree of Doctor A = 3 (connected to B, C, D).</p>
+      <p>Lawyer B co-occurs with: Doctor A (in \(C_1, C_2\)), Claimant D (in \(C_1\)), Auto Shop C (in \(C_2\)).</p>
+      <p>Degree of Lawyer B = 3 (connected to A, C, D).</p>
+      <p>The high connectivity indicates a tight-knit cluster typical of coordinated activity.</p>
+    </div>
+  </div>
+
+  <div class="example">
+    <div class="box-title">Example 41.5: Parametric Crop Insurance</div>
+    <div class="box-content">
+      <p><strong>Problem:</strong> A parametric drought insurance product pays out based on total rainfall \( X \) (in mm) during the monsoon season. If \( X < 300 \) mm, the payout is \( 100 \times (300 - X) \), up to a maximum payout of ₹15,000. Historical data suggests \( X \) follows a Normal distribution \( N(\mu=350, \sigma=50) \). Estimate the pure premium using the standard normal CDF \( \Phi \).</p>
+      <p><strong>Solution:</strong></p>
+      <p>Payout function: \( L(X) = \min(15000, \max(0, 100(300 - X))) \).</p>
+      <p>Maximum payout of 15,000 occurs when \( 100(300 - X) \ge 15000 \implies 300 - X \ge 150 \implies X \le 150 \).</p>
+      <p>The pure premium is \( \E[L(X)] \).</p>
+      <p>\( \E[L(X)] = \int_{-\infty}^{150} 15000 f(x) dx + \int_{150}^{300} 100(300 - x) f(x) dx \)</p>
+      <p>For \( X \sim N(350, 50^2) \):</p>
+      <p>\( Z_1 = (150 - 350)/50 = -4 \). \( \Phi(-4) \approx 0 \).</p>
+      <p>\( Z_2 = (300 - 350)/50 = -1 \). \( \Phi(-1) \approx 0.1587 \).</p>
+      <p>The first term is approx 0. The second term requires integrating a truncated normal. Using the formula for partial expectations of normal distribution: \( \E[c - X | X < c] P(X < c) \).</p>
+      <p>\( \E[300 - X | 150 < X < 300] P(150 < X < 300) = \int_{150}^{300} (300 - x) f(x) dx \).</p>
+      <p>We know \( \int_{-\infty}^{c} x f(x) dx = \mu \Phi(\frac{c-\mu}{\sigma}) - \sigma \phi(\frac{c-\mu}{\sigma}) \).</p>
+      <p>Approximating the lower bound as \( -\infty \) since \( \Phi(-4) \approx 0 \):</p>
+      <p>\( \int_{-\infty}^{300} (300 - x) f(x) dx = 300 \Phi(-1) - [350 \Phi(-1) - 50 \phi(-1)] = -50 \Phi(-1) + 50 \phi(-1) \).</p>
+      <p>Where \( \phi(-1) = \frac{1}{\sqrt{2\pi}} \exp(-0.5) \approx 0.2420 \).</p>
+      <p>Integral \( = -50(0.1587) + 50(0.2420) = -7.935 + 12.10 = 4.165 \).</p>
+      <p>Pure premium \( = 100 \times 4.165 = \text{₹}416.50 \).</p>
+    </div>
+  </div>
+
+  <h2>4. Python Code</h2>
+  <p>The following script demonstrates how to calculate a telematics driving score based on the model in Example 41.1, utilizing a sample dataset of drivers.</p>
+  <pre><code class="language-python">import numpy as np
+import pandas as pd
+
+# Generate sample telematics data for 5 drivers
+np.random.seed(42)
+data = {
+    'Driver_ID': range(1, 6),
+    'Miles_Driven': np.random.uniform(500, 2000, 5),
+    'Hard_Brakes': np.random.randint(0, 20, 5),
+    'Rapid_Accels': np.random.randint(0, 10, 5)
+}
+df = pd.DataFrame(data)
+
+# Baseline frequency
+lambda_0 = 0.05
+beta_1 = 0.15
+beta_2 = 0.08
+
+# Calculate events per 100 miles
+df['Brakes_per_100'] = df['Hard_Brakes'] / (df['Miles_Driven'] / 100)
+df['Accels_per_100'] = df['Rapid_Accels'] / (df['Miles_Driven'] / 100)
+
+# Calculate Multiplier and Revised Frequency
+df['Multiplier'] = np.exp(beta_1 * df['Brakes_per_100'] + beta_2 * df['Accels_per_100'])
+df['Revised_Frequency'] = lambda_0 * df['Multiplier']
+
+# Map to a 0-100 Score (Inverse of Risk Multiplier, scaled)
+max_mult = df['Multiplier'].max()
+min_mult = df['Multiplier'].min()
+df['Driving_Score'] = 100 - ((df['Multiplier'] - 1) * 50)  # Simplified scaling
+df['Driving_Score'] = df['Driving_Score'].clip(0, 100)
+
+print(df[['Driver_ID', 'Multiplier', 'Revised_Frequency', 'Driving_Score']].round(4))
+</code></pre>
+
+  <h2>5. Diagrams Description</h2>
+  <p><strong>Figure 41.1: Telematics Data Flow Architecture</strong><br>
+  The diagram depicts the ingestion of raw kinematic data (GPS, Accelerometer) from an IoT device/smartphone, flowing into a cloud data lake. Stream processing (e.g., Apache Kafka) identifies 'events' (hard braking). These events feed into a machine learning scoring engine, which updates the actuarial pricing database dynamically. A feedback loop returns the driving score to the customer's mobile app to encourage safer driving.</p>
+
+  <p><strong>Figure 41.2: Bipartite Graph of Fraud Networks</strong><br>
+  A network chart showing two distinct types of nodes: Claims (circles) and Entities (squares, representing clinics, body shops, policyholders). Dense connections among a specific group of clinics and body shops across multiple unrelated claims visually highlight a suspected organized fraud ring, contrasting with the sparse connections of legitimate claims.</p>
+
+  <h2>6. Common Mistakes & Misconceptions</h2>
+  <div class="warning">
+    <div class="box-title">Common Modeling Pitfalls</div>
+    <div class="box-content">
+      <ul>
+        <li><strong>Confusing Correlation with Causation in Telematics:</strong> Late-night driving correlates with higher accident rates, but penalizing night shift workers (e.g., nurses) can lead to unfair bias and disparate impact.</li>
+        <li><strong>Ignoring Right-Censoring in CLV:</strong> When estimating customer retention, using simple logistic regression instead of survival analysis ignores the fact that active customers are right-censored, underestimating true lifetime value.</li>
+        <li><strong>Basis Risk in Parametric Insurance:</strong> Assuming the index perfectly matches the loss. If the weather station is 50 miles away from the farm, the index might trigger no payout despite the farm suffering a localized drought (basis risk).</li>
+        <li><strong>Data Leakage in Fraud Models:</strong> Including features derived after the fraud investigation concluded (e.g., "investigator_flag") as predictors in the training data, resulting in falsely optimistic model accuracy.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>7. Industry Application Box</h2>
+  <div class="industry">
+    <div class="box-title">Application: AI in Claims Triage at Global Insurers</div>
+    <div class="box-content">
+      <p>Top-tier auto insurers employ "touchless claims" workflows. When a policyholder submits a photo of auto damage via a mobile app, a computer vision model immediately segments the image to identify damaged car parts. Simultaneously, NLP models scan the First Notice of Loss (FNOL) text for injury keywords. If the damage is superficial and no injuries are detected, the system bypasses human adjusters entirely, estimating repair costs via API integration with local body shops and settling the claim in minutes. This drastically reduces Loss Adjustment Expenses (LAE) and improves customer satisfaction.</p>
+    </div>
+  </div>
+
+  <h2>8. Summary & Formula Cheat-Sheet</h2>
+  <div class="formula-sheet">
+    <div class="box-title">Summary & Formulas</div>
+    <div class="box-content">
+      <p>Data analytics expands the actuarial toolkit beyond tabular GLMs into unstructured data, geospatial analysis, and dynamic pricing.</p>
+      <ul>
+        <li><strong>Telematics Pricing Multiplier:</strong> \( M = \exp(\sum \beta_j X_j) \) where \( X_j \) are event frequencies per unit distance/time.</li>
+        <li><strong>Spatial GLM:</strong> \( \mathbf{y} = \rho \mathbf{W} \mathbf{y} + \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\epsilon} \)</li>
+        <li><strong>TF-IDF:</strong> \( \text{TF-IDF}(t, d) = \text{TF}(t, d) \times \log(N / \text{df}_t) \)</li>
+        <li><strong>CLV (Discrete Time):</strong> \( \text{CLV} = \sum_{t=1}^{T} S(t) \cdot \text{Margin}_t / (1+d)^t \)</li>
+        <li><strong>Parametric Pure Premium:</strong> \( \pi = \int L(x) f(x) dx \)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>9. Exercises</h2>
+  <div class="exercises">
+    <div class="box-title">Practice Problems</div>
+    <div class="box-content">
+      <div class="exercise-group">
+        <h4>Basic</h4>
+        <div class="exercise-item">
+          <strong>1.</strong> A telematics device records 5 hard brakes and 2 harsh accelerations over 250 miles. Using the model in Example 41.1 (\(\beta_1=0.15\), \(\beta_2=0.08\)), calculate the risk multiplier.
+        </div>
+        <div class="exercise-item">
+          <strong>2.</strong> In a dataset of 10,000 claims documents, the word "whiplash" appears in 500 documents. In a specific document of 100 words, it appears 3 times. Calculate the TF-IDF score for "whiplash" in this document.
+        </div>
+        <div class="exercise-item">
+          <strong>3.</strong> Define Basis Risk in the context of parametric insurance and provide a real-world example.
+        </div>
+        <div class="exercise-item">
+          <strong>4.</strong> A customer's retention probabilities at the end of years 1, 2, and 3 are 0.90, 0.80, and 0.70 respectively. The annual margin is $200 and the discount rate is 4%. Calculate the 3-year CLV.
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h4>Intermediate</h4>
+        <div class="exercise-item">
+          <strong>5.</strong> A spatial autoregressive model has \(\rho = 0.3\). The spatial weight matrix \(\mathbf{W}\) is row-normalized. If the baseline expected loss for property A is 100, and its neighbors (B, C) have expected losses of 150 and 200, calculate the spatially adjusted expected loss for A (ignoring other covariates).
+        </div>
+        <div class="exercise-item">
+          <strong>6.</strong> Construct a bipartite graph representing 4 claims and 3 body shops. Claim 1 uses Shop A; Claim 2 uses Shop A and B; Claim 3 uses Shop B; Claim 4 uses Shop C. Draw the one-mode projection for the body shops. What is the degree of Shop B?
+        </div>
+        <div class="exercise-item">
+          <strong>7.</strong> A parametric windstorm product pays $5,000 for every mph of windspeed above 100 mph, capped at $100,000. Windspeed \( W \) follows a uniform distribution \( U(80, 130) \). Calculate the pure premium.
+        </div>
+        <div class="exercise-item">
+          <strong>8.</strong> Discuss how algorithmic fairness is assessed using the metric of 'Disparate Impact'. If a telematics pricing model charges younger drivers 50% more based solely on their driving behavior data, is this disparate impact? Justify.
+        </div>
+      </div>
+
+      <div class="exercise-group">
+        <h4>Advanced</h4>
+        <div class="exercise-item">
+          <strong>9.</strong> Derive the mathematical expectation for the payout of a parametric temperature index insurance product where payout \( P(T) = k(T - T_0) \) for \( T > T_0 \) and 0 otherwise. Assume \( T \) follows a Normal distribution \( N(\mu, \sigma^2) \). Express the result using the PDF \(\phi\) and CDF \(\Phi\) of the standard normal distribution.
+        </div>
+        <div class="exercise-item">
+          <strong>10.</strong> In survival modeling for CLV, assume the hazard rate \(\lambda(t)\) is constant (exponential distribution). If the median lifetime of a policy is 4 years, determine \(\lambda\). Then, derive a closed-form continuous time expression for CLV over an infinite horizon, given a continuous cash flow rate \( C \) and continuous discount rate \( \delta \).
+        </div>
+        <div class="exercise-item">
+          <strong>11.</strong> Implement a Python function that takes a list of claims text descriptions and calculates the TF-IDF matrix using basic dictionary operations without relying on sklearn.
+        </div>
+        <div class="exercise-item">
+          <strong>12.</strong> A digital twin model predicts machine failure using a logistic function \( p = 1 / (1 + \exp(-(\alpha + \beta_1 T + \beta_2 V))) \) where \( T \) is temperature and \( V \) is vibration. Given the loss upon failure is \( L \), set up the objective function for an insurer to determine the optimal premium to charge dynamically, factoring in a risk loading \(\eta\).
+        </div>
+      </div>
+
+      <div class="solutions">
+        <h4>Selected Solutions</h4>
+        <div class="solution-item">
+          <strong>Solution to 1:</strong><br>
+          Miles = 250. Hard brakes per 100 miles \( x_1 = 5 / 2.5 = 2.0 \). Rapid accels per 100 miles \( x_2 = 2 / 2.5 = 0.8 \).<br>
+          \( M = \exp(0.15 \times 2.0 + 0.08 \times 0.8) = \exp(0.30 + 0.064) = \exp(0.364) \approx 1.439 \).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 2:</strong><br>
+          \( \text{TF} = 3 / 100 = 0.03 \).<br>
+          \( \text{IDF} = \log(10000 / 500) = \log(20) \approx 2.9957 \).<br>
+          \( \text{TF-IDF} = 0.03 \times 2.9957 = 0.08987 \).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 4:</strong><br>
+          \( \text{CLV} = \frac{200(0.90)}{1.04} + \frac{200(0.80)}{1.04^2} + \frac{200(0.70)}{1.04^3} \)<br>
+          \( \text{CLV} = 173.08 + 147.93 + 124.46 = \$445.47 \).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 7:</strong><br>
+          Payout \( L(W) = \min(100000, \max(0, 5000(W - 100))) \).<br>
+          Max payout is reached when \( 5000(W - 100) \ge 100000 \implies W - 100 \ge 20 \implies W \ge 120 \).<br>
+          \( W \sim U(80, 130) \), so \( f(w) = 1/50 \).<br>
+          \( \pi = \int_{100}^{120} 5000(w - 100) \frac{1}{50} dw + \int_{120}^{130} 100000 \frac{1}{50} dw \)<br>
+          \( \pi = 100 \left[ \frac{(w-100)^2}{2} \right]_{100}^{120} + 2000(130 - 120) \)<br>
+          \( \pi = 100 (400 / 2) + 20000 = 20000 + 20000 = \$40,000 \).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 9:</strong><br>
+          Let \( Z = (T - \mu)/\sigma \). The integral is \( \int_{T_0}^{\infty} k(t - T_0) \frac{1}{\sigma} \phi(\frac{t-\mu}{\sigma}) dt \).<br>
+          Using standard truncation formulas:<br>
+          \( \E[P(T)] = k [ (\mu - T_0)(1 - \Phi(z_0)) + \sigma \phi(z_0) ] \), where \( z_0 = \frac{T_0 - \mu}{\sigma} \).
+        </div>
+        <div class="solution-item">
+          <strong>Solution to 10:</strong><br>
+          \( S(t) = e^{-\lambda t} \). Median \( = 4 \implies e^{-4\lambda} = 0.5 \implies \lambda = \ln(2)/4 \approx 0.1733 \).<br>
+          Continuous CLV = \( \int_{0}^{\infty} C e^{-\lambda t} e^{-\delta t} dt = C \int_{0}^{\infty} e^{-(\lambda + \delta)t} dt = \frac{C}{\lambda + \delta} \).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="further-reading">
+    <div class="box-title">12. Further Reading</div>
+    <div class="box-content">
+      <ul>
+        <li>Frees, E. W., Derrig, R. A., & Meyers, G. (2014). <em>Predictive Modeling Applications in Actuarial Science: Volume 1, Predictive Modeling Techniques</em>. Cambridge University Press.</li>
+        <li>Wuthrich, M. V., & Buser, M. (2021). <em>Data Analytics for Non-Life Insurance Pricing</em>. Swiss Association of Actuaries.</li>
+        <li>Boucher, J. P., & Turcotte, R. (2020). A longitudinal analysis of the impact of driving behavior on auto insurance claims. <em>ASTIN Bulletin: The Journal of the IAA</em>, 50(2), 365-391.</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav style="margin-top:3em; padding-top:1em; border-top:2px solid var(--border);">
+    <a href="ch40_capital_solvency.html">← Previous Chapter</a> |
+    <a href="../index.html">Table of Contents</a> |
+    <a href="ch42_capstone.html">Next Chapter →</a>
+  </nav>
+
+</body>
+</html>
